@@ -60,22 +60,29 @@ export default function IDE() {
   }, [autoSave]);
 
   useEffect(() => {
-    if (!autoSave) return;
     const dirtyTabs = tabs.filter(t => t.isDirty && t.type !== 'preview' && t.type !== 'image');
     if (dirtyTabs.length === 0) return;
 
-    const timer = setTimeout(() => {
-      dirtyTabs.forEach(async (tab) => {
+    const timer = setTimeout(async () => {
+      let savedAny = false;
+      for (const tab of dirtyTabs) {
         try {
           await window.electronAPI.fs.writeFile(tab.path, tab.content);
-          setTabs((prev) => prev.map((t) =>
-            t.path === tab.path ? { ...t, isDirty: false } : t
-          ));
+          if (autoSave) {
+            setTabs((prev) => prev.map((t) =>
+              t.path === tab.path ? { ...t, isDirty: false } : t
+            ));
+          }
+          savedAny = true;
         } catch (err) {
-          console.error('Failed to auto-save file:', err);
+          console.error('Failed to auto-save file for live preview:', err);
         }
-      });
-    }, 1000);
+      }
+      if (savedAny) {
+        // Dispatch file-saved to trigger hot reload in preview panels once
+        window.dispatchEvent(new CustomEvent('file-saved'));
+      }
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [tabs, autoSave]);
@@ -147,6 +154,7 @@ export default function IDE() {
       setTabs((prev) => prev.map((t) =>
         t.path === activeTab.path ? { ...t, isDirty: false } : t
       ));
+      window.dispatchEvent(new CustomEvent('file-saved'));
     } catch (err) {
       console.error('Failed to save file:', err);
     }

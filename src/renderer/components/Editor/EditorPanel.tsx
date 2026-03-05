@@ -148,42 +148,47 @@ export default function EditorPanel({
       </div>
 
       {/* Editor, Preview, or Image */}
-      {activeTab && activeTab.type === 'preview' ? (
-        <div className="editor-wrapper">
-          <PreviewPanel workspaceRoot={workspaceRoot} isFullTab />
-        </div>
-      ) : activeTab && activeTab.type === 'image' ? (
-        <div className="editor-wrapper image-preview-wrapper">
-          <img
-            src={activeTab.content}
-            alt={activeTab.name}
-            className="image-preview"
-            onError={(e) => {
-              const target = e.currentTarget;
-              target.style.display = 'none';
-              const fallback = document.createElement('div');
-              fallback.className = 'image-error';
-              fallback.textContent = 'Failed to load image';
-              target.parentElement?.appendChild(fallback);
-            }}
-          />
-        </div>
-      ) : activeTab && (
-        <div className="editor-wrapper">
-          <MonacoEditor
-            height="100%"
-            language={activeTab.language}
-            value={activeTab.content}
-            theme={theme === 'light' ? 'vs-light' : 'vs-dark'}
-            options={EDITOR_OPTIONS}
-            onMount={handleEditorMount}
-            onChange={(value) => {
-              if (value !== undefined) onContentChange(activeTab.path, value);
-            }}
-            path={activeTab.path}
-          />
-        </div>
-      )}
+      {tabs.map((tab) => {
+        const isActive = activeTab?.path === tab.path;
+        return (
+          <div
+            key={tab.path}
+            className={`editor-wrapper ${tab.type === 'image' ? 'image-preview-wrapper' : ''}`}
+            style={{ display: isActive ? 'block' : 'none', height: '100%', width: '100%' }}
+          >
+            {tab.type === 'preview' ? (
+              <PreviewPanel workspaceRoot={workspaceRoot} isFullTab />
+            ) : tab.type === 'image' ? (
+              <img
+                src={tab.content}
+                alt={tab.name}
+                className="image-preview"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  target.style.display = 'none';
+                  const fallback = document.createElement('div');
+                  fallback.className = 'image-error';
+                  fallback.textContent = 'Failed to load image';
+                  target.parentElement?.appendChild(fallback);
+                }}
+              />
+            ) : (
+              <MonacoEditor
+                height="100%"
+                language={tab.language}
+                value={tab.content}
+                theme={theme === 'light' ? 'vs-light' : 'vs-dark'}
+                options={EDITOR_OPTIONS}
+                onMount={isActive ? handleEditorMount : undefined}
+                onChange={(value) => {
+                  if (value !== undefined) onContentChange(tab.path, value);
+                }}
+                path={tab.path}
+              />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

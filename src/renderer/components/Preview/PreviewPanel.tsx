@@ -64,6 +64,11 @@ export default function PreviewPanel({ workspaceRoot, onOpenInTab, isFullTab, on
     const wv = webviewRef.current;
     if (!wv) return;
 
+    // Set initial src programmatically to avoid React VDOM re-applying it and causing reloads on every render
+    if (serverUrl) {
+      (wv as any).src = serverUrl;
+    }
+
     const onStartLoading = () => setIsLoading(true);
     const onStopLoading = () => {
       setIsLoading(false);
@@ -108,6 +113,16 @@ export default function PreviewPanel({ workspaceRoot, onOpenInTab, isFullTab, on
   useEffect(() => {
     consoleEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [consoleLogs]);
+
+  useEffect(() => {
+    const handleFileSaved = () => {
+      (webviewRef.current as any)?.reload();
+    };
+    window.addEventListener('file-saved', handleFileSaved as EventListener);
+    return () => {
+      window.removeEventListener('file-saved', handleFileSaved as EventListener);
+    };
+  }, []);
 
   const refresh = useCallback(() => {
     (webviewRef.current as any)?.reload();
@@ -285,7 +300,6 @@ export default function PreviewPanel({ workspaceRoot, onOpenInTab, isFullTab, on
           <Panel id="webview-panel" minSize={10} style={{ display: 'flex', flexDirection: 'column' }}>
             <webview
               ref={webviewRef}
-              src={serverUrl}
               className="preview-webview"
               webpreferences="allowRunningInsecureContent=no"
             />
