@@ -148,27 +148,38 @@ export default function PreviewPanel({ workspaceRoot, onOpenInTab, isFullTab, on
 
   const handleUrlSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!webviewRef.current || !serverUrl) return;
+    if (!webviewRef.current) return;
 
     let targetUrl = inputUrl.trim();
+
+    // Prepend http:// when user types localhost or 127.0.0.1 directly
+    if (/^(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(targetUrl)) {
+      targetUrl = 'http://' + targetUrl;
+    }
+
     if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-      if (targetUrl.startsWith('/')) {
-        targetUrl = serverUrl + targetUrl;
+      if (serverUrl) {
+        targetUrl = targetUrl.startsWith('/')
+          ? serverUrl + targetUrl
+          : serverUrl + '/' + targetUrl;
       } else {
-        targetUrl = serverUrl + '/' + targetUrl;
+        return;
       }
     }
 
     try {
       const urlObj = new URL(targetUrl);
       if (urlObj.hostname !== 'localhost' && urlObj.hostname !== '127.0.0.1') {
-        targetUrl = serverUrl;
+        if (serverUrl) targetUrl = serverUrl;
+        else return;
       }
     } catch {
-      targetUrl = serverUrl;
+      if (serverUrl) targetUrl = serverUrl;
+      else return;
     }
 
     setInputUrl(targetUrl);
+    setCurrentUrl(targetUrl);
     (webviewRef.current as any).loadURL(targetUrl);
   }, [inputUrl, serverUrl]);
 
