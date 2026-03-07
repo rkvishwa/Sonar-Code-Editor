@@ -72,9 +72,9 @@ const getEditorOptions = (wordWrap: boolean) => ({
   autoClosingQuotes: "always" as const,
   autoSurround: "languageDefined" as const,
   autoClosingOvertype: "always" as const,
-  wordWrap: wordWrap ? "on" as const : "off" as const,
+  wordWrap: wordWrap ? ("on" as const) : ("off" as const),
   scrollbar: {
-    horizontal: wordWrap ? "hidden" as const : "auto" as const,
+    horizontal: wordWrap ? ("hidden" as const) : ("auto" as const),
     horizontalScrollbarSize: wordWrap ? 0 : 10,
   },
 });
