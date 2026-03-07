@@ -1,10 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { Search, ArrowLeft, X, Download, RefreshCw, UserPlus, LogOut, Users, Lock, Eye, EyeOff } from 'lucide-react';
-import { getActivityLog, generateActivityLogPDF, clearActivityLog, ActivityEvent } from '../../services/activityLogger';
-import { addTeamMember, getTeamById, changeTeamPassword } from '../../services/appwrite';
-import { cacheCredentials } from '../../services/localStore';
-import { Team } from '../../../shared/types';
-import './SettingsModal.css';
+import React, { useState, useEffect } from "react";
+import {
+  Search,
+  ArrowLeft,
+  X,
+  Download,
+  RefreshCw,
+  UserPlus,
+  LogOut,
+  Users,
+  Lock,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import {
+  getActivityLog,
+  generateActivityLogPDF,
+  clearActivityLog,
+  ActivityEvent,
+} from "../../services/activityLogger";
+import {
+  addTeamMember,
+  getTeamById,
+  changeTeamPassword,
+} from "../../services/appwrite";
+import { cacheCredentials } from "../../services/localStore";
+import { Team } from "../../../shared/types";
+import "./SettingsModal.css";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -45,18 +66,18 @@ export default function SettingsModal({
   user,
   onLogout,
 }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState('Text Editor');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState("Text Editor");
+  const [searchQuery, setSearchQuery] = useState("");
   const [activityLog, setActivityLog] = useState<ActivityEvent[]>([]);
   const [members, setMembers] = useState<string[]>(user?.studentIds || []);
-  const [newMember, setNewMember] = useState('');
-  const [addMemberError, setAddMemberError] = useState('');
+  const [newMember, setNewMember] = useState("");
+  const [addMemberError, setAddMemberError] = useState("");
   const [addingMember, setAddingMember] = useState(false);
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -65,74 +86,106 @@ export default function SettingsModal({
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === "Escape" && isOpen) {
         onClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
   // Refresh activity log when opening the modal or switching to the Activity Log tab
   useEffect(() => {
-    if (isOpen && (activeTab === 'Activity Log' || searchQuery.trim().length > 0)) {
+    if (
+      isOpen &&
+      (activeTab === "Activity Log" || searchQuery.trim().length > 0)
+    ) {
       setActivityLog(getActivityLog());
     }
   }, [isOpen, activeTab, searchQuery]);
 
   // Refresh members when opening Account tab
   useEffect(() => {
-    if (isOpen && activeTab === 'Account' && user?.$id) {
-      getTeamById(user.$id).then((team) => {
-        if (team?.studentIds) setMembers(team.studentIds);
-      }).catch(() => {});
+    if (isOpen && activeTab === "Account" && user?.$id) {
+      getTeamById(user.$id)
+        .then((team) => {
+          if (team?.studentIds) setMembers(team.studentIds);
+        })
+        .catch(() => {});
     }
   }, [isOpen, activeTab, user]);
 
   if (!isOpen) return null;
 
-  const matchesSearch = (text: string) => 
-    searchQuery === '' || text.toLowerCase().includes(searchQuery.toLowerCase());
+  const matchesSearch = (text: string) =>
+    searchQuery === "" ||
+    text.toLowerCase().includes(searchQuery.toLowerCase());
 
   const isSearching = searchQuery.trim().length > 0;
 
-  const showTextEditor = !isSearching 
-    ? activeTab === 'Text Editor' 
-    : (matchesSearch('Text Editor') || matchesSearch('Auto Save') || matchesSearch('Hot Reload') || matchesSearch('Word Wrap') || matchesSearch('Controls auto save') || matchesSearch('Instantly refresh') || matchesSearch('wrap long lines'));
+  const showTextEditor = !isSearching
+    ? activeTab === "Text Editor"
+    : matchesSearch("Text Editor") ||
+      matchesSearch("Auto Save") ||
+      matchesSearch("Hot Reload") ||
+      matchesSearch("Word Wrap") ||
+      matchesSearch("Controls auto save") ||
+      matchesSearch("Instantly refresh") ||
+      matchesSearch("wrap long lines");
 
-  const showAppearance = !isSearching 
-    ? activeTab === 'Appearance' 
-    : (matchesSearch('Appearance') || matchesSearch('Color Theme') || matchesSearch('interface theme'));
+  const showAppearance = !isSearching
+    ? activeTab === "Appearance"
+    : matchesSearch("Appearance") ||
+      matchesSearch("Color Theme") ||
+      matchesSearch("interface theme");
 
   const showCollaboration = !isSearching
-    ? activeTab === 'Collaboration'
-    : (matchesSearch('Collaboration') || matchesSearch('Show Usernames') || matchesSearch('cursor') || matchesSearch('Username Opacity') || matchesSearch('collaborator'));
+    ? activeTab === "Collaboration"
+    : matchesSearch("Collaboration") ||
+      matchesSearch("Show Usernames") ||
+      matchesSearch("cursor") ||
+      matchesSearch("Username Opacity") ||
+      matchesSearch("collaborator");
 
   const showAccount = !isSearching
-    ? activeTab === 'Account'
-    : (matchesSearch('Account') || matchesSearch('Team') || matchesSearch('Members') || matchesSearch('Sign Out'));
+    ? activeTab === "Account"
+    : matchesSearch("Account") ||
+      matchesSearch("Team") ||
+      matchesSearch("Members") ||
+      matchesSearch("Sign Out");
 
   const showSecurity = !isSearching
-    ? activeTab === 'Security'
-    : (matchesSearch('Security') || matchesSearch('Password') || matchesSearch('Change Password'));
+    ? activeTab === "Security"
+    : matchesSearch("Security") ||
+      matchesSearch("Password") ||
+      matchesSearch("Change Password");
 
   const handleChangePassword = async () => {
-    setPasswordError('');
-    setPasswordSuccess('');
-    if (!oldPassword.trim()) { setPasswordError('Enter your current password'); return; }
-    if (newPassword.length < 4) { setPasswordError('New password must be at least 4 characters'); return; }
-    if (newPassword !== confirmPassword) { setPasswordError('Passwords do not match'); return; }
+    setPasswordError("");
+    setPasswordSuccess("");
+    if (!oldPassword.trim()) {
+      setPasswordError("Enter your current password");
+      return;
+    }
+    if (newPassword.length < 4) {
+      setPasswordError("New password must be at least 4 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
     if (!user?.$id) return;
     setChangingPassword(true);
     const result = await changeTeamPassword(user.$id, oldPassword, newPassword);
     if (result.success) {
       cacheCredentials(user.teamName, newPassword, user.$id, user.role);
-      setPasswordSuccess('Password changed successfully');
-      setOldPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      setPasswordSuccess("Password changed successfully");
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } else {
-      setPasswordError(result.error || 'Failed to change password');
+      setPasswordError(result.error || "Failed to change password");
     }
     setChangingPassword(false);
   };
@@ -142,57 +195,72 @@ export default function SettingsModal({
     if (!trimmed) return;
     if (!user?.$id) return;
     setAddingMember(true);
-    setAddMemberError('');
+    setAddMemberError("");
     const result = await addTeamMember(user.$id, trimmed);
     if (result.success) {
       setMembers((prev) => [...prev, trimmed]);
-      setNewMember('');
+      setNewMember("");
     } else {
-      setAddMemberError(result.error || 'Failed to add member');
+      setAddMemberError(result.error || "Failed to add member");
     }
     setAddingMember(false);
   };
 
   const shortcuts = [
-    { action: 'Save File', keys: ['Ctrl', 'S'] },
-    { action: 'Close Tab', keys: ['Ctrl', 'W'] },
-    { action: 'New File', keys: ['Ctrl', 'N'] },
-    { action: 'Toggle Explorer', keys: ['Ctrl', 'B'] },
-    { action: 'Toggle Preview Panel', keys: ['Ctrl', 'Shift', 'V'] },
-    { action: 'Toggle Preview Tab', keys: ['Ctrl', 'Shift', 'B'] },
+    { action: "Save File", keys: ["Ctrl", "S"] },
+    { action: "Close Tab", keys: ["Ctrl", "W"] },
+    { action: "New File", keys: ["Ctrl", "N"] },
+    { action: "Toggle Explorer", keys: ["Ctrl", "B"] },
+    { action: "Toggle Preview Panel", keys: ["Ctrl", "Shift", "V"] },
+    { action: "Toggle Preview Tab", keys: ["Ctrl", "Shift", "B"] },
   ];
 
-  const filteredShortcuts = shortcuts.filter(s => 
-    matchesSearch(s.action) || s.keys.some(k => matchesSearch(k)) || matchesSearch('Keyboard Shortcuts')
+  const filteredShortcuts = shortcuts.filter(
+    (s) =>
+      matchesSearch(s.action) ||
+      s.keys.some((k) => matchesSearch(k)) ||
+      matchesSearch("Keyboard Shortcuts"),
   );
 
-  const showKeyboardShortcuts = !isSearching 
-    ? activeTab === 'Keyboard Shortcuts' 
+  const showKeyboardShortcuts = !isSearching
+    ? activeTab === "Keyboard Shortcuts"
     : filteredShortcuts.length > 0;
 
-  const showActivityLog = !isSearching 
-    ? activeTab === 'Activity Log' 
-    : (matchesSearch('Activity Log') || matchesSearch('Download') || matchesSearch('clipboard') || matchesSearch('online') || matchesSearch('offline'));
+  const showActivityLog = !isSearching
+    ? activeTab === "Activity Log"
+    : matchesSearch("Activity Log") ||
+      matchesSearch("Download") ||
+      matchesSearch("clipboard") ||
+      matchesSearch("online") ||
+      matchesSearch("offline");
 
-  const formatEventType = (type: ActivityEvent['type'], details?: string): string => {
+  const formatEventType = (
+    type: ActivityEvent["type"],
+    details?: string,
+  ): string => {
     switch (type) {
-      case 'status_online': return 'Went Online';
-      case 'status_offline': return 'Went Offline';
-      case 'app_focus': return 'Returned to IDE';
-      case 'app_blur': {
+      case "status_online":
+        return "Went Online";
+      case "status_offline":
+        return "Went Offline";
+      case "app_focus":
+        return "Returned to IDE";
+      case "app_blur": {
         if (details) {
           const match = details.match(/^(?:Switched to|Active app):\s*(.+)$/i);
           if (match) {
             const raw = match[1].trim();
-            const parts = raw.split(' - ');
+            const parts = raw.split(" - ");
             const appName = parts[parts.length - 1].trim() || raw;
             return `Switched To ${appName}`;
           }
         }
-        return 'Switched Away';
+        return "Switched Away";
       }
-      case 'clipboard_copy': return 'Clipboard Copy';
-      case 'clipboard_paste_external': return 'External Copy';
+      case "clipboard_copy":
+        return "Clipboard Copy";
+      case "clipboard_paste_external":
+        return "External Copy";
     }
   };
 
@@ -209,18 +277,18 @@ export default function SettingsModal({
     setActivityLog([]);
   };
 
-  const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  const isDev = process.env.NODE_ENV === "development" || !process.env.NODE_ENV;
 
-  const isWindows = navigator.userAgent.toLowerCase().includes('win');
+  const isWindows = navigator.userAgent.toLowerCase().includes("win");
 
   return (
     <div className="vscode-settings-overlay">
-      <div 
+      <div
         className="vscode-settings-header-tabs"
-        style={{ paddingLeft: isWindows ? '0px' : '75px' }}
+        style={{ paddingLeft: isWindows ? "0px" : "75px" }}
       >
         <button className="vscode-settings-back" onClick={onClose} title="Back">
-          <ArrowLeft size={16}/>
+          <ArrowLeft size={16} />
         </button>
         <div className="vscode-settings-tab active">Settings</div>
       </div>
@@ -228,9 +296,9 @@ export default function SettingsModal({
       <div className="vscode-settings-searchbar-container">
         <div className="vscode-search-input-wrapper">
           <Search size={16} className="vscode-search-icon" />
-          <input 
-            type="text" 
-            placeholder="Search settings" 
+          <input
+            type="text"
+            placeholder="Search settings"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="vscode-search-input"
@@ -240,32 +308,113 @@ export default function SettingsModal({
 
       <div className="vscode-settings-body">
         <div className="vscode-settings-sidebar">
-           <ul className="vscode-settings-tree">
-             <li className={(isSearching ? showTextEditor : activeTab === 'Text Editor') ? 'active' : ''} onClick={() => setActiveTab('Text Editor')}>Text Editor</li>
-             <li className={(isSearching ? showAppearance : activeTab === 'Appearance') ? 'active' : ''} onClick={() => setActiveTab('Appearance')}>Appearance</li>
-             <li className={(isSearching ? showKeyboardShortcuts : activeTab === 'Keyboard Shortcuts') ? 'active' : ''} onClick={() => setActiveTab('Keyboard Shortcuts')}>Keyboard Shortcuts</li>
-             <li className={(isSearching ? showCollaboration : activeTab === 'Collaboration') ? 'active' : ''} onClick={() => setActiveTab('Collaboration')}>Collaboration</li>
-             <li className={(isSearching ? showActivityLog : activeTab === 'Activity Log') ? 'active' : ''} onClick={() => setActiveTab('Activity Log')}>Activity Log</li>
-             <li className={(isSearching ? showSecurity : activeTab === 'Security') ? 'active' : ''} onClick={() => setActiveTab('Security')}>Security</li>
-             <li className={(isSearching ? showAccount : activeTab === 'Account') ? 'active' : ''} onClick={() => setActiveTab('Account')}>Account</li>
-           </ul>
+          <ul className="vscode-settings-tree">
+            <li
+              className={
+                (isSearching ? showTextEditor : activeTab === "Text Editor")
+                  ? "active"
+                  : ""
+              }
+              onClick={() => setActiveTab("Text Editor")}
+            >
+              Text Editor
+            </li>
+            <li
+              className={
+                (isSearching ? showAppearance : activeTab === "Appearance")
+                  ? "active"
+                  : ""
+              }
+              onClick={() => setActiveTab("Appearance")}
+            >
+              Appearance
+            </li>
+            <li
+              className={
+                (
+                  isSearching
+                    ? showKeyboardShortcuts
+                    : activeTab === "Keyboard Shortcuts"
+                )
+                  ? "active"
+                  : ""
+              }
+              onClick={() => setActiveTab("Keyboard Shortcuts")}
+            >
+              Keyboard Shortcuts
+            </li>
+            <li
+              className={
+                (
+                  isSearching
+                    ? showCollaboration
+                    : activeTab === "Collaboration"
+                )
+                  ? "active"
+                  : ""
+              }
+              onClick={() => setActiveTab("Collaboration")}
+            >
+              Collaboration
+            </li>
+            <li
+              className={
+                (isSearching ? showActivityLog : activeTab === "Activity Log")
+                  ? "active"
+                  : ""
+              }
+              onClick={() => setActiveTab("Activity Log")}
+            >
+              Activity Log
+            </li>
+            <li
+              className={
+                (isSearching ? showSecurity : activeTab === "Security")
+                  ? "active"
+                  : ""
+              }
+              onClick={() => setActiveTab("Security")}
+            >
+              Security
+            </li>
+            <li
+              className={
+                (isSearching ? showAccount : activeTab === "Account")
+                  ? "active"
+                  : ""
+              }
+              onClick={() => setActiveTab("Account")}
+            >
+              Account
+            </li>
+          </ul>
         </div>
         <div className="vscode-settings-content">
           {showTextEditor && (
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Text Editor</h2>
-              
-              {(isSearching ? (matchesSearch('Auto Save') || matchesSearch('Controls auto save') || matchesSearch('Text Editor')) : true) && (
+
+              {(isSearching
+                ? matchesSearch("Auto Save") ||
+                  matchesSearch("Controls auto save") ||
+                  matchesSearch("Text Editor")
+                : true) && (
                 <div className="vscode-setting-item">
                   <div className="vscode-setting-header">
-                    <span className="vscode-setting-title">Editor: <span className="highlight">Auto Save</span></span>
-                    <div className="vscode-setting-description">Controls auto save of dirty editors.</div>
+                    <span className="vscode-setting-title">
+                      Editor: <span className="highlight">Auto Save</span>
+                    </span>
+                    <div className="vscode-setting-description">
+                      Controls auto save of dirty editors.
+                    </div>
                   </div>
                   <div className="vscode-setting-control">
-                    <select 
-                      className="vscode-select" 
-                      value={autoSave ? 'on' : 'off'} 
-                      onChange={(e) => onAutoSaveChange(e.target.value === 'on')}
+                    <select
+                      className="vscode-select"
+                      value={autoSave ? "on" : "off"}
+                      onChange={(e) =>
+                        onAutoSaveChange(e.target.value === "on")
+                      }
                     >
                       <option value="off">off</option>
                       <option value="on">afterDelay (on)</option>
@@ -274,38 +423,54 @@ export default function SettingsModal({
                 </div>
               )}
 
-              {(isSearching ? (matchesSearch('Hot Reload') || matchesSearch('Instantly refresh') || matchesSearch('Text Editor')) : true) && (
+              {(isSearching
+                ? matchesSearch("Hot Reload") ||
+                  matchesSearch("Instantly refresh") ||
+                  matchesSearch("Text Editor")
+                : true) && (
                 <div className="vscode-setting-item">
                   <div className="vscode-setting-header">
-                    <span className="vscode-setting-title">Preview: <span className="highlight">Hot Reload</span></span>
-                    <div className="vscode-setting-description">Instantly refresh the preview panel when files are saved.</div>
+                    <span className="vscode-setting-title">
+                      Preview: <span className="highlight">Hot Reload</span>
+                    </span>
+                    <div className="vscode-setting-description">
+                      Instantly refresh the preview panel when files are saved.
+                    </div>
                   </div>
                   <div className="vscode-setting-control">
                     <label className="vscode-checkbox-label">
-                      <input 
-                        type="checkbox" 
-                        className="vscode-checkbox" 
-                        checked={hotReload} 
-                        onChange={(e) => onHotReloadChange(e.target.checked)} 
+                      <input
+                        type="checkbox"
+                        className="vscode-checkbox"
+                        checked={hotReload}
+                        onChange={(e) => onHotReloadChange(e.target.checked)}
                       />
                     </label>
                   </div>
                 </div>
               )}
 
-              {(isSearching ? (matchesSearch('Word Wrap') || matchesSearch('wrap long lines') || matchesSearch('Text Editor')) : true) && (
+              {(isSearching
+                ? matchesSearch("Word Wrap") ||
+                  matchesSearch("wrap long lines") ||
+                  matchesSearch("Text Editor")
+                : true) && (
                 <div className="vscode-setting-item">
                   <div className="vscode-setting-header">
-                    <span className="vscode-setting-title">Editor: <span className="highlight">Word Wrap</span></span>
-                    <div className="vscode-setting-description">Wrap long lines in the editor to fit within the viewport.</div>
+                    <span className="vscode-setting-title">
+                      Editor: <span className="highlight">Word Wrap</span>
+                    </span>
+                    <div className="vscode-setting-description">
+                      Wrap long lines in the editor to fit within the viewport.
+                    </div>
                   </div>
                   <div className="vscode-setting-control">
                     <label className="vscode-checkbox-label">
-                      <input 
-                        type="checkbox" 
-                        className="vscode-checkbox" 
-                        checked={wordWrap} 
-                        onChange={(e) => onWordWrapChange(e.target.checked)} 
+                      <input
+                        type="checkbox"
+                        className="vscode-checkbox"
+                        checked={wordWrap}
+                        onChange={(e) => onWordWrapChange(e.target.checked)}
                       />
                     </label>
                   </div>
@@ -317,17 +482,25 @@ export default function SettingsModal({
           {showAppearance && (
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Appearance</h2>
-              
-              {(isSearching ? (matchesSearch('Color Theme') || matchesSearch('interface theme') || matchesSearch('Appearance')) : true) && (
+
+              {(isSearching
+                ? matchesSearch("Color Theme") ||
+                  matchesSearch("interface theme") ||
+                  matchesSearch("Appearance")
+                : true) && (
                 <div className="vscode-setting-item">
                   <div className="vscode-setting-header">
-                    <span className="vscode-setting-title">Workbench: <span className="highlight">Color Theme</span></span>
-                    <div className="vscode-setting-description">Select your interface theme or let it match your system.</div>
+                    <span className="vscode-setting-title">
+                      Workbench: <span className="highlight">Color Theme</span>
+                    </span>
+                    <div className="vscode-setting-description">
+                      Select your interface theme or let it match your system.
+                    </div>
                   </div>
                   <div className="vscode-setting-control">
-                     <select 
-                      className="vscode-select" 
-                      value={theme} 
+                    <select
+                      className="vscode-select"
+                      value={theme}
                       onChange={(e) => onThemeChange(e.target.value)}
                     >
                       <option value="system">System Default</option>
@@ -342,7 +515,9 @@ export default function SettingsModal({
 
           {showKeyboardShortcuts && (
             <div className="vscode-settings-section">
-              <h2 className="vscode-settings-section-title">Keyboard Shortcuts</h2>
+              <h2 className="vscode-settings-section-title">
+                Keyboard Shortcuts
+              </h2>
               <div className="shortcuts-table">
                 <div className="shortcuts-header">
                   <span>Action</span>
@@ -369,11 +544,22 @@ export default function SettingsModal({
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Collaboration</h2>
 
-              {(isSearching ? (matchesSearch('Show Usernames') || matchesSearch('cursor') || matchesSearch('collaborator') || matchesSearch('Collaboration')) : true) && (
+              {(isSearching
+                ? matchesSearch("Show Usernames") ||
+                  matchesSearch("cursor") ||
+                  matchesSearch("collaborator") ||
+                  matchesSearch("Collaboration")
+                : true) && (
                 <div className="vscode-setting-item">
                   <div className="vscode-setting-header">
-                    <span className="vscode-setting-title">Collaboration: <span className="highlight">Show Usernames</span></span>
-                    <div className="vscode-setting-description">Display collaborator usernames near their cursor in the editor.</div>
+                    <span className="vscode-setting-title">
+                      Collaboration:{" "}
+                      <span className="highlight">Show Usernames</span>
+                    </span>
+                    <div className="vscode-setting-description">
+                      Display collaborator usernames near their cursor in the
+                      editor.
+                    </div>
                   </div>
                   <div className="vscode-setting-control">
                     <label className="vscode-checkbox-label">
@@ -381,18 +567,30 @@ export default function SettingsModal({
                         type="checkbox"
                         className="vscode-checkbox"
                         checked={showCollabUsernames}
-                        onChange={(e) => onShowCollabUsernamesChange(e.target.checked)}
+                        onChange={(e) =>
+                          onShowCollabUsernamesChange(e.target.checked)
+                        }
                       />
                     </label>
                   </div>
                 </div>
               )}
 
-              {(isSearching ? (matchesSearch('Username Opacity') || matchesSearch('opacity') || matchesSearch('Collaboration')) : true) && (
+              {(isSearching
+                ? matchesSearch("Username Opacity") ||
+                  matchesSearch("opacity") ||
+                  matchesSearch("Collaboration")
+                : true) && (
                 <div className="vscode-setting-item">
                   <div className="vscode-setting-header">
-                    <span className="vscode-setting-title">Collaboration: <span className="highlight">Username Opacity</span></span>
-                    <div className="vscode-setting-description">Control the opacity of collaborator username labels near the cursor (0 = fully transparent, 100 = fully opaque).</div>
+                    <span className="vscode-setting-title">
+                      Collaboration:{" "}
+                      <span className="highlight">Username Opacity</span>
+                    </span>
+                    <div className="vscode-setting-description">
+                      Control the opacity of collaborator username labels near
+                      the cursor (0 = fully transparent, 100 = fully opaque).
+                    </div>
                   </div>
                   <div className="vscode-setting-control">
                     <div className="vscode-range-control">
@@ -403,10 +601,14 @@ export default function SettingsModal({
                         max={100}
                         step={5}
                         value={collabUsernameOpacity}
-                        onChange={(e) => onCollabUsernameOpacityChange(Number(e.target.value))}
+                        onChange={(e) =>
+                          onCollabUsernameOpacityChange(Number(e.target.value))
+                        }
                         disabled={!showCollabUsernames}
                       />
-                      <span className="vscode-range-value">{collabUsernameOpacity}%</span>
+                      <span className="vscode-range-value">
+                        {collabUsernameOpacity}%
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -417,25 +619,41 @@ export default function SettingsModal({
           {showActivityLog && (
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Activity Log</h2>
-              <div className="vscode-setting-description" style={{ marginBottom: 16 }}>
-                Your activity is tracked in the background — online/offline status changes, app switching, and clipboard copies with timestamps.
+              <div
+                className="vscode-setting-description"
+                style={{ marginBottom: 16 }}
+              >
+                Your activity is tracked in the background — online/offline
+                status changes, app switching, and clipboard copies with
+                timestamps.
               </div>
               <div className="activity-log-actions">
-                <button className="activity-log-btn primary" onClick={handleDownloadLog}>
+                <button
+                  className="activity-log-btn primary"
+                  onClick={handleDownloadLog}
+                >
                   <Download size={14} />
                   Download Log as PDF
                 </button>
-                <button className="activity-log-btn secondary" onClick={handleRefreshLog}>
+                <button
+                  className="activity-log-btn secondary"
+                  onClick={handleRefreshLog}
+                >
                   <RefreshCw size={14} />
                   Refresh
                 </button>
                 {isDev && (
-                  <button className="activity-log-btn danger" onClick={handleClearLog}>
+                  <button
+                    className="activity-log-btn danger"
+                    onClick={handleClearLog}
+                  >
                     <X size={14} />
                     Clear Log (Dev)
                   </button>
                 )}
-                <span className="activity-log-count">{activityLog.length} events recorded</span>
+                <span className="activity-log-count">
+                  {activityLog.length} events recorded
+                </span>
               </div>
               {activityLog.length > 0 && (
                 <div className="activity-log-preview">
@@ -445,27 +663,36 @@ export default function SettingsModal({
                       <span>Event</span>
                       <span>Details</span>
                     </div>
-                    {activityLog.slice(-50).reverse().map((event, idx) => (
-                      <div className="shortcuts-row" key={idx}>
-                        <span className="activity-log-time">
-                          {new Date(event.timestamp).toLocaleTimeString()}
-                        </span>
-                        <span className={`activity-log-type activity-log-type--${event.type}`}>
-                          {formatEventType(event.type, event.details)}
-                        </span>
-                        <span className="activity-log-details" title={event.details || ''}>
-                          {event.details
-                            ? event.details.length > 60
-                              ? event.details.substring(0, 60) + '…'
-                              : event.details
-                            : '—'}
-                        </span>
-                      </div>
-                    ))}
+                    {activityLog
+                      .slice(-50)
+                      .reverse()
+                      .map((event, idx) => (
+                        <div className="shortcuts-row" key={idx}>
+                          <span className="activity-log-time">
+                            {new Date(event.timestamp).toLocaleTimeString()}
+                          </span>
+                          <span
+                            className={`activity-log-type activity-log-type--${event.type}`}
+                          >
+                            {formatEventType(event.type, event.details)}
+                          </span>
+                          <span
+                            className="activity-log-details"
+                            title={event.details || ""}
+                          >
+                            {event.details
+                              ? event.details.length > 60
+                                ? event.details.substring(0, 60) + "…"
+                                : event.details
+                              : "—"}
+                          </span>
+                        </div>
+                      ))}
                   </div>
                   {activityLog.length > 50 && (
                     <div className="activity-log-note">
-                      Showing last 50 of {activityLog.length} events. Download the PDF for the full log.
+                      Showing last 50 of {activityLog.length} events. Download
+                      the PDF for the full log.
                     </div>
                   )}
                 </div>
@@ -485,17 +712,31 @@ export default function SettingsModal({
 
                 <div className="security-form">
                   <div className="security-field">
-                    <label className="vscode-setting-title">Current Password</label>
+                    <label className="vscode-setting-title">
+                      Current Password
+                    </label>
                     <div className="security-input-wrap">
                       <input
-                        type={showOldPassword ? 'text' : 'password'}
+                        type={showOldPassword ? "text" : "password"}
                         className="vscode-search-input security-input"
                         placeholder="Enter current password"
                         value={oldPassword}
-                        onChange={(e) => { setOldPassword(e.target.value); setPasswordError(''); setPasswordSuccess(''); }}
+                        onChange={(e) => {
+                          setOldPassword(e.target.value);
+                          setPasswordError("");
+                          setPasswordSuccess("");
+                        }}
                       />
-                      <button className="security-eye-btn" onClick={() => setShowOldPassword(!showOldPassword)} type="button">
-                        {showOldPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      <button
+                        className="security-eye-btn"
+                        onClick={() => setShowOldPassword(!showOldPassword)}
+                        type="button"
+                      >
+                        {showOldPassword ? (
+                          <EyeOff size={14} />
+                        ) : (
+                          <Eye size={14} />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -504,37 +745,71 @@ export default function SettingsModal({
                     <label className="vscode-setting-title">New Password</label>
                     <div className="security-input-wrap">
                       <input
-                        type={showNewPassword ? 'text' : 'password'}
+                        type={showNewPassword ? "text" : "password"}
                         className="vscode-search-input security-input"
                         placeholder="Enter new password"
                         value={newPassword}
-                        onChange={(e) => { setNewPassword(e.target.value); setPasswordError(''); setPasswordSuccess(''); }}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          setPasswordError("");
+                          setPasswordSuccess("");
+                        }}
                       />
-                      <button className="security-eye-btn" onClick={() => setShowNewPassword(!showNewPassword)} type="button">
-                        {showNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      <button
+                        className="security-eye-btn"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        type="button"
+                      >
+                        {showNewPassword ? (
+                          <EyeOff size={14} />
+                        ) : (
+                          <Eye size={14} />
+                        )}
                       </button>
                     </div>
                   </div>
 
                   <div className="security-field">
-                    <label className="vscode-setting-title">Confirm New Password</label>
+                    <label className="vscode-setting-title">
+                      Confirm New Password
+                    </label>
                     <div className="security-input-wrap">
                       <input
-                        type={showConfirmPassword ? 'text' : 'password'}
+                        type={showConfirmPassword ? "text" : "password"}
                         className="vscode-search-input security-input"
                         placeholder="Confirm new password"
                         value={confirmPassword}
-                        onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(''); setPasswordSuccess(''); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleChangePassword(); }}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          setPasswordError("");
+                          setPasswordSuccess("");
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleChangePassword();
+                        }}
                       />
-                      <button className="security-eye-btn" onClick={() => setShowConfirmPassword(!showConfirmPassword)} type="button">
-                        {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      <button
+                        className="security-eye-btn"
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                        type="button"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff size={14} />
+                        ) : (
+                          <Eye size={14} />
+                        )}
                       </button>
                     </div>
                   </div>
 
-                  {passwordError && <div className="account-error">{passwordError}</div>}
-                  {passwordSuccess && <div className="security-success">{passwordSuccess}</div>}
+                  {passwordError && (
+                    <div className="account-error">{passwordError}</div>
+                  )}
+                  {passwordSuccess && (
+                    <div className="security-success">{passwordSuccess}</div>
+                  )}
 
                   <button
                     className="activity-log-btn primary"
@@ -542,7 +817,7 @@ export default function SettingsModal({
                     disabled={changingPassword}
                   >
                     <Lock size={14} />
-                    {changingPassword ? 'Changing...' : 'Change Password'}
+                    {changingPassword ? "Changing..." : "Change Password"}
                   </button>
                 </div>
               </div>
@@ -562,20 +837,26 @@ export default function SettingsModal({
                 <div className="account-members-section">
                   <div className="account-members-header">
                     <span className="vscode-setting-title">Team Members</span>
-                    <span className="account-members-count">{members.length} / 5</span>
+                    <span className="account-members-count">
+                      {members.length} / 5
+                    </span>
                   </div>
 
                   {members.length > 0 ? (
                     <div className="account-members-list">
                       {members.map((member, idx) => (
                         <div className="account-member-row" key={idx}>
-                          <span className="account-member-index">{idx + 1}.</span>
+                          <span className="account-member-index">
+                            {idx + 1}.
+                          </span>
                           <span className="account-member-id">{member}</span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="vscode-setting-description">No members added yet.</div>
+                    <div className="vscode-setting-description">
+                      No members added yet.
+                    </div>
                   )}
 
                   {members.length < 5 && (
@@ -585,8 +866,13 @@ export default function SettingsModal({
                         className="vscode-search-input account-member-input"
                         placeholder="Enter student ID"
                         value={newMember}
-                        onChange={(e) => { setNewMember(e.target.value); setAddMemberError(''); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddMember(); }}
+                        onChange={(e) => {
+                          setNewMember(e.target.value);
+                          setAddMemberError("");
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleAddMember();
+                        }}
                       />
                       <button
                         className="activity-log-btn primary"
@@ -594,7 +880,7 @@ export default function SettingsModal({
                         disabled={addingMember || !newMember.trim()}
                       >
                         <UserPlus size={14} />
-                        {addingMember ? 'Adding...' : 'Add'}
+                        {addingMember ? "Adding..." : "Add"}
                       </button>
                     </div>
                   )}
@@ -604,7 +890,10 @@ export default function SettingsModal({
                 </div>
 
                 <div className="account-signout">
-                  <button className="activity-log-btn danger" onClick={onLogout}>
+                  <button
+                    className="activity-log-btn danger"
+                    onClick={onLogout}
+                  >
                     <LogOut size={14} />
                     Sign Out
                   </button>

@@ -4,32 +4,46 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(4px);
+  animation: overlay-appear 0.2s ease-out;
+}
+
+[data-theme='light'] .collab-modal-overlay {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+@keyframes overlay-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .collab-modal {
-  background: var(--bg-secondary, #1e1e1e);
+  background: var(--bg-primary);
   border-radius: 12px;
-  border: 1px solid var(--border-color, #333);
-  width: 420px;
+  border: 1px solid var(--border);
+  width: 440px;
   max-width: 90vw;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  animation: modal-appear 0.2s ease-out;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  animation: modal-appear 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme='light'] .collab-modal {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 @keyframes modal-appear {
   from {
     opacity: 0;
-    transform: scale(0.95) translateY(-10px);
+    transform: scale(0.95) translateY(10px);
   }
   to {
     opacity: 1;
@@ -42,37 +56,40 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color, #333);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
 }
 
 .collab-modal-header h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary, #ccc);
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
 }
 
 .collab-modal-close {
   padding: 6px;
   background: transparent;
   border: none;
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: 6px;
-  transition: all 0.15s;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .collab-modal-close:hover {
-  background: var(--bg-hover, #333);
-  color: var(--text-primary, #ccc);
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .collab-modal-content {
   flex: 1;
   overflow-y: auto;
+  background: var(--bg-primary);
 }
 
 .collab-modal-content .collaboration-panel {

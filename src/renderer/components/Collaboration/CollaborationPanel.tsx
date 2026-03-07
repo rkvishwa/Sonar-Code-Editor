@@ -217,7 +217,7 @@ export default function CollaborationPanel({
                 <p className="mode-description">
                   Host a session for others to join. Share your IP.
                 </p>
-                
+
                 {/* Network Info */}
                 <div className="network-info">
                   <div className="info-row">
@@ -228,7 +228,11 @@ export default function CollaborationPanel({
                       onClick={copyIpToClipboard}
                       title="Copy IP"
                     >
-                      {copied ? <Check size={14} className="success" /> : <Copy size={14} />}
+                      {copied ? (
+                        <Check size={14} className="success" />
+                      ) : (
+                        <Copy size={14} />
+                      )}
                     </button>
                   </div>
                   {networkInterfaces.length > 1 && (

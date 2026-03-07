@@ -73,6 +73,10 @@ const getEditorOptions = (wordWrap: boolean) => ({
   autoSurround: "languageDefined" as const,
   autoClosingOvertype: "always" as const,
   wordWrap: wordWrap ? "on" as const : "off" as const,
+  scrollbar: {
+    horizontal: wordWrap ? "hidden" as const : "auto" as const,
+    horizontalScrollbarSize: wordWrap ? 0 : 10,
+  },
 });
 
 function getTabIcon(tab: OpenTab) {
