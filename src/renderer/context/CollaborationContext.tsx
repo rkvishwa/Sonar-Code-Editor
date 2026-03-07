@@ -192,6 +192,12 @@ export function CollaborationProvider({
       ydocRef.current = null;
     }
 
+    // Clean up injected cursor styles
+    const styleEl = document.getElementById('yjs-cursor-styles');
+    if (styleEl) {
+      styleEl.remove();
+    }
+
     currentFileRef.current = null;
   }, []);
 
@@ -272,6 +278,55 @@ export function CollaborationProvider({
           }));
         console.log("Connected users:", users.map((u) => u.name).join(", "));
         setConnectedUsers(users);
+        
+        // Inject CSS for remote cursor colors and labels
+        injectCursorStyles(states);
+      };
+      
+      // Inject dynamic CSS for cursor colors and user name labels
+      const injectCursorStyles = (states: [number, { user?: { name: string; color: string } }][]) => {
+        const styleId = 'yjs-cursor-styles';
+        let styleEl = document.getElementById(styleId);
+        if (!styleEl) {
+          styleEl = document.createElement('style');
+          styleEl.id = styleId;
+          document.head.appendChild(styleEl);
+        }
+        
+        const localClientId = provider.awareness.clientID;
+        const css = states
+          .filter(([clientId, state]) => state.user && clientId !== localClientId)
+          .map(([clientId, state]) => {
+            const { name, color } = state.user!;
+            return `
+              .yRemoteSelection-${clientId} {
+                background-color: ${color}33 !important;
+              }
+              .yRemoteSelectionHead-${clientId} {
+                border-color: ${color} !important;
+                border-left-width: 2px;
+                border-left-style: solid;
+              }
+              .yRemoteSelectionHead-${clientId}::after {
+                content: '${name.replace(/'/g, "\\'")}';
+                position: absolute;
+                top: -18px;
+                left: -2px;
+                background-color: ${color};
+                color: white;
+                font-size: 11px;
+                font-weight: 500;
+                padding: 1px 6px;
+                border-radius: 3px 3px 3px 0;
+                white-space: nowrap;
+                pointer-events: none;
+                z-index: 1000;
+              }
+            `;
+          })
+          .join('\n');
+        
+        styleEl.textContent = css;
       };
 
       // Listen for awareness changes (user list updates)
@@ -453,19 +508,25 @@ export function CollaborationProvider({
         return;
       }
 
-      // If Y.Text is empty but model has content, initialize Y.Text with model content
-      // This ensures the first person to open a file shares their content
       const currentYTextContent = ytext.toString();
       const currentModelContent = model.getValue();
 
-      if (currentYTextContent.length === 0 && currentModelContent.length > 0) {
-        console.log(
-          `Initializing collaborative document from local file: ${docName}`,
-        );
+      // Handle content synchronization:
+      // - If Y.Text has content (from another user), SET the model to match it
+      // - If Y.Text is empty but model has content (we're first), initialize Y.Text
+      // - If both are empty, nothing to do
+      if (currentYTextContent.length > 0 && currentYTextContent !== currentModelContent) {
+        // Y.Text already has content from collaboration - sync model TO ytext
+        // This must happen BEFORE creating binding to avoid conflicts
+        console.log(`Syncing model to collaborative content for: ${docName} (${currentYTextContent.length} chars)`);
+        model.setValue(currentYTextContent);
+      } else if (currentYTextContent.length === 0 && currentModelContent.length > 0) {
+        // We're first to open this file - share our content
+        console.log(`Initializing collaborative document from local file: ${docName}`);
         ytext.insert(0, currentModelContent);
       }
 
-      // Create the Monaco binding
+      // Create the Monaco binding with awareness for cursor sync
       const binding = new MonacoBinding(
         ytext,
         model,

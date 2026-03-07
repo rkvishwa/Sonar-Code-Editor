@@ -10,32 +10,45 @@
 
 /* y-monaco remote cursor styles */
 .yRemoteSelection {
-  background-color: var(--yRemoteSelectionColor, rgba(59, 130, 246, 0.3));
+  background-color: rgba(59, 130, 246, 0.3) !important;
+  opacity: 0.7;
 }
 
 .yRemoteSelectionHead {
   position: absolute;
-  border-left: 2px solid var(--yRemoteSelectionColor, #3b82f6);
-  border-top: 2px solid var(--yRemoteSelectionColor, #3b82f6);
-  border-bottom: 2px solid var(--yRemoteSelectionColor, #3b82f6);
-  height: 100%;
   box-sizing: border-box;
+  border-left: 2px solid;
+  border-color: inherit;
+  height: 100%;
 }
 
+/* y-monaco cursor widget label (shows user name) */
 .yRemoteSelectionHead::after {
+  content: ' ';
+}
+
+/* Monaco widget cursor label styling */
+.monaco-editor .cursors-layer .cursor {
+  z-index: 10;
+}
+
+/* Ensure y-monaco widget is visible */
+.yRemoteSelectionHead-widget {
+  z-index: 100 !important;
+}
+
+/* Style for the name label widget that y-monaco creates */
+.monaco-editor .yRemoteSelection-label {
   position: absolute;
-  content: attr(data-name);
-  color: white;
   font-size: 11px;
   font-weight: 500;
-  background-color: var(--yRemoteSelectionColor, #3b82f6);
   padding: 1px 6px;
-  border-radius: 3px 3px 3px 0;
-  top: -18px;
-  left: -2px;
-  white-space: nowrap;
-  pointer-events: none;
+  border-radius: 3px;
+  color: white;
   z-index: 1000;
+  pointer-events: none;
+  transform: translateY(-100%);
+  margin-top: -2px;
 }
 
 .editor-panel.empty {
