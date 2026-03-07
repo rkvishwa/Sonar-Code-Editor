@@ -46,6 +46,7 @@ interface CollaborationContextValue {
   bindEditor: (
     monacoEditor: editor.IStandaloneCodeEditor,
     filePath: string,
+    workspaceRoot?: string,
   ) => void;
   unbindEditor: () => void;
   ydoc: Y.Doc | null;
@@ -402,7 +403,11 @@ export function CollaborationProvider({
   }, [cleanup]);
 
   const bindEditor = useCallback(
-    (monacoEditor: editor.IStandaloneCodeEditor, filePath: string) => {
+    (
+      monacoEditor: editor.IStandaloneCodeEditor,
+      filePath: string,
+      workspaceRoot?: string,
+    ) => {
       if (!ydocRef.current || !providerRef.current) {
         console.warn("Cannot bind editor: Collaboration not active");
         return;
@@ -419,9 +424,24 @@ export function CollaborationProvider({
         bindingRef.current = null;
       }
 
-      // Create a sanitized document name from the file path
-      // This ensures each file has its own Y.Text type
-      const docName = filePath.replace(/[^a-zA-Z0-9]/g, "_");
+      // Calculate relative path from workspace root for consistent docName across machines
+      let relativePath = filePath;
+      if (workspaceRoot) {
+        // Normalize paths (handle both Windows and Unix separators)
+        const normalizedFile = filePath.replace(/\\/g, "/");
+        const normalizedRoot = workspaceRoot.replace(/\\/g, "/");
+        if (normalizedFile.startsWith(normalizedRoot)) {
+          relativePath = normalizedFile.substring(normalizedRoot.length);
+          if (relativePath.startsWith("/")) {
+            relativePath = relativePath.substring(1);
+          }
+        }
+      }
+
+      // Create a sanitized document name from the relative path
+      // This ensures each file has its own Y.Text type and syncs across machines
+      const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
+      console.log(`Collaboration docName: ${docName} (from ${relativePath})`);
 
       // Get or create the Y.Text type for this file
       const ytext = ydocRef.current.getText(docName);

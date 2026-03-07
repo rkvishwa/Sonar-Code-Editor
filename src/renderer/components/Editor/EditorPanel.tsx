@@ -41,6 +41,7 @@ interface EditorPanelProps {
   onEditorMount?: (
     editor: editor.IStandaloneCodeEditor,
     filePath: string,
+    workspaceRoot?: string,
   ) => void;
   onEditorUnmount?: () => void;
 }
@@ -154,7 +155,11 @@ export default function EditorPanel({
           const model = editorRef.current?.getModel();
           if (model && model.getValue().length >= 0) {
             console.log(`Binding collaboration for file: ${activeTabPath}`);
-            onEditorMount?.(editorRef.current!, activeTabPath);
+            onEditorMount?.(
+              editorRef.current!,
+              activeTabPath,
+              workspaceRoot || undefined,
+            );
             boundFileRef.current = activeTabPath;
           }
         }, 100);
@@ -195,7 +200,7 @@ export default function EditorPanel({
       setTimeout(() => {
         if (boundFileRef.current !== activeTabPath) {
           console.log(`Initial binding for file: ${activeTabPath}`);
-          onEditorMount?.(editor, activeTabPath);
+          onEditorMount?.(editor, activeTabPath, workspaceRoot || undefined);
           boundFileRef.current = activeTabPath;
         }
       }, 50);

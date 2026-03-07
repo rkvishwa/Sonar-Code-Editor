@@ -8,6 +8,36 @@
   z-index: 16;
 }
 
+/* y-monaco remote cursor styles */
+.yRemoteSelection {
+  background-color: var(--yRemoteSelectionColor, rgba(59, 130, 246, 0.3));
+}
+
+.yRemoteSelectionHead {
+  position: absolute;
+  border-left: 2px solid var(--yRemoteSelectionColor, #3b82f6);
+  border-top: 2px solid var(--yRemoteSelectionColor, #3b82f6);
+  border-bottom: 2px solid var(--yRemoteSelectionColor, #3b82f6);
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.yRemoteSelectionHead::after {
+  position: absolute;
+  content: attr(data-name);
+  color: white;
+  font-size: 11px;
+  font-weight: 500;
+  background-color: var(--yRemoteSelectionColor, #3b82f6);
+  padding: 1px 6px;
+  border-radius: 3px 3px 3px 0;
+  top: -18px;
+  left: -2px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1000;
+}
+
 .editor-panel.empty {
   align-items: center;
   justify-content: center;
