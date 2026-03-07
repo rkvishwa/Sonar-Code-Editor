@@ -1,8 +1,8 @@
 // Wrapper around localStorage for renderer-side persistence
 // electron-store is used in main process; renderer uses localStorage
 
-const CACHE_KEY = 'devwatch_auth_cache';
-const QUEUE_KEY = 'devwatch_offline_queue';
+const CACHE_KEY = 'sonar_auth_cache';
+const QUEUE_KEY = 'sonar_offline_queue';
 
 export interface CachedAuth {
   teamName: string;

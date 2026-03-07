@@ -179,39 +179,39 @@
 
 .context-menu {
   position: fixed;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  border-radius: 5px;
+  background: var(--menu-bg, #252526);
+  border: 1px solid var(--menu-border, #454545);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
   padding: 4px 0;
-  min-width: 180px;
+  min-width: 250px;
   z-index: 999999;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, sans-serif;
+  color: var(--menu-text, #cccccc);
 }
 
 .context-menu-item {
-  padding: 6px 2em 6px 2em;
-  cursor: pointer;
+  padding: 6px 20px 6px 30px;
+  cursor: default;
   font-size: 13px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   user-select: none;
 }
 
 .context-menu-item:hover {
-  background: var(--accent);
-  color: white;
+  background: var(--menu-hover, #04395e);
+  color: #ffffff;
 }
 
 .context-menu-separator {
   height: 1px;
-  background-color: var(--border);
-  margin: 4px 8px;
+  background-color: var(--menu-border, #454545);
+  margin: 4px 0;
 }
 
 .context-menu-item.danger:hover {
-  background: var(--danger);
+  background: var(--danger, #ef4444);
   color: white;
 }

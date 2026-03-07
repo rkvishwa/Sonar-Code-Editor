@@ -66,7 +66,7 @@ function buildReportData(team: Team & { teamId: string }, sync: ActivitySyncData
     }))
     .sort((a, b) => b.totalTime - a.totalTime);
 
-  const ideTime = appUsage.filter((a) => a.appName === 'DevWatch IDE').reduce((acc, a) => acc + a.totalTime, 0);
+  const ideTime = appUsage.filter((a) => a.appName === 'Sonar Code Editor').reduce((acc, a) => acc + a.totalTime, 0);
   const disconnections = sync.offlinePeriods.length;
   const appSwitches = Object.keys(sync.apps).length > 1 ? sync.heartbeatCount : 0;
 
@@ -145,7 +145,7 @@ function computeRiskScore(data: ReportData, events: Array<{ type: string; timest
   }
 
   // Non-IDE apps
-  const nonIdeApps = data.appUsage.filter((a) => a.appName !== 'DevWatch IDE');
+  const nonIdeApps = data.appUsage.filter((a) => a.appName !== 'Sonar Code Editor');
   if (nonIdeApps.length > 0) {
     score += Math.min(15, nonIdeApps.length * 5);
     flags.push(`Non-IDE apps: ${nonIdeApps.map((a) => a.appName).join(', ')}`);
@@ -304,7 +304,7 @@ function computeInsights(
 
   // ---- App Diversity (any non-IDE app is flagged) ----
   const appCount = data.appUsage.length;
-  const nonIdeApps = data.appUsage.filter(a => a.appName !== 'DevWatch IDE');
+  const nonIdeApps = data.appUsage.filter(a => a.appName !== 'Sonar Code Editor');
   cards.push({
     icon: '\u{1F4BB}',
     title: 'Apps Detected',

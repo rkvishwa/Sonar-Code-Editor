@@ -7,7 +7,7 @@ export interface ActivityEvent {
   details?: string;
 }
 
-const ACTIVITY_LOG_KEY = 'devwatch_activity_log';
+const ACTIVITY_LOG_KEY = 'sonar_activity_log';
 const MAX_LOG_ENTRIES = 5000;
 
 export function getActivityLog(): ActivityEvent[] {
@@ -147,7 +147,7 @@ export function generateActivityLogPDF(teamName: string): void {
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(180, 190, 210);
-  doc.text('DevWatch IDE — Activity Monitoring System', margin, 22);
+  doc.text('Sonar Code Editor — Activity Monitoring System', margin, 22);
 
   let y = 38;
 
@@ -469,7 +469,7 @@ function addPdfFooters(doc: jsPDF, C: { lightGray: [number, number, number]; mid
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...C.midGray);
-    doc.text('DevWatch IDE — Exam Integrity Report', 14, pageH - 7);
+    doc.text('Sonar Code Editor — Exam Integrity Report', 14, pageH - 7);
     doc.text(`Page ${i} of ${pageCount}`, pageW - 14, pageH - 7, { align: 'right' });
   }
 }

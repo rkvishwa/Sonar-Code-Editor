@@ -19,7 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Attempt to restore session from cache
-    const cached = JSON.parse(localStorage.getItem('devwatch_session') || 'null');
+    const cached = JSON.parse(localStorage.getItem('sonar_session') || 'null');
     if (cached) {
       setUser(cached);
       // Mark session as online in DB on restore (fire-and-forget)
@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const team = await validateTeamCredentials(teamName, password);
       if (team) {
         setUser(team);
-        localStorage.setItem('devwatch_session', JSON.stringify(team));
+        localStorage.setItem('sonar_session', JSON.stringify(team));
         cacheCredentials(teamName, password, team.$id!, team.role);
         await upsertSession(team.$id!, teamName, 'online');
         return { success: true };
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: cached.role,
         };
         setUser(offlineUser);
-        localStorage.setItem('devwatch_session', JSON.stringify(offlineUser));
+        localStorage.setItem('sonar_session', JSON.stringify(offlineUser));
         return { success: true };
       }
       return { success: false, error: 'Login failed. Check your connection.' };
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       upsertSession(user.$id!, user.teamName, 'offline').catch(() => {});
     }
     setUser(null);
-    localStorage.removeItem('devwatch_session');
+    localStorage.removeItem('sonar_session');
   };
 
   const register = async (

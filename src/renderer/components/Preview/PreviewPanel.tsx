@@ -84,11 +84,19 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
     };
 
     const onConsoleMessage = (e: any) => {
-      // Intercept copy/cut notifications from injected script
-      if (typeof e.message === 'string' && e.message.startsWith('__PREVIEW_COPY__:')) {
-        const copiedText = e.message.slice('__PREVIEW_COPY__:'.length);
-        document.dispatchEvent(new CustomEvent('webview-copy', { detail: copiedText }));
-        return;
+      // Intercept special notifications from injected script
+      if (typeof e.message === 'string') {
+        if (e.message.startsWith('__PREVIEW_COPY__:')) {
+          const copiedText = e.message.slice('__PREVIEW_COPY__:'.length);
+          document.dispatchEvent(new CustomEvent('webview-copy', { detail: copiedText }));
+          return;
+        }
+        if (e.message === '__PREVIEW_CLICK__') {
+          document.dispatchEvent(new CustomEvent('close-context-menus'));
+          // Intentionally do not return here if we want right clicks to still be ignored,
+          // but we can just return so it doesn't pollute the IDE console.
+          return;
+        }
       }
       const levelMap: Record<number, ConsoleEntry['level']> = {
         0: 'debug', 1: 'log', 2: 'warn', 3: 'error',
@@ -104,7 +112,7 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
       setConsoleLogs((prev) => [...prev.slice(-500), entry]);
     };
 
-    // Inject script into webview to notify host on copy/cut events
+    // Inject script into webview to notify host on copy/cut and mouse events
     const injectCopyListener = () => {
       (wv as any).executeJavaScript(`
         if (!window.__previewCopyListenerAdded) {
@@ -116,6 +124,12 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
           document.addEventListener('cut', () => {
             const sel = document.getSelection();
             if (sel) console.log('__PREVIEW_COPY__:' + sel.toString());
+          }, true);
+          document.addEventListener('mousedown', () => {
+            console.log('__PREVIEW_CLICK__');
+          }, true);
+          document.addEventListener('contextmenu', () => {
+            console.log('__PREVIEW_CLICK__');
           }, true);
         }
       `).catch(() => {});
@@ -277,6 +291,24 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
       window.removeEventListener('resize', updateBounds);
     };
   }, [devtoolsOpen]);
+
+  useEffect(() => {
+    const wv = webviewRef.current as any;
+    return () => {
+      if (wv) {
+        try {
+          if (typeof wv.stop === 'function') wv.stop();
+          if (typeof wv.loadURL === 'function') {
+            wv.loadURL('about:blank');
+          } else {
+            wv.src = 'about:blank';
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    };
+  }, []);
 
   if (!serverUrl) {
     return (

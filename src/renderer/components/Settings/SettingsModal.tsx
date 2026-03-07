@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, Download, RefreshCw, UserPlus, LogOut, Users, Lock, Eye, EyeOff } from 'lucide-react';
+import { Search, ArrowLeft, X, Download, RefreshCw, UserPlus, LogOut, Users, Lock, Eye, EyeOff } from 'lucide-react';
 import { getActivityLog, generateActivityLogPDF, clearActivityLog, ActivityEvent } from '../../services/activityLogger';
 import { addTeamMember, getTeamById, changeTeamPassword } from '../../services/appwrite';
 import { cacheCredentials } from '../../services/localStore';
@@ -203,8 +203,10 @@ export default function SettingsModal({
         className="vscode-settings-header-tabs"
         style={{ paddingLeft: isWindows ? '0px' : '75px' }}
       >
-        <div className="vscode-settings-tab active">User</div>
-        <button className="vscode-settings-close" onClick={onClose}><X size={16}/></button>
+        <button className="vscode-settings-back" onClick={onClose} title="Back">
+          <ArrowLeft size={16}/>
+        </button>
+        <div className="vscode-settings-tab active">Settings</div>
       </div>
 
       <div className="vscode-settings-searchbar-container">

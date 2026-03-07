@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from "react";
 import MonacoEditor, { type OnMount } from "@monaco-editor/react";
-import {
+import { Radar,
   FileCode2,
   X,
   Monitor,
@@ -201,7 +201,7 @@ export default function EditorPanel({
             <div className="welcome-logo-container">
               <Code2 size={48} className="welcome-logo" />
             </div>
-            <h1 className="welcome-title">DevWatch Editor</h1>
+            <h1 className="welcome-title">Sonar Code Editor</h1>
             <p className="welcome-subtitle">
               A lightweight learning environment
             </p>

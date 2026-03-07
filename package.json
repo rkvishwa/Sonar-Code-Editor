@@ -1,9 +1,9 @@
 {
-  "name": "exam-ide",
+  "name": "sonar-ide",
   "version": "1.0.0",
-  "description": "DevWatch IDE & Monitoring System",
+  "description": "Sonar Code Editor & Monitoring System",
   "main": "dist/main/main/main.js",
-  "author": "DevWatch",
+  "author": "Sonar",
   "license": "MIT",
   "scripts": {
     "serve": "npm run build && npm run start",
@@ -48,8 +48,8 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.devwatch.exam-ide",
-    "productName": "DevWatch IDE",
+    "appId": "com.sonar.editor",
+    "productName": "Sonar Code Editor",
     "directories": {
       "output": "release"
     },

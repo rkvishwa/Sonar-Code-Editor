@@ -273,7 +273,7 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
         // which is "Electron" for all Electron-based apps (VS Code, etc.),
         // making them indistinguishable. NSWorkspace gives the proper display
         // name (e.g. "Visual Studio Code") and a unique bundle identifier.
-        const OWN_BUNDLE_ID = 'com.devwatch.exam-ide';
+        const OWN_BUNDLE_ID = 'com.sonar.editor';
         const info = execSync(
           `osascript -l JavaScript -e 'ObjC.import("AppKit"); var ws = $.NSWorkspace.sharedWorkspace; var app = ws.frontmostApplication; (app.bundleIdentifier.js) + "||" + (app.localizedName.js)'`,
           { timeout: 3000, encoding: 'utf-8' }

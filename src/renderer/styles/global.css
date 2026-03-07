@@ -35,18 +35,23 @@
   --bg-tertiary: #e5e7eb;
   --bg-hover: #e5e7eb;
   --bg-active: #d1d5db;
-  
+
   --border: #e5e7eb;
   --border-focus: #d1d5db;
-  
+
   --text-primary: #111827;
   --text-secondary: #4b5563;
   --text-muted: #6b7280;
-  
+
   --accent: #3b82f6;
   --accent-hover: #2563eb;
   --accent-transparent: rgba(59, 130, 246, 0.15);
-  
+
+  --menu-bg: #ffffff;
+  --menu-border: #d1d5db;
+  --menu-hover: #0060c0;
+  --menu-text: #333333;
+
   --success: #059669;
   --danger: #dc2626;
   --warning: #d97706;

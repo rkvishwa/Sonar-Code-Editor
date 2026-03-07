@@ -4,7 +4,7 @@ import { getAllSessions, subscribeToActivityLogs, subscribeToSessions, getAllAct
 import { Session, ActivityLog, ActivitySyncData, Team } from '../../shared/types';
 import { APP_CONFIG } from '../../shared/constants';
 import ReportModal from '../components/AdminPanel/ReportModal';
-import { Shield, Clock, Activity, LayoutGrid, List, Search, LogOut, RefreshCw, BarChart2, ShieldAlert, Monitor, Users, Zap, CheckCircle2, XCircle, Settings } from 'lucide-react';
+import { Radar, Shield, Clock, Activity, LayoutGrid, List, Search, LogOut, RefreshCw, BarChart2, ShieldAlert, Monitor, Users, Zap, CheckCircle2, XCircle, Settings } from 'lucide-react';
 import AdminSettingsModal from '../components/AdminPanel/AdminSettingsModal';
 import './AdminDashboard.css';
 
@@ -335,8 +335,8 @@ export default function AdminDashboard() {
       <div className="admin-header">
         <div className="admin-header-left">
           <span className="admin-logo">
-            <Shield className="logo-icon" size={18} />
-            DevWatch Admin
+            <Radar className="logo-icon" size={18} />
+            Sonar Admin
           </span>
           <span className="admin-live-badge">
             <span className="live-dot" />
@@ -636,7 +636,7 @@ export default function AdminDashboard() {
         onLogout={logout}
         onTeamNameUpdated={(newName) => {
           const updated = { ...user!, teamName: newName };
-          localStorage.setItem('devwatch_session', JSON.stringify(updated));
+          localStorage.setItem('sonar_session', JSON.stringify(updated));
           window.location.reload();
         }}
       />

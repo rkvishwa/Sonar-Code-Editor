@@ -206,10 +206,14 @@ function FileTreeNode({ node, depth, hasFolders, activeFilePath, onFileClick, on
   useEffect(() => {
     if (contextMenu) {
       const handler = () => closeContextMenu();
-      window.addEventListener('click', handler);
+      window.addEventListener('click', handler, { capture: true });
+      window.addEventListener('contextmenu', handler, { capture: true });
+      window.addEventListener('blur', handler, { capture: true });
       document.addEventListener('close-context-menus', handler as EventListener);
       return () => {
-        window.removeEventListener('click', handler);
+        window.removeEventListener('click', handler, { capture: true });
+        window.removeEventListener('contextmenu', handler, { capture: true });
+        window.removeEventListener('blur', handler, { capture: true });
         document.removeEventListener('close-context-menus', handler as EventListener);
       };
     }
@@ -262,14 +266,24 @@ function FileTreeNode({ node, depth, hasFolders, activeFilePath, onFileClick, on
 
       {contextMenu && createPortal(
         <div className="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
-          <div className="context-menu-item" onClick={handleNewFile}>New File</div>
-          <div className="context-menu-item" onClick={handleNewFolder}>New Folder</div>
-          <div className="context-menu-separator" />
-          <div className="context-menu-item" onClick={startRename}>Rename</div>
-          <div className="context-menu-separator" />
-          <div className="context-menu-item danger" onClick={handleDelete}>Delete</div>
-        </div>,
-        document.body
+            <div className="context-menu-item" onClick={handleNewFile}>
+              <span>New File</span>
+            </div>
+            <div className="context-menu-item" onClick={handleNewFolder}>
+              <span>New Folder</span>
+            </div>
+            <div className="context-menu-separator" />
+            <div className="context-menu-item" onClick={startRename}>
+              <span>Rename</span>
+              <span style={{ color: 'var(--text-muted)' }}>F2</span>
+            </div>
+            <div className="context-menu-separator" />
+            <div className="context-menu-item danger" onClick={handleDelete}>
+              <span>Delete</span>
+              <span style={{ color: 'var(--text-muted)' }}>Del</span>
+            </div>
+          </div>,
+          document.body
       )}
 
       {expanded && node.type === 'directory' && (
@@ -365,10 +379,14 @@ export default function FileTree({ workspaceRoot, onOpenFolder, onFileClick, act
   useEffect(() => {
     if (contextMenu) {
       const handler = () => setContextMenu(null);
-      window.addEventListener('click', handler);
+      window.addEventListener('click', handler, { capture: true });
+      window.addEventListener('contextmenu', handler, { capture: true });
+      window.addEventListener('blur', handler, { capture: true });
       document.addEventListener('close-context-menus', handler as EventListener);
       return () => {
-        window.removeEventListener('click', handler);
+        window.removeEventListener('click', handler, { capture: true });
+        window.removeEventListener('contextmenu', handler, { capture: true });
+        window.removeEventListener('blur', handler, { capture: true });
         document.removeEventListener('close-context-menus', handler as EventListener);
       };
     }
@@ -438,6 +456,7 @@ export default function FileTree({ workspaceRoot, onOpenFolder, onFileClick, act
         // Prevent default browser context menu and only show root context if clicking dead space
         if ((e.target as HTMLElement).closest('.tree-node')) return;
         e.preventDefault();
+        e.stopPropagation();
         document.dispatchEvent(new CustomEvent('close-context-menus'));
         setContextMenu({ x: e.clientX, y: e.clientY });
         setSelectedFolder(workspaceRoot);
@@ -549,8 +568,12 @@ export default function FileTree({ workspaceRoot, onOpenFolder, onFileClick, act
 
       {contextMenu && createPortal(
         <div className="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
-          <div className="context-menu-item" onClick={() => { setCreatingItem({ type: 'file', parentPath: workspaceRoot }); setContextMenu(null); }}>New File</div>
-          <div className="context-menu-item" onClick={() => { setCreatingItem({ type: 'folder', parentPath: workspaceRoot }); setContextMenu(null); }}>New Folder</div>
+          <div className="context-menu-item" onClick={() => { setCreatingItem({ type: 'file', parentPath: workspaceRoot }); setContextMenu(null); }}>
+            <span>New File</span>
+          </div>
+          <div className="context-menu-item" onClick={() => { setCreatingItem({ type: 'folder', parentPath: workspaceRoot }); setContextMenu(null); }}>
+            <span>New Folder</span>
+          </div>
         </div>,
         document.body
       )}

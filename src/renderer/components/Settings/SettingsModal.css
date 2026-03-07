@@ -43,9 +43,8 @@
   background-color: var(--bg-primary);
 }
 
-.vscode-settings-close {
-  margin-left: auto;
-  margin-right: 8px;
+.vscode-settings-back {
+  margin-left: 8px;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -59,7 +58,7 @@
   -webkit-app-region: no-drag;
 }
 
-.vscode-settings-close:hover {
+.vscode-settings-back:hover {
   background-color: var(--bg-hover);
   color: var(--text-primary);
 }

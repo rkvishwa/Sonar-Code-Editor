@@ -62,7 +62,7 @@ function PermissionRequired({ onRecheck }: { onRecheck: () => Promise<void> }) {
         Permission Required
       </h2>
       <p style={{ maxWidth: '480px', lineHeight: '1.6', margin: 0, color: '#a0a0a0' }}>
-        DevWatch IDE requires <strong style={{ color: '#d4d4d4' }}>Automation</strong> permission
+        Sonar Code Editor requires <strong style={{ color: '#d4d4d4' }}>Automation</strong> permission
         to monitor app switching during exams. Without this permission the application cannot
         be used.
       </p>
@@ -83,8 +83,8 @@ function PermissionRequired({ onRecheck }: { onRecheck: () => Promise<void> }) {
         <ol style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
           <li>Open System Settings</li>
           <li>Go to <em>Privacy &amp; Security → Automation</em></li>
-          <li>Enable <strong>System Events</strong> for <strong>DevWatch IDE</strong></li>
-          <li>Return to DevWatch IDE — it will continue automatically</li>
+          <li>Enable <strong>System Events</strong> for <strong>Sonar Code Editor</strong></li>
+          <li>Return to Sonar Code Editor — it will continue automatically</li>
         </ol>
       </div>
       <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>

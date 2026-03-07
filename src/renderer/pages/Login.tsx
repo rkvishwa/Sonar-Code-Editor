@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Radar } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
 
@@ -116,8 +116,8 @@ export default function Login() {
 
       <div className="login-hero">
         <div className="hero-content">
-          <div className="hero-icon">⌨</div>
-          <h1>DevWatch IDE</h1>
+          <div className="hero-icon"><Radar size={64} className="radar-icon" /></div>
+          <h1>Sonar Code Editor</h1>
           <p>The secure, monitored environment for coding exams and team assessments.</p>
         </div>
         <div className="hero-decoration"></div>
@@ -126,7 +126,7 @@ export default function Login() {
       <div className="login-panel">
         <div className="login-panel-inner">
           <div className="login-header">
-            <div className="login-logo-mobile">⌨</div>
+            <div className="login-logo-mobile"><Radar size={32} className="radar-icon" /></div>
             <h2>{tab === 'login' ? 'Welcome back' : 'Create an account'}</h2>
             <p>{tab === 'login' ? 'Sign in to your team account to continue' : 'Register a new team to get started'}</p>
           </div>

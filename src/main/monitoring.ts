@@ -51,11 +51,11 @@ export class MonitoringService {
       const payload: HeartbeatPayload = {
         teamName: this.teamName,
         teamId: this.teamId,
-        currentWindow: 'DevWatch IDE',
+        currentWindow: 'Sonar Code Editor',
         currentFile: this.currentFile,
         status: 'offline',
         timestamp: new Date().toISOString(),
-        appName: 'DevWatch IDE',
+        appName: 'Sonar Code Editor',
       };
       this.mainWindow.webContents.send('monitoring:heartbeat', payload);
     }
@@ -67,11 +67,11 @@ export class MonitoringService {
     const payload: HeartbeatPayload = {
       teamName: this.teamName,
       teamId: this.teamId,
-      currentWindow: 'DevWatch IDE',
+      currentWindow: 'Sonar Code Editor',
       currentFile: this.currentFile,
       status: 'online',
       timestamp: new Date().toISOString(),
-      appName: 'DevWatch IDE',
+      appName: 'Sonar Code Editor',
     };
 
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
