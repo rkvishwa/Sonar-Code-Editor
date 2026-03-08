@@ -21,6 +21,15 @@ import {
 import { FileNode } from "../../../shared/types";
 import "./FileTree.css";
 
+// Track global mouse interaction to distinguish programmatic focus steals from user clicks
+let isUserClicking = false;
+if (typeof window !== "undefined") {
+  window.addEventListener("mousedown", () => { isUserClicking = true; }, true);
+  window.addEventListener("mouseup", () => { isUserClicking = false; }, true);
+  window.addEventListener("keydown", () => { isUserClicking = true; }, true);
+  window.addEventListener("keyup", () => { isUserClicking = false; }, true);
+}
+
 const isWindows = navigator.userAgent.toLowerCase().includes("win");
 const INDENT_PX = isWindows ? 16 : 28;
 
@@ -98,44 +107,8 @@ function InlineCreateInput({
     if (el) el.focus();
     const rafId = requestAnimationFrame(() => inputRef.current?.focus());
 
-    // Focus trap: during collaboration, y-monaco operations (applyEdits,
-    // setSelection, deltaDecorations) can programmatically move focus to
-    // Monaco's hidden textarea on Windows Electron.  A capture-phase
-    // 'focus' listener fires *synchronously* when any element gains focus,
-    // so we can redirect it back to the input before the next keystroke
-    // is processed — unlike the old polling approach there is zero delay.
-    const handleFocusCapture = (e: FocusEvent) => {
-      if (submittedRef.current || !inputRef.current) return;
-      if (e.target === inputRef.current) return;
-
-      const target = e.target as Element | null;
-      const isMonacoOrBody =
-        !target ||
-        target === document.body ||
-        target.closest('.monaco-editor') !== null;
-
-      if (isMonacoOrBody) {
-        // Clear any pending blur timeout — we're about to restore focus
-        if (blurTimeoutRef.current) {
-          clearTimeout(blurTimeoutRef.current);
-          blurTimeoutRef.current = null;
-        }
-        // Use timeout to prevent React maximum call stack size exceeded correctly
-        // by breaking the synchronous event loop from capture phase
-        setTimeout(() => {
-          if (!submittedRef.current && inputRef.current) {
-             inputRef.current.focus();
-          }
-        }, 0);
-      }
-    };
-
-    // Capture phase so we intercept before Monaco processes the event
-    document.addEventListener('focus', handleFocusCapture, true);
-
     return () => {
       cancelAnimationFrame(rafId);
-      document.removeEventListener('focus', handleFocusCapture, true);
     };
   }, []);
 
@@ -157,15 +130,25 @@ function InlineCreateInput({
     }
   }, [value]);
 
-  const handleBlur = useCallback(() => {
-    // During collaboration, parent re-renders (from awareness updates etc.)
-    // can briefly steal focus from this input.  Use a short delay so that if
-    // focus returns within the timeout we skip the submit/cancel and keep the
-    // input alive.
+  const handleBlur = useCallback((e: React.FocusEvent) => {
+    // If the blur was caused by the user physically clicking away, we want to submit.
+    // If Monaco steals focus programmatically, we DO NOT submit and optionally restore focus.
+    const userClickedAway = isUserClicking;
+    const relatedTarget = e.relatedTarget as Element | null;
+    const wentToMonaco = relatedTarget && !!relatedTarget.closest('.monaco-editor');
+    const wentToBody = relatedTarget === document.body || !relatedTarget;
+
     if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
     blurTimeoutRef.current = setTimeout(() => {
-      // Focus came back (React reconciliation or focus trap restored it) — do nothing.
       if (document.activeElement === inputRef.current) return;
+      
+      if (!userClickedAway && (wentToMonaco || wentToBody)) {
+        // This was a programmatic focus steal (e.g., y-monaco merging edits).
+        // Safely put focus back without aggressive capture loops that crash React.
+        inputRef.current?.focus();
+        return; 
+      }
+      
       handleSubmit();
     }, 300);
   }, [handleSubmit]);
@@ -379,9 +362,15 @@ function FileTreeNode({
     closeContextMenu();
     setNewName(node.name);
     setRenaming(true);
+    commitRenameRef.current = false;
   };
 
+  const commitRenameRef = useRef(false);
+
   const commitRename = async () => {
+    if (commitRenameRef.current) return;
+    commitRenameRef.current = true;
+    
     setRenaming(false);
     if (newName !== node.name && newName.trim()) {
       const dir = node.path.split(/[\\/]/).slice(0, -1).join("/");
@@ -390,6 +379,7 @@ function FileTreeNode({
         await window.electronAPI.fs.renameItem(node.path, newPath);
       } catch (err) {
         console.error("Local rename failed:", err);
+        commitRenameRef.current = false;
         onRefresh();
         return;
       }
@@ -404,11 +394,26 @@ function FileTreeNode({
     }
   };
 
-  const handleRenameBlur = useCallback(() => {
+  const handleRenameBlur = useCallback((e: React.FocusEvent) => {
+    const userClickedAway = isUserClicking;
+    const relatedTarget = e.relatedTarget as Element | null;
+    const wentToMonaco = relatedTarget && !!relatedTarget.closest('.monaco-editor');
+    const wentToBody = relatedTarget === document.body || !relatedTarget;
+    
     if (renameBlurTimeoutRef.current) clearTimeout(renameBlurTimeoutRef.current);
     renameBlurTimeoutRef.current = setTimeout(() => {
-      // Focus came back (or intercepted) — do nothing.
+      // Focus came back naturally — do nothing.
       if (document.activeElement === renameInputRef.current) return;
+      
+      if (!userClickedAway && (wentToMonaco || wentToBody)) {
+        // Focus stolen programmatically by Monaco during a collab sync.
+        // Prevent premature rename commit, gently restore focus.
+        renameInputRef.current?.focus();
+        return;
+      }
+      
+      // We only commit if it's an explicit submit (Enter key, or actually clicking away).
+      // Double check that it's still renaming to avoid double-commit race condition.
       commitRename();
     }, 300);
   }, [newName, node.name, node.path]);
@@ -416,32 +421,8 @@ function FileTreeNode({
   useEffect(() => {
     if (!renaming) return;
 
-    const handleFocusCapture = (e: FocusEvent) => {
-      if (!renameInputRef.current) return;
-      if (e.target === renameInputRef.current) return;
-
-      const target = e.target as Element | null;
-      const isMonacoOrBody =
-        !target ||
-        target === document.body ||
-        target.closest('.monaco-editor') !== null;
-
-      if (isMonacoOrBody) {
-        if (renameBlurTimeoutRef.current) {
-          clearTimeout(renameBlurTimeoutRef.current);
-          renameBlurTimeoutRef.current = null;
-        }
-        setTimeout(() => {
-          if (renameInputRef.current) {
-            renameInputRef.current.focus();
-          }
-        }, 0);
-      }
-    };
-
-    document.addEventListener('focus', handleFocusCapture, true);
+    // cleanup timeouts when renaming finishes/cancels
     return () => {
-      document.removeEventListener('focus', handleFocusCapture, true);
       if (renameBlurTimeoutRef.current) clearTimeout(renameBlurTimeoutRef.current);
     };
   }, [renaming]);
