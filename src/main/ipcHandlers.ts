@@ -117,6 +117,11 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
 
   ipcMain.handle(IPC_CHANNELS.FS_CREATE_FILE, async (_event, filePath: string) => {
     try {
+      // Ensure parent directory exists (important for cross-platform collaboration sync)
+      const parentDir = path.dirname(filePath);
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+      }
       fs.writeFileSync(filePath, '', 'utf-8');
     } catch (err) {
       throw new Error(`Failed to create file: ${(err as Error).message}`);
@@ -147,6 +152,11 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
 
   ipcMain.handle(IPC_CHANNELS.FS_RENAME_ITEM, async (_event, oldPath: string, newPath: string) => {
     try {
+      // Ensure target parent directory exists (important for cross-platform collaboration sync)
+      const targetDir = path.dirname(newPath);
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
       fs.renameSync(oldPath, newPath);
     } catch (err) {
       throw new Error(`Failed to rename item: ${(err as Error).message}`);

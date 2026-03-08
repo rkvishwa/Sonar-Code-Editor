@@ -73,6 +73,25 @@ function getLanguage(filename: string): string {
   return LANGUAGE_MAP[ext] || "plaintext";
 }
 
+/**
+ * Convert an absolute path to a relative path against a workspace root.
+ * Handles Windows/Mac path separator differences and case-insensitive
+ * drive letters for cross-platform collaboration sync.
+ */
+function toRelativePath(fullPath: string, wsRoot: string): string {
+  const normFull = fullPath.replace(/\\/g, "/");
+  const normRoot = wsRoot.replace(/\\/g, "/").replace(/\/+$/, ""); // strip trailing slash
+
+  // Case-insensitive startsWith for Windows drive letter compatibility (D: vs d:)
+  if (normFull.toLowerCase().startsWith(normRoot.toLowerCase())) {
+    let rel = normFull.slice(normRoot.length);
+    if (rel.startsWith("/")) rel = rel.slice(1);
+    return rel;
+  }
+  // Fallback: return the normalized full path (sanitizeRelPath on receiver will strip drive prefix)
+  return normFull;
+}
+
 export default function IDE() {
   return (
     <CollaborationProvider>
@@ -249,7 +268,9 @@ function IDEContent() {
 
           // Create all files and folders
           for (const file of metadata.files) {
-            const filePath = `${targetPath}/${file.relativePath}`;
+            // Normalize relativePath separators from host OS to current OS
+            const normalizedRelPath = file.relativePath.replace(/\\/g, "/");
+            const filePath = `${targetPath}/${normalizedRelPath}`;
 
             if (file.isDirectory) {
               await window.electronAPI.fs.createFolder(filePath);
@@ -503,11 +524,7 @@ function IDEContent() {
 
       // Broadcast delete to collaboration peers
       if (collaboration.isActive && workspaceRoot) {
-        const normRoot = workspaceRoot.replace(/\\/g, "/");
-        const normDeleted = deletedPath.replace(/\\/g, "/");
-        const relativePath = normDeleted.startsWith(normRoot)
-          ? normDeleted.slice(normRoot.length + 1)
-          : normDeleted;
+        const relativePath = toRelativePath(deletedPath, workspaceRoot);
         collaboration.broadcastFileOp({
           type: "delete",
           relativePath,
@@ -555,15 +572,8 @@ function IDEContent() {
 
       // Broadcast rename to collaboration peers
       if (collaboration.isActive && workspaceRoot) {
-        const normRoot = workspaceRoot.replace(/\\/g, "/");
-        const normOld = oldPath.replace(/\\/g, "/");
-        const normNew = newPath.replace(/\\/g, "/");
-        const relOld = normOld.startsWith(normRoot)
-          ? normOld.slice(normRoot.length + 1)
-          : normOld;
-        const relNew = normNew.startsWith(normRoot)
-          ? normNew.slice(normRoot.length + 1)
-          : normNew;
+        const relOld = toRelativePath(oldPath, workspaceRoot);
+        const relNew = toRelativePath(newPath, workspaceRoot);
         collaboration.broadcastFileOp({
           type: "rename",
           relativePath: relOld,
@@ -577,11 +587,7 @@ function IDEContent() {
   const handleFileCreated = useCallback(
     (fullPath: string, name: string) => {
       if (collaboration.isActive && workspaceRoot) {
-        const normRoot = workspaceRoot.replace(/\\/g, "/");
-        const normFull = fullPath.replace(/\\/g, "/");
-        const relativePath = normFull.startsWith(normRoot)
-          ? normFull.slice(normRoot.length + 1)
-          : normFull;
+        const relativePath = toRelativePath(fullPath, workspaceRoot);
         collaboration.broadcastFileOp({
           type: "create-file",
           relativePath,
@@ -595,11 +601,7 @@ function IDEContent() {
   const handleFolderCreated = useCallback(
     (fullPath: string) => {
       if (collaboration.isActive && workspaceRoot) {
-        const normRoot = workspaceRoot.replace(/\\/g, "/");
-        const normFull = fullPath.replace(/\\/g, "/");
-        const relativePath = normFull.startsWith(normRoot)
-          ? normFull.slice(normRoot.length + 1)
-          : normFull;
+        const relativePath = toRelativePath(fullPath, workspaceRoot);
         collaboration.broadcastFileOp({
           type: "create-folder",
           relativePath,
@@ -610,8 +612,13 @@ function IDEContent() {
   );
 
   // Subscribe to file operations from collaboration peers
+  // Uses a queue to process operations sequentially (avoids race conditions
+  // when e.g. create-folder + create-file arrive in the same Yjs update)
   useEffect(() => {
     if (!collaboration.isActive || !workspaceRoot) return;
+
+    // Normalize workspace root to forward slashes for cross-platform path construction
+    const normRoot = workspaceRoot.replace(/\\/g, "/");
 
     // Strip absolute path prefixes and backslashes from incoming relative paths
     const sanitizeRelPath = (p: string) =>
@@ -620,40 +627,45 @@ function IDEContent() {
         .replace(/^[A-Za-z]:[\/]/, "")
         .replace(/^\/+/, "");
 
-    const unsub = collaboration.onFileOperation(async (op: FileOperation) => {
-      const relPath = sanitizeRelPath(op.relativePath);
-      const fullPath = `${workspaceRoot}/${relPath}`;
-      try {
-        switch (op.type) {
-          case "create-file":
-            await window.electronAPI.fs.createFile(fullPath);
-            if (op.content) {
-              await window.electronAPI.fs.writeFile(fullPath, op.content);
+    // Sequential operation queue to avoid race conditions
+    let opQueue: Promise<void> = Promise.resolve();
+
+    const unsub = collaboration.onFileOperation((op: FileOperation) => {
+      opQueue = opQueue.then(async () => {
+        const relPath = sanitizeRelPath(op.relativePath);
+        const fullPath = `${normRoot}/${relPath}`;
+        try {
+          switch (op.type) {
+            case "create-file":
+              await window.electronAPI.fs.createFile(fullPath);
+              if (op.content) {
+                await window.electronAPI.fs.writeFile(fullPath, op.content);
+              }
+              break;
+            case "create-folder":
+              await window.electronAPI.fs.createFolder(fullPath);
+              break;
+            case "delete":
+              try {
+                await window.electronAPI.fs.deleteItem(fullPath);
+              } catch {
+                // File may already be gone (e.g. after a failed rename); treat as success
+              }
+              handleFileDeleted(fullPath, op.isDirectory ? "directory" : "file");
+              break;
+            case "rename": {
+              const newRelPath = sanitizeRelPath(op.newRelativePath || "");
+              const newFullPath = `${normRoot}/${newRelPath}`;
+              await window.electronAPI.fs.renameItem(fullPath, newFullPath);
+              handleFileRenamed(fullPath, newFullPath);
+              break;
             }
-            break;
-          case "create-folder":
-            await window.electronAPI.fs.createFolder(fullPath);
-            break;
-          case "delete":
-            try {
-              await window.electronAPI.fs.deleteItem(fullPath);
-            } catch {
-              // File may already be gone (e.g. after a failed rename); treat as success
-            }
-            handleFileDeleted(fullPath, op.isDirectory ? "directory" : "file");
-            break;
-          case "rename": {
-            const newRelPath = sanitizeRelPath(op.newRelativePath || "");
-            const newFullPath = `${workspaceRoot}/${newRelPath}`;
-            await window.electronAPI.fs.renameItem(fullPath, newFullPath);
-            handleFileRenamed(fullPath, newFullPath);
-            break;
           }
+          setFileTreeRefreshKey((k) => k + 1);
+        } catch (err) {
+          console.error("Failed to apply remote file operation:", op.type, err);
         }
-        setFileTreeRefreshKey((k) => k + 1);
-      } catch (err) {
-        console.error("Failed to apply remote file operation:", op.type, err);
-      }
+      });
     });
 
     return unsub;

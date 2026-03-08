@@ -736,8 +736,11 @@ export function CollaborationProvider({
     (op: Omit<FileOperation, "timestamp" | "clientId">) => {
       if (!ydocRef.current || !providerRef.current) return;
       const fileOpsArray = ydocRef.current.getArray<FileOperation>("fileOps");
+      // Normalize all paths to forward slashes for cross-platform compatibility
       const fullOp: FileOperation = {
         ...op,
+        relativePath: op.relativePath.replace(/\\/g, "/"),
+        newRelativePath: op.newRelativePath?.replace(/\\/g, "/"),
         timestamp: Date.now(),
         clientId: providerRef.current.awareness.clientID,
       };
@@ -772,10 +775,15 @@ export function CollaborationProvider({
       const workspaceMetadataMap =
         ydocRef.current.getMap<WorkspaceMetadata>("workspaceMetadata");
       const folderName = path.split(/[/\\]/).pop() || "workspace";
+      // Normalize all file relative paths to forward slashes for cross-platform compatibility
+      const normalizedFiles = files.map((f) => ({
+        ...f,
+        relativePath: f.relativePath.replace(/\\/g, "/"),
+      }));
       const metadata: WorkspaceMetadata = {
         folderName,
         hostPath: path,
-        files,
+        files: normalizedFiles,
       };
       workspaceMetadataMap.set("current", metadata);
       console.log(
