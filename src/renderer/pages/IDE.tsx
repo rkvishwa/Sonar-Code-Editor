@@ -174,6 +174,17 @@ function IDEContent() {
     workspaceRootRef.current = workspaceRoot;
   }, [workspaceRoot]);
 
+  // Stable refs for collaboration values so that file-tree callbacks don't
+  // change identity on every render (the collaboration context object is new
+  // each render due to awareness updates every ~2 s, which cascades into
+  // FileTree re-renders and can steal input focus on Windows/Electron).
+  const collabActiveRef = useRef(collaboration.isActive);
+  const broadcastFileOpRef = useRef(collaboration.broadcastFileOp);
+  useEffect(() => {
+    collabActiveRef.current = collaboration.isActive;
+    broadcastFileOpRef.current = collaboration.broadcastFileOp;
+  }, [collaboration.isActive, collaboration.broadcastFileOp]);
+
   useEffect(() => {
     // Add platform class to body for OS-specific styling
     const platform = window.navigator.userAgent.toLowerCase();
@@ -644,16 +655,17 @@ function IDEContent() {
       });
 
       // Broadcast delete to collaboration peers
-      if (collaboration.isActive && workspaceRoot) {
-        const relativePath = toRelativePath(deletedPath, workspaceRoot);
-        collaboration.broadcastFileOp({
+      const wsRoot = workspaceRootRef.current;
+      if (collabActiveRef.current && wsRoot) {
+        const relativePath = toRelativePath(deletedPath, wsRoot);
+        broadcastFileOpRef.current({
           type: "delete",
           relativePath,
           isDirectory: type === "directory",
         });
       }
     },
-    [collaboration, workspaceRoot],
+    [],
   );
 
   const handleFileRenamed = useCallback(
@@ -692,44 +704,47 @@ function IDEContent() {
       });
 
       // Broadcast rename to collaboration peers
-      if (collaboration.isActive && workspaceRoot) {
-        const relOld = toRelativePath(oldPath, workspaceRoot);
-        const relNew = toRelativePath(newPath, workspaceRoot);
-        collaboration.broadcastFileOp({
+      const wsRoot = workspaceRootRef.current;
+      if (collabActiveRef.current && wsRoot) {
+        const relOld = toRelativePath(oldPath, wsRoot);
+        const relNew = toRelativePath(newPath, wsRoot);
+        broadcastFileOpRef.current({
           type: "rename",
           relativePath: relOld,
           newRelativePath: relNew,
         });
       }
     },
-    [collaboration, workspaceRoot],
+    [],
   );
 
   const handleFileCreated = useCallback(
-    (fullPath: string, name: string) => {
-      if (collaboration.isActive && workspaceRoot) {
-        const relativePath = toRelativePath(fullPath, workspaceRoot);
-        collaboration.broadcastFileOp({
+    (fullPath: string, _name: string) => {
+      const wsRoot = workspaceRootRef.current;
+      if (collabActiveRef.current && wsRoot) {
+        const relativePath = toRelativePath(fullPath, wsRoot);
+        broadcastFileOpRef.current({
           type: "create-file",
           relativePath,
           content: "",
         });
       }
     },
-    [collaboration, workspaceRoot],
+    [],
   );
 
   const handleFolderCreated = useCallback(
     (fullPath: string) => {
-      if (collaboration.isActive && workspaceRoot) {
-        const relativePath = toRelativePath(fullPath, workspaceRoot);
-        collaboration.broadcastFileOp({
+      const wsRoot = workspaceRootRef.current;
+      if (collabActiveRef.current && wsRoot) {
+        const relativePath = toRelativePath(fullPath, wsRoot);
+        broadcastFileOpRef.current({
           type: "create-folder",
           relativePath,
         });
       }
     },
-    [collaboration, workspaceRoot],
+    [],
   );
 
   // Subscribe to file operations from collaboration peers.

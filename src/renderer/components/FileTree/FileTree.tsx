@@ -83,13 +83,21 @@ function InlineCreateInput({
 }: InlineCreateInputProps) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const submittedRef = useRef(false);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    // Small delay to ensure the DOM is settled before focusing — this avoids
+    // a race where a parent re-render (e.g. from collaboration awareness
+    // updates) could steal focus during the same paint frame.
+    const id = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(id);
   }, []);
 
   const handleSubmit = () => {
+    // Guard against double-submit (blur can fire after Enter)
+    if (submittedRef.current) return;
     if (value.trim()) {
+      submittedRef.current = true;
       onSubmit(value.trim());
     } else {
       onCancel();
@@ -100,6 +108,8 @@ function InlineCreateInput({
     <div
       className="tree-node inline-create"
       style={{ paddingLeft: `${depth * INDENT_PX + 8}px` }}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       {hasFolders ? (
         <span className="expand-icon"></span>
@@ -120,7 +130,10 @@ function InlineCreateInput({
         placeholder={type === "folder" ? "Folder name" : "File name"}
         onChange={(e) => setValue(e.target.value)}
         onBlur={handleSubmit}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
+          e.stopPropagation();
           if (e.key === "Enter") handleSubmit();
           if (e.key === "Escape") onCancel();
         }}
