@@ -84,6 +84,8 @@ interface CollaborationContextValue {
   // File operation sync
   broadcastFileOp: (op: Omit<FileOperation, "timestamp" | "clientId">) => void;
   onFileOperation: (callback: (op: FileOperation) => void) => () => void;
+  connectionError: string | null;
+  clearConnectionError: () => void;
 }
 
 const CollaborationContext = createContext<CollaborationContextValue | null>(
@@ -126,6 +128,7 @@ export function CollaborationProvider({
   );
   const [workspaceMetadata, setWorkspaceMetadataState] =
     useState<WorkspaceMetadata | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Refs to store Yjs instances (persist across renders)
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -274,7 +277,7 @@ export function CollaborationProvider({
           cleanup();
           setStatus(null);
           setConnectedUsers([]);
-          alert('Connection rejected: you are not on the same team as the host.');
+          setConnectionError('Connection rejected: you are not on the same team as the host.');
         }
       });
 
@@ -936,6 +939,8 @@ export function CollaborationProvider({
       // File operation sync
       broadcastFileOp,
       onFileOperation,
+      connectionError,
+      clearConnectionError: () => setConnectionError(null),
     }),
     [
       isActive,
@@ -963,6 +968,7 @@ export function CollaborationProvider({
       onWorkspaceMetadataChange,
       broadcastFileOp,
       onFileOperation,
+      connectionError,
     ],
   );
 

@@ -55,6 +55,8 @@ export default function CollaborationModal({
                   }
                 : null
             }
+            connectionError={collaboration.connectionError}
+            onClearConnectionError={collaboration.clearConnectionError}
           />
         </div>
       </div>

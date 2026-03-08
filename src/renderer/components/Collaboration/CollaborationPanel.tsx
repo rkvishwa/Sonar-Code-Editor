@@ -23,12 +23,16 @@ interface CollaborationPanelProps {
   ) => void;
   onSessionStop: () => void;
   collaborationStatus: CollaborationStatus | null;
+  connectionError?: string | null;
+  onClearConnectionError?: () => void;
 }
 
 export default function CollaborationPanel({
   onSessionStart,
   onSessionStop,
   collaborationStatus,
+  connectionError,
+  onClearConnectionError,
 }: CollaborationPanelProps) {
   const [userName, setUserName] = useState("");
   const [hostIp, setHostIp] = useState("");
@@ -181,10 +185,19 @@ export default function CollaborationPanel({
         )}
       </div>
 
-      {error && (
+      {(error || connectionError) && (
         <div className="collaboration-error">
           <AlertCircle size={14} />
-          <span>{error}</span>
+          <span>{error || connectionError}</span>
+          {connectionError && onClearConnectionError && (
+            <button
+              style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 14 }}
+              onClick={onClearConnectionError}
+              title="Dismiss"
+            >
+              ×
+            </button>
+          )}
         </div>
       )}
 
