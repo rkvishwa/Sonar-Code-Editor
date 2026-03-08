@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -131,6 +131,14 @@ function IDEContent() {
   const [isCollaborationOpen, setIsCollaborationOpen] = useState(false);
   const [newFileTrigger, setNewFileTrigger] = useState(0);
   const [fileTreeRefreshKey, setFileTreeRefreshKey] = useState(0);
+
+  // Refs for stable file-operation subscriber (avoids re-subscription on every render)
+  const fileOpQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const workspaceRootRef = useRef<string | null>(null);
+  // Keep the ref in sync with state
+  useEffect(() => {
+    workspaceRootRef.current = workspaceRoot;
+  }, [workspaceRoot]);
 
   useEffect(() => {
     // Add platform class to body for OS-specific styling
@@ -682,14 +690,14 @@ function IDEContent() {
     [collaboration, workspaceRoot],
   );
 
-  // Subscribe to file operations from collaboration peers
-  // Uses a queue to process operations sequentially (avoids race conditions
-  // when e.g. create-folder + create-file arrive in the same Yjs update)
+  // Subscribe to file operations from collaboration peers.
+  // Uses a STABLE subscription (deps: isActive + onFileOperation) to avoid
+  // constant unsubscribe/resubscribe on every render, which could create
+  // micro-gaps where incoming ops are lost.
+  // The workspaceRoot is read via a ref so the callback always has the latest
+  // value without needing to be in the dependency array.
   useEffect(() => {
-    if (!collaboration.isActive || !workspaceRoot) return;
-
-    // Normalize workspace root to forward slashes for cross-platform path construction
-    const normRoot = workspaceRoot.replace(/\\/g, "/");
+    if (!collaboration.isActive) return;
 
     // Strip absolute path prefixes and backslashes from incoming relative paths
     const sanitizeRelPath = (p: string) =>
@@ -698,13 +706,21 @@ function IDEContent() {
         .replace(/^[A-Za-z]:[\/]/, "")
         .replace(/^\/+/, "");
 
-    // Sequential operation queue to avoid race conditions
-    let opQueue: Promise<void> = Promise.resolve();
-
     const unsub = collaboration.onFileOperation((op: FileOperation) => {
-      opQueue = opQueue.then(async () => {
+      fileOpQueueRef.current = fileOpQueueRef.current.then(async () => {
+        const wsRoot = workspaceRootRef.current;
+        if (!wsRoot) {
+          console.warn("Skipping remote file op — no workspace root yet");
+          return;
+        }
+        // Normalize workspace root to forward slashes for cross-platform path construction
+        const normRoot = wsRoot.replace(/\\/g, "/");
         const relPath = sanitizeRelPath(op.relativePath);
         const fullPath = `${normRoot}/${relPath}`;
+        console.log(
+          `Applying remote file op: ${op.type} ${relPath}`,
+          op.newRelativePath ? `→ ${op.newRelativePath}` : "",
+        );
         try {
           switch (op.type) {
             case "create-file":
@@ -751,8 +767,11 @@ function IDEContent() {
               const newFullPath = `${normRoot}/${newRelPath}`;
               try {
                 await window.electronAPI.fs.renameItem(fullPath, newFullPath);
-              } catch {
-                // Old path may not exist if already renamed/moved; ignore
+              } catch (renameErr) {
+                console.warn(
+                  `Remote rename failed (${relPath} → ${newRelPath}):`,
+                  renameErr,
+                );
               }
               // Update tabs locally WITHOUT calling handleFileRenamed (which would
               // re-broadcast the op and create an infinite echo loop)
@@ -799,7 +818,7 @@ function IDEContent() {
     });
 
     return unsub;
-  }, [collaboration, workspaceRoot]);
+  }, [collaboration.isActive, collaboration.onFileOperation]);
 
   const openFolder = useCallback(async () => {
     const result = await window.electronAPI.fs.openFolderDialog();

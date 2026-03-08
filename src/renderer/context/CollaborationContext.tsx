@@ -733,7 +733,10 @@ export function CollaborationProvider({
   // Broadcast a file operation to all connected peers
   const broadcastFileOp = useCallback(
     (op: Omit<FileOperation, "timestamp" | "clientId">) => {
-      if (!ydocRef.current || !providerRef.current) return;
+      if (!ydocRef.current || !providerRef.current) {
+        console.warn("broadcastFileOp: skipped — no active Yjs session", op.type, op.relativePath);
+        return;
+      }
       const fileOpsArray = ydocRef.current.getArray<FileOperation>("fileOps");
       // Normalize all paths to forward slashes for cross-platform compatibility
       const fullOp: FileOperation = {
