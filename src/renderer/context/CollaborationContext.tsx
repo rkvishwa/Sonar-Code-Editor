@@ -52,8 +52,8 @@ interface CollaborationContextValue {
   connectedUsers: CollaborationUser[];
   userName: string;
   setUserName: (name: string) => void;
-  startHost: () => Promise<void>;
-  joinSession: (hostIp: string) => Promise<void>;
+  startHost: (overrideName?: string) => Promise<void>;
+  joinSession: (hostIp: string, overrideName?: string) => Promise<void>;
   stopSession: () => Promise<void>;
   bindEditor: (
     monacoEditor: editor.IStandaloneCodeEditor,
@@ -531,14 +531,15 @@ export function CollaborationProvider({
     [cleanup, userName, user?.$id],
   );
 
-  const startHost = useCallback(async () => {
-    if (!userName.trim()) {
+  const startHost = useCallback(async (overrideName?: string) => {
+    const nameToUse = overrideName || userName;
+    if (!nameToUse.trim()) {
       throw new Error("Please enter your name");
     }
 
     try {
       const newStatus =
-        await window.electronAPI.collaboration.startHost(userName, user?.$id);
+        await window.electronAPI.collaboration.startHost(nameToUse, user?.$id);
 
       if (newStatus.hostIp) {
         // Host connects to localhost since the server is on their own machine
@@ -554,8 +555,9 @@ export function CollaborationProvider({
   }, [initializeYjs, userName, user?.$id]);
 
   const joinSession = useCallback(
-    async (hostIp: string) => {
-      if (!userName.trim()) {
+    async (hostIp: string, overrideName?: string) => {
+      const nameToUse = overrideName || userName;
+      if (!nameToUse.trim()) {
         throw new Error("Please enter your name");
       }
       if (!hostIp.trim()) {
@@ -565,7 +567,7 @@ export function CollaborationProvider({
       try {
         const newStatus = await window.electronAPI.collaboration.joinSession(
           hostIp,
-          userName,
+          nameToUse,
           user?.$id
         );
 

@@ -162,11 +162,11 @@ export default function CollaborationPanel({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       if (activeTab === "join") {
-        if (!loading && userName.trim() && hostIp.trim()) {
+        if (!loading) {
           handleJoinSession();
         }
       } else {
-        if (!loading && userName.trim()) {
+        if (!loading) {
           handleStartHost();
         }
       }
@@ -255,7 +255,7 @@ export default function CollaborationPanel({
                 <button
                   className="action-btn secondary full-width"
                   onClick={handleJoinSession}
-                  disabled={loading || !userName.trim() || !hostIp.trim()}
+                  disabled={loading}
                 >
                   {loading ? (
                     <Loader2 size={14} className="spin" />
@@ -303,7 +303,7 @@ export default function CollaborationPanel({
                 <button
                   className="action-btn primary full-width"
                   onClick={handleStartHost}
-                  disabled={loading || !userName.trim()}
+                  disabled={loading}
                 >
                   {loading ? (
                     <Loader2 size={14} className="spin" />

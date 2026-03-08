@@ -136,13 +136,14 @@ function searchFilesRecursive(dirPath: string, query: string, results: any[]) {
 
 export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   ipcMain.handle(IPC_CHANNELS.FS_READ_DIR, async (_event, dirPath: string) => {
+    if (!dirPath) throw new Error("Path is required");
+    if (!fs.existsSync(dirPath)) throw new Error("Directory does not exist");
+    
     try {
-      if (!dirPath) return [];
-      if (!fs.existsSync(dirPath)) return [];
       return readDirectoryRecursive(dirPath);
     } catch (err) {
       console.error('FS_READ_DIR error:', err);
-      return []; // Return empty array instead of throwing — prevents caller hangs
+      throw err;
     }
   });
 
