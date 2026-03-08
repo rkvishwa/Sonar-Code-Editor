@@ -78,6 +78,16 @@ export default function CollaborationPanel({
     localStorage.setItem("collaborationUserName", userName);
 
     try {
+      // On macOS, trigger local network permission prompt if needed
+      const networkOk =
+        await window.electronAPI.collaboration.checkLocalNetwork();
+      if (!networkOk) {
+        setError(
+          "Local Network permission is required for collaboration. Please allow it in System Settings → Privacy & Security → Local Network, then try again.",
+        );
+        setLoading(false);
+        return;
+      }
       await onSessionStart("host", userName);
     } catch (err) {
       setError((err as Error).message);
@@ -101,6 +111,16 @@ export default function CollaborationPanel({
     localStorage.setItem("collaborationUserName", userName);
 
     try {
+      // On macOS, trigger local network permission prompt if needed
+      const networkOk =
+        await window.electronAPI.collaboration.checkLocalNetwork();
+      if (!networkOk) {
+        setError(
+          "Local Network permission is required for collaboration. Please allow it in System Settings → Privacy & Security → Local Network, then try again.",
+        );
+        setLoading(false);
+        return;
+      }
       await onSessionStart("client", userName, hostIp);
     } catch (err) {
       setError((err as Error).message);

@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import * as dgram from 'dgram';
 import WebSocket, { WebSocketServer } from 'ws';
 import * as http from 'http';
 import * as os from 'os';
@@ -45,6 +46,40 @@ class CollaborationManager {
   };
 
   constructor() {}
+
+  /**
+   * Check local network access by sending a UDP multicast packet.
+   * On macOS, this triggers the Local Network permission prompt if not yet granted.
+   * Returns true if the network operation succeeded.
+   */
+  async checkLocalNetworkAccess(): Promise<boolean> {
+    if (process.platform !== 'darwin') {
+      return true;
+    }
+
+    return new Promise((resolve) => {
+      const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+      const message = Buffer.from('ping');
+      const timeout = setTimeout(() => {
+        try { socket.close(); } catch (_) { /* ignore */ }
+        // Timeout likely means the OS blocked the packet (permission denied)
+        resolve(false);
+      }, 3000);
+
+      socket.on('error', () => {
+        clearTimeout(timeout);
+        try { socket.close(); } catch (_) { /* ignore */ }
+        resolve(false);
+      });
+
+      // Sending to mDNS multicast address triggers macOS Local Network permission
+      socket.send(message, 0, message.length, 5353, '224.0.0.251', (err) => {
+        clearTimeout(timeout);
+        try { socket.close(); } catch (_) { /* ignore */ }
+        resolve(!err);
+      });
+    });
+  }
 
   setMainWindow(window: BrowserWindow): void {
     this.mainWindow = window;

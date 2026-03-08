@@ -167,6 +167,7 @@ export interface ElectronAPI {
     getLocalIp: () => Promise<string>;
     getNetworkInterfaces: () => Promise<{ name: string; ip: string }[]>;
     startHostedNetwork: (ssid: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    checkLocalNetwork: () => Promise<boolean>;
     onStatusChange: (callback: (status: CollaborationStatus) => void) => () => void;
   };
 }

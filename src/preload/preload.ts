@@ -62,6 +62,7 @@ const api: ElectronAPI = {
     getLocalIp: () => ipcRenderer.invoke(IPC_CHANNELS.COLLAB_GET_LOCAL_IP),
     getNetworkInterfaces: () => ipcRenderer.invoke(IPC_CHANNELS.COLLAB_GET_NETWORK_INTERFACES),
     startHostedNetwork: (ssid: string, password: string) => ipcRenderer.invoke(IPC_CHANNELS.COLLAB_START_HOSTED_NETWORK, ssid, password),
+    checkLocalNetwork: () => ipcRenderer.invoke(IPC_CHANNELS.COLLAB_CHECK_LOCAL_NETWORK) as Promise<boolean>,
     onStatusChange: (callback: (status: CollaborationStatus) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, status: CollaborationStatus) => callback(status);
       ipcRenderer.on(IPC_CHANNELS.COLLAB_STATUS_CHANGE, handler);

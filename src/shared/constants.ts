@@ -44,6 +44,7 @@ export const IPC_CHANNELS = {
   COLLAB_GET_NETWORK_INTERFACES: 'collaboration:getNetworkInterfaces',
   COLLAB_START_HOSTED_NETWORK: 'collaboration:startHostedNetwork',
   COLLAB_STATUS_CHANGE: 'collaboration:statusChange',
+  COLLAB_CHECK_LOCAL_NETWORK: 'collaboration:checkLocalNetwork',
 } as const;
 
 export const APP_CONFIG = {
