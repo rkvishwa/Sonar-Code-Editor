@@ -536,9 +536,18 @@ function IDEContent() {
 
   const activeTab = tabs.find((t) => t.path === activeTabPath) || null;
 
+  // Use a ref so openFile always sees the latest tabs without depending on
+  // the `tabs` array — this keeps the callback identity stable which in turn
+  // keeps FileTree (wrapped in React.memo) from re-rendering on every tab
+  // change, preventing focus loss in inline-create inputs.
+  const tabsRef = useRef(tabs);
+  useEffect(() => {
+    tabsRef.current = tabs;
+  }, [tabs]);
+
   const openFile = useCallback(
     async (filePath: string, fileName: string) => {
-      const existing = tabs.find((t) => t.path === filePath);
+      const existing = tabsRef.current.find((t) => t.path === filePath);
       if (existing) {
         setActiveTabPath(filePath);
         return;
@@ -578,7 +587,7 @@ function IDEContent() {
         console.error("Failed to open file:", err);
       }
     },
-    [tabs],
+    [],
   );
 
   const closeTab = useCallback(

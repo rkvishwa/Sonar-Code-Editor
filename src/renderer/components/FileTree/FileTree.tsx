@@ -84,6 +84,13 @@ function InlineCreateInput({
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const submittedRef = useRef(false);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Keep latest callbacks in refs so the debounced blur always calls the
+  // current versions (parent re-renders may swap identities).
+  const onSubmitRef = useRef(onSubmit);
+  const onCancelRef = useRef(onCancel);
+  onSubmitRef.current = onSubmit;
+  onCancelRef.current = onCancel;
 
   useEffect(() => {
     // Small delay to ensure the DOM is settled before focusing — this avoids
@@ -93,16 +100,44 @@ function InlineCreateInput({
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const handleSubmit = () => {
+  // Cleanup blur timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+    };
+  }, []);
+
+  const handleSubmit = useCallback(() => {
     // Guard against double-submit (blur can fire after Enter)
     if (submittedRef.current) return;
     if (value.trim()) {
       submittedRef.current = true;
-      onSubmit(value.trim());
+      onSubmitRef.current(value.trim());
     } else {
-      onCancel();
+      onCancelRef.current();
     }
-  };
+  }, [value]);
+
+  const handleBlur = useCallback(() => {
+    // During collaboration, parent re-renders (from awareness updates etc.)
+    // can briefly steal focus from this input.  Use a short delay so that if
+    // focus returns within the timeout we skip the submit/cancel and keep the
+    // input alive.
+    if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+    blurTimeoutRef.current = setTimeout(() => {
+      // Focus came back (React reconciliation restored it) — do nothing.
+      if (document.activeElement === inputRef.current) return;
+      handleSubmit();
+    }, 180);
+  }, [handleSubmit]);
+
+  const handleFocus = useCallback(() => {
+    // Cancel any pending blur-triggered cancel/submit.
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+  }, []);
 
   return (
     <div
@@ -129,13 +164,27 @@ function InlineCreateInput({
         value={value}
         placeholder={type === "folder" ? "Folder name" : "File name"}
         onChange={(e) => setValue(e.target.value)}
-        onBlur={handleSubmit}
+        onBlur={handleBlur}
+        onFocus={handleFocus}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           e.stopPropagation();
-          if (e.key === "Enter") handleSubmit();
-          if (e.key === "Escape") onCancel();
+          if (e.key === "Enter") {
+            // Clear any pending blur timeout so we don't double-submit
+            if (blurTimeoutRef.current) {
+              clearTimeout(blurTimeoutRef.current);
+              blurTimeoutRef.current = null;
+            }
+            handleSubmit();
+          }
+          if (e.key === "Escape") {
+            if (blurTimeoutRef.current) {
+              clearTimeout(blurTimeoutRef.current);
+              blurTimeoutRef.current = null;
+            }
+            onCancelRef.current();
+          }
         }}
       />
     </div>
@@ -485,7 +534,7 @@ interface FileTreeProps {
   refreshTrigger?: number;
 }
 
-export default function FileTree({
+const FileTree = React.memo(function FileTree({
   workspaceRoot,
   onOpenFolder,
   onFileClick,
@@ -800,4 +849,6 @@ export default function FileTree({
         )}
     </div>
   );
-}
+});
+
+export default FileTree;

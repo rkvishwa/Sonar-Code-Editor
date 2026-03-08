@@ -342,8 +342,24 @@ export function CollaborationProvider({
             name: state.user.name,
             color: state.user.color,
           }));
-        console.log("Connected users:", users.map((u) => u.name).join(", "));
-        setConnectedUsers(users);
+        // Only update state if the user list actually changed to avoid
+        // unnecessary re-renders (awareness fires every ~2 s even when
+        // the list is unchanged, which would cascade re-renders into the
+        // file tree and steal focus from inline-create inputs).
+        setConnectedUsers((prev) => {
+          if (
+            prev.length === users.length &&
+            prev.every(
+              (u, i) =>
+                u.id === users[i].id &&
+                u.name === users[i].name &&
+                u.color === users[i].color,
+            )
+          ) {
+            return prev;
+          }
+          return users;
+        });
 
         // Inject CSS for remote cursor colors and labels
         injectCursorStyles(states);
