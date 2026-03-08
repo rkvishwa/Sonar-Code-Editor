@@ -118,36 +118,88 @@ class CollaborationManager {
   }
 
   /**
-   * Get the local IP address of the machine
+   * Check whether a network interface name belongs to a virtual adapter
+   * (WSL, Hyper-V, Docker, VMware, VirtualBox, etc.) whose IP is typically
+   * unreachable from other machines on the physical LAN.
    */
-  getLocalIpAddress(): string {
-    const interfaces = os.networkInterfaces();
-    for (const name of Object.keys(interfaces)) {
-      for (const iface of interfaces[name] || []) {
-        // Skip internal (loopback) and non-IPv4 addresses
-        if (iface.family === 'IPv4' && !iface.internal) {
-          return iface.address;
-        }
-      }
-    }
-    return '127.0.0.1';
+  private isVirtualInterface(name: string): boolean {
+    const lower = name.toLowerCase();
+    // Common virtual adapter name patterns on Windows / Linux / macOS
+    const virtualPatterns = [
+      'vethernet',      // Hyper-V / WSL virtual switches (e.g. "vEthernet (WSL)")
+      'hyper-v',
+      'wsl',
+      'docker',
+      'vmware',
+      'vmnet',
+      'virtualbox',
+      'vboxnet',
+      'virbr',          // libvirt bridge on Linux
+      'br-',            // Docker bridge networks
+      'veth',           // Docker/Container veth pairs
+      'tailscale',      // Tailscale VPN
+      'zt',             // ZeroTier
+      'utun',           // macOS VPN tunnels
+      'tun',            // Generic VPN tunnels
+      'tap',            // Generic TAP adapters
+      'ham',            // Hamachi
+      'isatap',         // ISATAP tunnels
+      'teredo',         // Teredo tunnels
+    ];
+    return virtualPatterns.some((p) => lower.includes(p));
   }
 
   /**
-   * Get all available network interfaces with their IPs
+   * Get the local IP address of the machine.
+   * Prefers physical adapters (Wi-Fi, Ethernet) over virtual ones
+   * (WSL, Hyper-V, Docker, etc.) so the returned IP is reachable
+   * from other machines on the same LAN.
+   */
+  getLocalIpAddress(): string {
+    const interfaces = os.networkInterfaces();
+    let fallback: string | null = null;
+
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name] || []) {
+        // Skip internal (loopback) and non-IPv4 addresses
+        if (iface.family !== 'IPv4' || iface.internal) continue;
+
+        if (this.isVirtualInterface(name)) {
+          // Remember the first virtual IP as a last-resort fallback
+          if (!fallback) fallback = iface.address;
+          continue;
+        }
+        // First physical adapter wins
+        return iface.address;
+      }
+    }
+    // No physical adapter found — use virtual fallback or loopback
+    return fallback ?? '127.0.0.1';
+  }
+
+  /**
+   * Get all available network interfaces with their IPs.
+   * Physical adapters are listed first; virtual adapters are included
+   * at the end with a "(virtual)" suffix so the user can identify them.
    */
   getNetworkInterfaces(): { name: string; ip: string }[] {
     const interfaces = os.networkInterfaces();
-    const result: { name: string; ip: string }[] = [];
-    
+    const physical: { name: string; ip: string }[] = [];
+    const virtual: { name: string; ip: string }[] = [];
+
     for (const name of Object.keys(interfaces)) {
       for (const iface of interfaces[name] || []) {
-        if (iface.family === 'IPv4' && !iface.internal) {
-          result.push({ name, ip: iface.address });
+        if (iface.family !== 'IPv4' || iface.internal) continue;
+
+        if (this.isVirtualInterface(name)) {
+          virtual.push({ name: `${name} (virtual)`, ip: iface.address });
+        } else {
+          physical.push({ name, ip: iface.address });
         }
       }
     }
-    return result;
+    // Physical first, virtual last
+    return [...physical, ...virtual];
   }
 
   /**

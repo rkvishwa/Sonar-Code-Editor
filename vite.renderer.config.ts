@@ -27,6 +27,11 @@ export default defineConfig({
       },
     },
   },
+  worker: {
+    // Ensure Monaco web workers are emitted as separate files with correct
+    // relative paths so they load in the Electron renderer (file:// protocol).
+    format: 'es' as const,
+  },
   server: {
     port: 5173,
     host: '127.0.0.1',

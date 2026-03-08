@@ -286,14 +286,31 @@ function IDEContent() {
     return () => clearTimeout(timer);
   }, [tabs, autoSave, hotReload]);
 
+  // Guard ref: prevents multiple concurrent sync / folder-dialog opens.
+  // Once a sync has started (or the user has picked / cancelled a folder),
+  // subsequent metadata callbacks are ignored.
+  const isSyncingRef = useRef(false);
+  // Track the last synced folder name so we only prompt once per workspace.
+  const lastSyncedFolderRef = useRef<string | null>(null);
+
   // Listen for shared workspace metadata from collaboration (for clients joining)
   useEffect(() => {
     if (!collaboration.isActive) return;
     if (collaboration.status?.mode === "host") return; // Host doesn't need to receive
 
+    // Reset guards when the effect re-runs (e.g. new session)
+    isSyncingRef.current = false;
+    lastSyncedFolderRef.current = null;
+
     const unsubMetadata = collaboration.onWorkspaceMetadataChange(
       async (metadata: WorkspaceMetadata | null) => {
         if (!metadata) return;
+
+        // Prevent opening the folder dialog multiple times
+        if (isSyncingRef.current) return;
+        if (lastSyncedFolderRef.current === metadata.folderName) {
+          // Already synced this workspace — just re-sync files silently
+        }
 
         console.log(
           "Received workspace metadata:",
@@ -405,10 +422,22 @@ function IDEContent() {
           targetPath = metadata.hostPath;
         } catch {
           // Path doesn't exist — ask user where to save
-          const selectedFolder =
-            await window.electronAPI.fs.openFolderDialog();
+          // Acquire the syncing lock so no other callback opens another dialog
+          if (isSyncingRef.current) return;
+          isSyncingRef.current = true;
+
+          let selectedFolder;
+          try {
+            selectedFolder = await window.electronAPI.fs.openFolderDialog();
+          } catch (dialogErr) {
+            console.error("Folder dialog error:", dialogErr);
+            isSyncingRef.current = false;
+            return;
+          }
+
           if (!selectedFolder) {
             console.log("User cancelled workspace download");
+            isSyncingRef.current = false;
             return;
           }
           targetPath = `${selectedFolder.path}/${metadata.folderName}`;
@@ -430,11 +459,14 @@ function IDEContent() {
               .replace(/\/{2,}/g, "/")
               .replace(/\/+$/, ""),
           );
+          lastSyncedFolderRef.current = metadata.folderName;
         } catch (err) {
           console.error("Failed to sync workspace:", err);
           window.electronAPI.dialog.showError(
             `Failed to sync workspace: ${err}`,
           );
+        } finally {
+          isSyncingRef.current = false;
         }
       },
     );

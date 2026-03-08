@@ -846,19 +846,26 @@ export function CollaborationProvider({
     [],
   );
 
+  // Keep a ref in sync with the latest workspaceMetadata so that
+  // onWorkspaceMetadataChange can read it without depending on the state
+  // (which would recreate the callback and cause consumers to re-subscribe).
+  const workspaceMetadataRef = useRef<WorkspaceMetadata | null>(workspaceMetadata);
+  workspaceMetadataRef.current = workspaceMetadata;
+
   // Subscribe to workspace metadata changes
   const onWorkspaceMetadataChange = useCallback(
     (callback: (metadata: WorkspaceMetadata | null) => void) => {
       workspaceMetadataCallbacksRef.current.add(callback);
       // Immediately call with current metadata if available
-      if (workspaceMetadata) {
-        callback(workspaceMetadata);
+      const current = workspaceMetadataRef.current;
+      if (current) {
+        callback(current);
       }
       return () => {
         workspaceMetadataCallbacksRef.current.delete(callback);
       };
     },
-    [workspaceMetadata],
+    [],  // stable — never recreated
   );
 
   const value: CollaborationContextValue = {
