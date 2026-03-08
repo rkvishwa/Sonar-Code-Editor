@@ -258,11 +258,25 @@ export function CollaborationProvider({
       const wsUrl = `ws://${hostIp}:${port}`;
       console.log("Connecting to WebSocket server:", wsUrl);
 
-      const roomName = `monaco-collab-${user?.teamId || 'default'}`;
+      const teamId = user?.$id || 'default';
+      const roomName = `monaco-collab-${teamId}`;
+      console.log(`Using collaboration room: ${roomName}`);
       const provider = new WebsocketProvider(wsUrl, roomName, ydoc, {
         connect: true,
       });
       providerRef.current = provider;
+
+      // Detect team-mismatch rejection from host
+      provider.on('connection-close', (event: CloseEvent) => {
+        if (event.code === 1008 && event.reason === 'Team mismatch') {
+          console.error('Connection rejected: different team');
+          provider.disconnect();
+          cleanup();
+          setStatus(null);
+          setConnectedUsers([]);
+          alert('Connection rejected: you are not on the same team as the host.');
+        }
+      });
 
       // Set user awareness information
       provider.awareness.setLocalStateField("user", {
@@ -511,7 +525,7 @@ export function CollaborationProvider({
 
       return { ydoc, provider };
     },
-    [cleanup, userName, user?.teamId],
+    [cleanup, userName, user?.$id],
   );
 
   const startHost = useCallback(async () => {
@@ -521,7 +535,7 @@ export function CollaborationProvider({
 
     try {
       const newStatus =
-        await window.electronAPI.collaboration.startHost(userName, user?.teamId);
+        await window.electronAPI.collaboration.startHost(userName, user?.$id);
 
       if (newStatus.hostIp) {
         // Host connects to localhost since the server is on their own machine
@@ -534,7 +548,7 @@ export function CollaborationProvider({
       console.error("Failed to start host:", error);
       throw error;
     }
-  }, [initializeYjs, userName, user?.teamId]);
+  }, [initializeYjs, userName, user?.$id]);
 
   const joinSession = useCallback(
     async (hostIp: string) => {
@@ -549,7 +563,7 @@ export function CollaborationProvider({
         const newStatus = await window.electronAPI.collaboration.joinSession(
           hostIp,
           userName,
-          user?.teamId
+          user?.$id
         );
 
         // Initialize Yjs connection to remote host
@@ -561,7 +575,7 @@ export function CollaborationProvider({
         throw error;
       }
     },
-    [initializeYjs, userName, user?.teamId],
+    [initializeYjs, userName, user?.$id],
   );
 
   const stopSession = useCallback(async () => {
