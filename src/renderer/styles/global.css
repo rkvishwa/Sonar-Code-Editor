@@ -119,9 +119,23 @@ button {
 input, textarea {
   font-family: inherit;
   outline: none;
+  /* Explicit override: on Windows Electron, body { user-select: none } can
+     cascade aggressively and prevent keyboard input in child elements. */
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 a {
   color: var(--accent);
   text-decoration: none;
+}
+
+/* Monaco editor needs user-select on Windows to accept keyboard input.
+   The body-level user-select:none can cascade into Monaco's hidden textarea
+   on Windows Electron, breaking typing during collaboration. */
+.monaco-editor,
+.monaco-editor .inputarea,
+.monaco-editor textarea {
+  user-select: text !important;
+  -webkit-user-select: text !important;
 }

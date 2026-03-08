@@ -93,11 +93,46 @@ function InlineCreateInput({
   onCancelRef.current = onCancel;
 
   useEffect(() => {
-    // Small delay to ensure the DOM is settled before focusing — this avoids
-    // a race where a parent re-render (e.g. from collaboration awareness
-    // updates) could steal focus during the same paint frame.
-    const id = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(id);
+    // On Windows Electron during collaboration, y-monaco operations
+    // (editor.setSelection, deltaDecorations) can steal focus from this input.
+    // Use setTimeout (more reliable than rAF on Windows) + a short focus-guard
+    // interval that re-claims focus if it's stolen by Monaco within the first
+    // ~1 s after mount.
+    const focusInput = () => inputRef.current?.focus();
+    const timerId = setTimeout(focusInput, 0);
+    // Also use rAF as a second attempt for layout-dependent cases
+    const rafId = requestAnimationFrame(focusInput);
+
+    // Focus guard: re-focus if something steals it (e.g. Monaco awareness update)
+    let guardCount = 0;
+    const guardInterval = setInterval(() => {
+      guardCount++;
+      if (guardCount > 10) {
+        clearInterval(guardInterval);
+        return;
+      }
+      if (
+        inputRef.current &&
+        document.activeElement !== inputRef.current &&
+        !submittedRef.current
+      ) {
+        // Only re-focus if focus went to a Monaco element or body (stolen focus)
+        const active = document.activeElement;
+        const isMonacoOrBody =
+          !active ||
+          active === document.body ||
+          active.closest('.monaco-editor') !== null;
+        if (isMonacoOrBody) {
+          inputRef.current.focus();
+        }
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timerId);
+      cancelAnimationFrame(rafId);
+      clearInterval(guardInterval);
+    };
   }, []);
 
   // Cleanup blur timeout on unmount
@@ -294,18 +329,25 @@ function FileTreeNode({
 
   const handleInlineCreate = async (name: string) => {
     if (!creatingItem) return;
-    const fullPath = `${creatingItem.parentPath}/${name}`;
-    if (creatingItem.type === "file") {
-      await window.electronAPI.fs.createFile(fullPath);
+    // Normalize path separators for cross-platform safety (Windows backslashes)
+    const parentNorm = creatingItem.parentPath.replace(/\\/g, "/");
+    const fullPath = `${parentNorm}/${name}`;
+    try {
+      if (creatingItem.type === "file") {
+        await window.electronAPI.fs.createFile(fullPath);
+        onSetCreating(null);
+        await loadChildren();
+        onFileCreated?.(fullPath, name);
+        onFileOpened(fullPath, name);
+      } else {
+        await window.electronAPI.fs.createFolder(fullPath);
+        onSetCreating(null);
+        await loadChildren();
+        onFolderCreated?.(fullPath);
+      }
+    } catch (err) {
+      console.error("Failed to create item:", err);
       onSetCreating(null);
-      await loadChildren();
-      onFileCreated?.(fullPath, name);
-      onFileOpened(fullPath, name);
-    } else {
-      await window.electronAPI.fs.createFolder(fullPath);
-      onSetCreating(null);
-      await loadChildren();
-      onFolderCreated?.(fullPath);
     }
   };
 
@@ -730,18 +772,24 @@ const FileTree = React.memo(function FileTree({
               depth={0}
               hasFolders={hasRootFolders}
               onSubmit={async (name) => {
-                const fullPath = `${workspaceRoot}/${name}`;
-                if (creatingItem.type === "file") {
-                  await window.electronAPI.fs.createFile(fullPath);
+                const rootNorm = workspaceRoot.replace(/\\/g, "/");
+                const fullPath = `${rootNorm}/${name}`;
+                try {
+                  if (creatingItem.type === "file") {
+                    await window.electronAPI.fs.createFile(fullPath);
+                    setCreatingItem(null);
+                    loadRoot();
+                    onFileCreated?.(fullPath, name);
+                    onFileOpened?.(fullPath, name);
+                  } else {
+                    await window.electronAPI.fs.createFolder(fullPath);
+                    setCreatingItem(null);
+                    loadRoot();
+                    onFolderCreated?.(fullPath);
+                  }
+                } catch (err) {
+                  console.error("Failed to create item at root:", err);
                   setCreatingItem(null);
-                  loadRoot();
-                  onFileCreated?.(fullPath, name);
-                  onFileOpened?.(fullPath, name);
-                } else {
-                  await window.electronAPI.fs.createFolder(fullPath);
-                  setCreatingItem(null);
-                  loadRoot();
-                  onFolderCreated?.(fullPath);
                 }
               }}
               onCancel={() => setCreatingItem(null)}
@@ -778,18 +826,24 @@ const FileTree = React.memo(function FileTree({
               depth={0}
               hasFolders={hasRootFolders}
               onSubmit={async (name) => {
-                const fullPath = `${workspaceRoot}/${name}`;
-                if (creatingItem.type === "file") {
-                  await window.electronAPI.fs.createFile(fullPath);
+                const rootNorm = workspaceRoot.replace(/\\/g, "/");
+                const fullPath = `${rootNorm}/${name}`;
+                try {
+                  if (creatingItem.type === "file") {
+                    await window.electronAPI.fs.createFile(fullPath);
+                    setCreatingItem(null);
+                    loadRoot();
+                    onFileCreated?.(fullPath, name);
+                    onFileOpened?.(fullPath, name);
+                  } else {
+                    await window.electronAPI.fs.createFolder(fullPath);
+                    setCreatingItem(null);
+                    loadRoot();
+                    onFolderCreated?.(fullPath);
+                  }
+                } catch (err) {
+                  console.error("Failed to create item at root:", err);
                   setCreatingItem(null);
-                  loadRoot();
-                  onFileCreated?.(fullPath, name);
-                  onFileOpened?.(fullPath, name);
-                } else {
-                  await window.electronAPI.fs.createFolder(fullPath);
-                  setCreatingItem(null);
-                  loadRoot();
-                  onFolderCreated?.(fullPath);
                 }
               }}
               onCancel={() => setCreatingItem(null)}

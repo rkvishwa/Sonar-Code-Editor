@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useEffect,
   useRef,
+  useMemo,
 } from "react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
@@ -332,6 +333,10 @@ export function CollaborationProvider({
         activeFileCallbacksRef.current.forEach((cb) => cb(path));
       });
 
+      // Track last injected CSS to avoid unnecessary DOM mutations that can
+      // interfere with focus on Windows Electron during collaboration.
+      let lastInjectedCSS = "";
+
       // Helper to update user list from awareness states
       const updateUserList = () => {
         const states = Array.from(provider.awareness.getStates().entries());
@@ -417,7 +422,12 @@ export function CollaborationProvider({
           })
           .join("\n");
 
-        styleEl.textContent = css;
+        // Skip DOM mutation if CSS hasn't changed — avoids unnecessary
+        // style recalc that can interfere with focus on Windows Electron.
+        if (css !== lastInjectedCSS) {
+          styleEl.textContent = css;
+          lastInjectedCSS = css;
+        }
       };
 
       // Re-inject cursor styles when collaboration settings change
@@ -868,39 +878,75 @@ export function CollaborationProvider({
     [],  // stable — never recreated
   );
 
-  const value: CollaborationContextValue = {
-    isActive: status?.isActive || false,
-    status,
-    connectedUsers,
-    userName,
-    setUserName,
-    startHost,
-    joinSession,
-    stopSession,
-    bindEditor,
-    unbindEditor,
-    getCurrentEditorContent,
-    ydoc: ydocRef.current,
-    provider: providerRef.current,
-    // Shared file methods
-    shareFile,
-    getSharedFiles,
-    setActiveSharedFile,
-    activeSharedFile,
-    onSharedFilesChange,
-    onActiveFileChange,
-    // Workspace sharing
-    sharedWorkspace,
-    setSharedWorkspace,
-    onWorkspaceChange,
-    // Workspace sync (with files)
-    shareWorkspaceWithFiles,
-    workspaceMetadata,
-    onWorkspaceMetadataChange,
-    // File operation sync
-    broadcastFileOp,
-    onFileOperation,
-  };
+  const isActive = status?.isActive || false;
+
+  // Memoize the context value to prevent unnecessary re-renders of consumers.
+  // Without this, every state change in the provider (e.g. from awareness
+  // updates) creates a new object reference, causing ALL useCollaboration()
+  // consumers to re-render — which cascades into FileTree/EditorPanel
+  // re-renders that steal focus from inline inputs on Windows.
+  const value: CollaborationContextValue = useMemo(
+    () => ({
+      isActive,
+      status,
+      connectedUsers,
+      userName,
+      setUserName,
+      startHost,
+      joinSession,
+      stopSession,
+      bindEditor,
+      unbindEditor,
+      getCurrentEditorContent,
+      ydoc: ydocRef.current,
+      provider: providerRef.current,
+      // Shared file methods
+      shareFile,
+      getSharedFiles,
+      setActiveSharedFile,
+      activeSharedFile,
+      onSharedFilesChange,
+      onActiveFileChange,
+      // Workspace sharing
+      sharedWorkspace,
+      setSharedWorkspace,
+      onWorkspaceChange,
+      // Workspace sync (with files)
+      shareWorkspaceWithFiles,
+      workspaceMetadata,
+      onWorkspaceMetadataChange,
+      // File operation sync
+      broadcastFileOp,
+      onFileOperation,
+    }),
+    [
+      isActive,
+      status,
+      connectedUsers,
+      userName,
+      setUserName,
+      startHost,
+      joinSession,
+      stopSession,
+      bindEditor,
+      unbindEditor,
+      getCurrentEditorContent,
+      shareFile,
+      getSharedFiles,
+      setActiveSharedFile,
+      activeSharedFile,
+      onSharedFilesChange,
+      onActiveFileChange,
+      sharedWorkspace,
+      setSharedWorkspace,
+      onWorkspaceChange,
+      shareWorkspaceWithFiles,
+      workspaceMetadata,
+      onWorkspaceMetadataChange,
+      broadcastFileOp,
+      onFileOperation,
+    ],
+  );
 
   return (
     <CollaborationContext.Provider value={value}>

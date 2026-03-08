@@ -170,6 +170,11 @@
   font-size: 13px;
   width: 100%;
   margin-left: -6px;
+  /* Ensure inputs are interactive on Windows - override body user-select:none */
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
 }
 
 .rename-input:focus, .inline-create-input:focus {
