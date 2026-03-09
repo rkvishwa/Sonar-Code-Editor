@@ -300,12 +300,13 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.FS_OPEN_FOLDER_DIALOG, async (event) => {
-    const win = require('electron').BrowserWindow.fromWebContents(event.sender);
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
     try {
-      const result = await dialog.showOpenDialog(win!, {
-        properties: ['openDirectory'],
+      const options: Electron.OpenDialogOptions = {
+        properties: ['openDirectory', 'createDirectory'],
         title: 'Open Folder',
-      });
+      };
+      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
       if (result.canceled || result.filePaths.length === 0) return null;
       return { path: result.filePaths[0], isDirectory: true };
     } catch (err) {
@@ -314,12 +315,13 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.FS_OPEN_FILE_DIALOG, async (event) => {
-    const win = require('electron').BrowserWindow.fromWebContents(event.sender);
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
     try {
-      const result = await dialog.showOpenDialog(win!, {
+      const options: Electron.OpenDialogOptions = {
         properties: ['openFile'],
         title: 'Open File',
-      });
+      };
+      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
       if (result.canceled || result.filePaths.length === 0) return null;
       const selectedPath = result.filePaths[0];
       return { path: selectedPath, isDirectory: false, parentPath: path.dirname(selectedPath), name: path.basename(selectedPath) };
