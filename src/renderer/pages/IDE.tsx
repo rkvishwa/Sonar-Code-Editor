@@ -429,8 +429,11 @@ function IDEContent() {
           let selectedFolder;
           try {
             selectedFolder = await window.electronAPI.fs.openFolderDialog();
-          } catch (dialogErr) {
+          } catch (dialogErr: any) {
             console.error("Folder dialog error:", dialogErr);
+            window.electronAPI.dialog.showError(
+              `Failed to open folder dialog: ${dialogErr.message || dialogErr}`
+            );
             isSyncingRef.current = false;
             return;
           }

@@ -20,9 +20,9 @@ export default function CollaborationModal({
       // Set the userName in context before starting
       collaboration.setUserName(userName);
       if (mode === "host") {
-        await collaboration.startHost();
+        await collaboration.startHost(userName);
       } else if (hostIp) {
-        await collaboration.joinSession(hostIp);
+        await collaboration.joinSession(hostIp, userName);
       }
     },
     [collaboration],

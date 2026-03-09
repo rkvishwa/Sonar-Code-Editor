@@ -136,13 +136,14 @@ function searchFilesRecursive(dirPath: string, query: string, results: any[]) {
 
 export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   ipcMain.handle(IPC_CHANNELS.FS_READ_DIR, async (_event, dirPath: string) => {
+    if (!dirPath) throw new Error("Path is required");
+    if (!fs.existsSync(dirPath)) throw new Error("Directory does not exist");
+    
     try {
-      if (!dirPath) return [];
-      if (!fs.existsSync(dirPath)) return [];
       return readDirectoryRecursive(dirPath);
     } catch (err) {
       console.error('FS_READ_DIR error:', err);
-      return []; // Return empty array instead of throwing — prevents caller hangs
+      throw err;
     }
   });
 
@@ -299,12 +300,13 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.FS_OPEN_FOLDER_DIALOG, async (event) => {
-    const win = require('electron').BrowserWindow.fromWebContents(event.sender);
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
     try {
-      const result = await dialog.showOpenDialog(win!, {
-        properties: ['openDirectory'],
+      const options: Electron.OpenDialogOptions = {
+        properties: ['openDirectory', 'createDirectory'],
         title: 'Open Folder',
-      });
+      };
+      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
       if (result.canceled || result.filePaths.length === 0) return null;
       return { path: result.filePaths[0], isDirectory: true };
     } catch (err) {
@@ -313,12 +315,13 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.FS_OPEN_FILE_DIALOG, async (event) => {
-    const win = require('electron').BrowserWindow.fromWebContents(event.sender);
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
     try {
-      const result = await dialog.showOpenDialog(win!, {
+      const options: Electron.OpenDialogOptions = {
         properties: ['openFile'],
         title: 'Open File',
-      });
+      };
+      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
       if (result.canceled || result.filePaths.length === 0) return null;
       const selectedPath = result.filePaths[0];
       return { path: selectedPath, isDirectory: false, parentPath: path.dirname(selectedPath), name: path.basename(selectedPath) };
