@@ -215,11 +215,13 @@ function IDEContent() {
       mediaQuery.addEventListener("change", listener);
       document.documentElement.setAttribute("data-theme", activeTheme);
       localStorage.setItem("ide-theme", theme);
+      window.dispatchEvent(new Event("ide-theme-changed"));
 
       return () => mediaQuery.removeEventListener("change", listener);
     } else {
       document.documentElement.setAttribute("data-theme", theme);
       localStorage.setItem("ide-theme", theme);
+      window.dispatchEvent(new Event("ide-theme-changed"));
     }
   }, [theme]);
 
