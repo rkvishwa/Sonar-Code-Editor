@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X, Users, LogOut, Settings, Key, CheckCircle2, Eye, EyeOff, Trash2 } from 'lucide-react';
-import { updateTeamName, updateTeamPassword, flushAllActivityLogs } from '../../services/appwrite';
+import { updateTeamName, updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction } from '../../services/appwrite';
 import { cacheCredentials } from '../../services/localStore';
 import { Team } from '../../../shared/types';
 import '../Settings/SettingsModal.css';
@@ -46,6 +46,12 @@ export default function AdminSettingsModal({
   const [flushError, setFlushError] = useState('');
   const [flushSuccess, setFlushSuccess] = useState('');
 
+  // Restriction state
+  const [globalRestriction, setGlobalRestriction] = useState(false);
+  const [savingRestriction, setSavingRestriction] = useState(false);
+  const [restrictionError, setRestrictionError] = useState('');
+  const [restrictionSuccess, setRestrictionSuccess] = useState('');
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) onClose();
@@ -67,6 +73,12 @@ export default function AdminSettingsModal({
       setPasswordSuccess('');
       setFlushError('');
       setFlushSuccess('');
+      setGlobalRestriction(false);
+      setRestrictionError('');
+      setRestrictionSuccess('');
+      if (user?.role === 'admin') {
+        getGlobalInternetRestriction().then(setGlobalRestriction).catch(console.error);
+      }
     }
   }, [isOpen, user]);
 
@@ -84,6 +96,10 @@ export default function AdminSettingsModal({
   const showActivityLogs = !isSearching
     ? activeTab === 'Activity Logs'
     : matchesSearch('Flush') || matchesSearch('Activity') || matchesSearch('Logs');
+
+  const showPrivacy = !isSearching
+    ? activeTab === 'Privacy'
+    : matchesSearch('Privacy') || matchesSearch('Block') || matchesSearch('Internet') || matchesSearch('Restriction');
 
   const handleSaveName = async () => {
     const trimmed = newTeamName.trim();
@@ -143,6 +159,21 @@ export default function AdminSettingsModal({
     setFlushing(false);
   };
 
+  const handleToggleRestriction = async (checked: boolean) => {
+    setSavingRestriction(true);
+    setRestrictionError('');
+    setRestrictionSuccess('');
+    const result = await setGlobalInternetRestriction(checked);
+    if (result.success) {
+      setGlobalRestriction(checked);
+      setRestrictionSuccess(checked ? 'Internet blocking enabled for all teams' : 'Internet blocking disabled for all teams');
+      setTimeout(() => setRestrictionSuccess(''), 3000);
+    } else {
+      setRestrictionError(result.error || 'Failed to update restriction');
+    }
+    setSavingRestriction(false);
+  };
+
   const isWindows = navigator.userAgent.toLowerCase().includes('win');
 
   return (
@@ -183,6 +214,12 @@ export default function AdminSettingsModal({
             >
               Activity Logs
             </li>
+            <li
+              className={(isSearching ? showPrivacy : activeTab === 'Privacy') ? 'active' : ''}
+              onClick={() => setActiveTab('Privacy')}
+            >
+              Privacy
+            </li>
           </ul>
         </div>
 
@@ -213,6 +250,43 @@ export default function AdminSettingsModal({
                   </div>
                   {flushError && <div className="account-error">{flushError}</div>}
                   {flushSuccess && <div className="account-success"><CheckCircle2 size={12} /> {flushSuccess}</div>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showPrivacy && (
+            <div className="vscode-settings-section">
+              <h2 className="vscode-settings-section-title">Privacy</h2>
+
+              <div className="account-card">
+                <div className="account-members-section">
+                  <div className="account-members-header">
+                    <span className="vscode-setting-title"><span className="highlight">Internet Restriction</span></span>
+                  </div>
+                  <div className="vscode-setting-description">Control internet access restrictions for all non-admin teams.</div>
+
+                  <div className="admin-password-form">
+                    <div className="vscode-setting-item" style={{ padding: 0, border: 'none' }}>
+                      <div className="vscode-setting-header">
+                        <span className="vscode-setting-title" style={{ fontSize: 13, color: '#d4d4d4' }}>Block Internet Access</span>
+                        <div className="vscode-setting-description">If enabled, non-admin teams will be restricted from using the IDE while connected to the internet.</div>
+                      </div>
+                      <div className="vscode-setting-control">
+                        <label className="vscode-checkbox-label">
+                          <input
+                            type="checkbox"
+                            className="vscode-checkbox"
+                            checked={globalRestriction}
+                            onChange={(e) => handleToggleRestriction(e.target.checked)}
+                            disabled={savingRestriction}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  {restrictionError && <div className="account-error">{restrictionError}</div>}
+                  {restrictionSuccess && <div className="account-success"><CheckCircle2 size={12} /> {restrictionSuccess}</div>}
                 </div>
               </div>
             </div>
