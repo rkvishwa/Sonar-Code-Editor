@@ -17,6 +17,7 @@ import CollaborationModal from "../components/Collaboration/CollaborationModal";
 import { useMonitoring } from "../hooks/useMonitoring";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { useActivityLogger } from "../hooks/useActivityLogger";
+import { useEditorFeatures } from "../context/EditorFeaturesContext";
 import "./IDE.css";
 
 export interface OpenTab {
@@ -138,6 +139,7 @@ export default function IDE() {
 function IDEContent() {
   const { user, logout } = useAuth();
   const isOnline = useNetworkStatus();
+  const { featureToggles } = useEditorFeatures();
   const collaboration = useCollaboration();
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
   const [tabs, setTabs] = useState<OpenTab[]>([]);
@@ -1142,6 +1144,7 @@ function IDEContent() {
               onEditorMount={collaboration.bindEditor}
               onEditorUnmount={collaboration.unbindEditor}
               wordWrap={wordWrap}
+              featureToggles={featureToggles}
             />
           </Panel>
           {showPreview && (

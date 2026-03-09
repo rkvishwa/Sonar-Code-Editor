@@ -615,3 +615,68 @@ export function subscribeToSettings(callback: (blocked: boolean) => void): () =>
 }
 
 export { client, databases };
+
+// ---- Editor Feature Toggles ----
+const COL_EDITOR_FEATURES = import.meta.env.VITE_APPWRITE_COLLECTION_EDITOR_FEATURES || 'editorFeatures';
+
+import { EditorFeatureToggles, DEFAULT_FEATURE_TOGGLES } from '../../shared/types';
+
+export async function getEditorFeatureToggles(): Promise<EditorFeatureToggles> {
+  try {
+    const res = await databases.listDocuments(DB_ID, COL_EDITOR_FEATURES, [
+      Query.limit(1),
+    ]);
+    if (res.documents.length > 0) {
+      const doc = res.documents[0];
+      try {
+        const parsed = JSON.parse((doc as any).featureToggles || '{}');
+        return { ...DEFAULT_FEATURE_TOGGLES, ...parsed };
+      } catch {
+        return { ...DEFAULT_FEATURE_TOGGLES };
+      }
+    }
+    return { ...DEFAULT_FEATURE_TOGGLES };
+  } catch {
+    return { ...DEFAULT_FEATURE_TOGGLES };
+  }
+}
+
+export async function saveEditorFeatureToggles(toggles: EditorFeatureToggles): Promise<{ success: boolean; error?: string }> {
+  try {
+    const json = JSON.stringify(toggles);
+    const existing = await databases.listDocuments(DB_ID, COL_EDITOR_FEATURES, [
+      Query.limit(1),
+    ]);
+    if (existing.documents.length > 0) {
+      await databases.updateDocument(DB_ID, COL_EDITOR_FEATURES, existing.documents[0].$id, {
+        featureToggles: json,
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      await databases.createDocument(DB_ID, COL_EDITOR_FEATURES, ID.unique(), {
+        featureToggles: json,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to save feature toggles' };
+  }
+}
+
+export function subscribeToEditorFeatures(callback: (toggles: EditorFeatureToggles) => void): () => void {
+  const unsub = client.subscribe(
+    `databases.${DB_ID}.collections.${COL_EDITOR_FEATURES}.documents`,
+    (response: RealtimeResponseEvent<any>) => {
+      if (response.events.some((e) => e.includes('create') || e.includes('update'))) {
+        try {
+          const parsed = JSON.parse(response.payload.featureToggles || '{}');
+          callback({ ...DEFAULT_FEATURE_TOGGLES, ...parsed });
+        } catch {
+          // ignore parse errors
+        }
+      }
+    }
+  );
+  return unsub;
+}

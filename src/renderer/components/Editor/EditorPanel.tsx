@@ -20,6 +20,7 @@ import {
 import type { editor } from "monaco-editor";
 import { OpenTab } from "../../pages/IDE";
 import PreviewPanel from "../Preview/PreviewPanel";
+import { EditorFeatureToggles, DEFAULT_FEATURE_TOGGLES } from "../../../shared/types";
 import "./EditorPanel.css";
 
 interface EditorPanelProps {
@@ -45,17 +46,47 @@ interface EditorPanelProps {
   ) => void;
   onEditorUnmount?: () => void;
   wordWrap?: boolean;
+  featureToggles?: EditorFeatureToggles;
 }
 
-const getEditorOptions = (wordWrap: boolean) => ({
-  suggestOnTriggerCharacters: false,
-  quickSuggestions: false,
-  parameterHints: { enabled: false },
-  wordBasedSuggestions: "currentDocument" as const,
-  acceptSuggestionOnEnter: "off" as const,
-  tabCompletion: "off" as const,
-  snippetSuggestions: "none" as const,
-  codeLens: false,
+const getEditorOptions = (wordWrap: boolean, ft: EditorFeatureToggles = DEFAULT_FEATURE_TOGGLES) => ({
+  // IntelliSense & Suggestions
+  suggestOnTriggerCharacters: ft.codeCompletionTriggerCharacters,
+  quickSuggestions: ft.intellisenseSuggest
+    ? { other: true, comments: false, strings: false }
+    : false,
+  parameterHints: { enabled: ft.parameterHints },
+  wordBasedSuggestions: ft.intellisenseSuggest ? ("currentDocument" as const) : ("off" as const),
+  acceptSuggestionOnEnter: ft.intellisenseSuggest ? ("on" as const) : ("off" as const),
+  tabCompletion: ft.snippetSuggestions ? ("on" as const) : ("off" as const),
+  snippetSuggestions: ft.snippetSuggestions ? ("inline" as const) : ("none" as const),
+  suggest: ft.intellisenseSuggest
+    ? undefined
+    : { showMethods: false, showFunctions: false, showConstructors: false, showFields: false, showVariables: false, showClasses: false, showStructs: false, showInterfaces: false, showModules: false, showProperties: false, showEvents: false, showOperators: false, showUnits: false, showValues: false, showConstants: false, showEnums: false, showEnumMembers: false, showKeywords: false, showWords: false, showColors: false, showFiles: false, showReferences: false, showFolders: false, showTypeParameters: false, showSnippets: false },
+
+  // UI Enhancements
+  hover: { enabled: ft.hover },
+  codeLens: ft.codeLens,
+  inlayHints: { enabled: ft.inlayHints ? ("on" as const) : ("off" as const) },
+  lightbulb: { enabled: (ft.lightbulbActions ? "onCode" : "off") as any },
+  linkedEditing: ft.linkedEditing,
+
+  // Code Editing
+  autoClosingBrackets: ft.autoClosingBrackets ? ("always" as const) : ("never" as const),
+  autoClosingQuotes: ft.autoClosingQuotes ? ("always" as const) : ("never" as const),
+  autoClosingComments: ft.autoClosingComments ? ("always" as const) : ("never" as const),
+  autoClosingDelete: ft.autoClosingDelete ? ("always" as const) : ("never" as const),
+  autoClosingOvertype: ft.autoClosingOvertype ? ("always" as const) : ("never" as const),
+  autoSurround: ft.autoSurround ? ("languageDefined" as const) : ("never" as const),
+
+  // Formatting (context menu actions are handled on mount)
+  formatOnPaste: ft.formatDocument,
+  formatOnType: ft.formatDocument,
+
+  // Diagnostics - hide markers via renderValidationDecorations
+  renderValidationDecorations: ft.markersDiagnostics ? ("on" as const) : ("off" as const),
+
+  // Static options
   minimap: { enabled: true },
   automaticLayout: true,
   fontSize: 14,
@@ -68,10 +99,6 @@ const getEditorOptions = (wordWrap: boolean) => ({
   cursorBlinking: "smooth" as const,
   smoothScrolling: true,
   padding: { top: 12 },
-  autoClosingBrackets: "always" as const,
-  autoClosingQuotes: "always" as const,
-  autoSurround: "languageDefined" as const,
-  autoClosingOvertype: "always" as const,
   wordWrap: wordWrap ? ("on" as const) : ("off" as const),
   scrollbar: {
     horizontal: wordWrap ? ("hidden" as const) : ("auto" as const),
@@ -138,6 +165,7 @@ const EditorPanel = React.memo(function EditorPanel({
   collaborationActive = false,
   onEditorMount,
   onEditorUnmount,
+  featureToggles = DEFAULT_FEATURE_TOGGLES,
   wordWrap = true,
 }: EditorPanelProps) {
   const activeTab = tabs.find((t) => t.path === activeTabPath);
@@ -199,75 +227,153 @@ const EditorPanel = React.memo(function EditorPanel({
     };
   }, [onEditorUnmount]);
 
+  // Keep a ref to the current feature toggles so the mount handler
+  // can read the latest values without the callback identity changing.
+  const featureTogglesRef = useRef(featureToggles);
+  useEffect(() => {
+    featureTogglesRef.current = featureToggles;
+  }, [featureToggles]);
+
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
+    const ft = featureTogglesRef.current;
 
     // Trigger re-evaluation of the binding effect now that the editor is ready
     setEditorMountTick((c) => c + 1);
 
-    // Enable auto-closing HTML tags via linked editing
+    // ── Disable navigation / refactoring commands when toggles are OFF ──
+    // We remove keybindings by overriding them with a no-op condition.
+    const disableAction = (actionId: string) => {
+      const action = editor.getAction(actionId);
+      if (action) {
+        // Override the keybinding by adding a precondition that is always false
+        editor.addAction({
+          id: actionId + '.disabled',
+          label: action.label + ' (disabled)',
+          precondition: 'false',
+          run: () => {},
+        });
+      }
+    };
+
+    if (!ft.goToDefinition) {
+      disableAction('editor.action.revealDefinition');
+      disableAction('editor.action.revealDefinitionAside');
+    }
+    if (!ft.goToDeclaration) {
+      disableAction('editor.action.revealDeclaration');
+    }
+    if (!ft.goToImplementation) {
+      disableAction('editor.action.goToImplementation');
+    }
+    if (!ft.findReferences) {
+      disableAction('editor.action.goToReferences');
+    }
+    if (!ft.renameSymbol) {
+      disableAction('editor.action.rename');
+    }
+    if (!ft.formatDocument) {
+      disableAction('editor.action.formatDocument');
+    }
+    if (!ft.formatSelection) {
+      disableAction('editor.action.formatSelection');
+    }
+    if (!ft.codeActionsQuickFixes) {
+      disableAction('editor.action.quickFix');
+      disableAction('editor.action.codeAction');
+    }
+    if (!ft.peekDefinition) {
+      disableAction('editor.action.peekDefinition');
+    }
+    if (!ft.peekReferences) {
+      disableAction('editor.action.referenceSearch.trigger');
+    }
+
+    // ── Diagnostics visibility ──
+    // If error/warning squiggles are disabled independently,
+    // we set model marker severity filtering.
+    // renderValidationDecorations already handles the overall toggle.
+    // For fine-grained control, we modify diagnostics options.
+    if (!ft.errorSquiggles || !ft.warningSquiggles) {
+      const updateDiagnosticOptions = (defaults: any) => {
+        if (!defaults?.setDiagnosticsOptions) return;
+        const opts: any = {};
+        if (!ft.errorSquiggles && !ft.warningSquiggles) {
+          opts.noSemanticValidation = true;
+          opts.noSyntaxValidation = true;
+        }
+        defaults.setDiagnosticsOptions(opts);
+      };
+      // TypeScript / JavaScript
+      updateDiagnosticOptions(monaco.languages.typescript?.typescriptDefaults);
+      updateDiagnosticOptions(monaco.languages.typescript?.javascriptDefaults);
+    }
+
+    // ── HTML setup ──
     monaco.languages.html?.htmlDefaults?.setOptions?.({
       format: { contentUnformatted: "" },
     });
 
-    // For HTML-like languages, auto-insert closing tag when typing '>'
-    const htmlLanguages = ["html", "xml", "php", "handlebars", "razor"];
-    editor.onDidChangeModelContent((e) => {
-      const model = editor.getModel();
-      if (!model) return;
-      const lang = model.getLanguageId();
-      if (!htmlLanguages.includes(lang)) return;
+    // ── Closing tag auto-complete (only if toggle is ON) ──
+    if (ft.closingTagAutoComplete) {
+      const htmlLanguages = ["html", "xml", "php", "handlebars", "razor"];
+      editor.onDidChangeModelContent((e) => {
+        const model = editor.getModel();
+        if (!model) return;
+        const lang = model.getLanguageId();
+        if (!htmlLanguages.includes(lang)) return;
 
-      for (const change of e.changes) {
-        if (change.text === ">") {
-          const position = editor.getPosition();
-          if (!position) return;
-          const lineContent = model.getLineContent(position.lineNumber);
-          const beforeCursor = lineContent.substring(0, position.column - 1);
+        for (const change of e.changes) {
+          if (change.text === ">") {
+            const position = editor.getPosition();
+            if (!position) return;
+            const lineContent = model.getLineContent(position.lineNumber);
+            const beforeCursor = lineContent.substring(0, position.column - 1);
 
-          // Match an opening tag (not self-closing, not a closing tag)
-          const tagMatch = beforeCursor.match(
-            /<([a-zA-Z][a-zA-Z0-9-]*)\b[^/]*$/,
-          );
-          if (tagMatch) {
-            const tagName = tagMatch[1];
-            // Skip void/self-closing HTML elements
-            const voidElements = [
-              "area",
-              "base",
-              "br",
-              "col",
-              "embed",
-              "hr",
-              "img",
-              "input",
-              "link",
-              "meta",
-              "param",
-              "source",
-              "track",
-              "wbr",
-            ];
-            if (voidElements.includes(tagName.toLowerCase())) return;
+            // Match an opening tag (not self-closing, not a closing tag)
+            const tagMatch = beforeCursor.match(
+              /<([a-zA-Z][a-zA-Z0-9-]*)\b[^/]*$/,
+            );
+            if (tagMatch) {
+              const tagName = tagMatch[1];
+              // Skip void/self-closing HTML elements
+              const voidElements = [
+                "area",
+                "base",
+                "br",
+                "col",
+                "embed",
+                "hr",
+                "img",
+                "input",
+                "link",
+                "meta",
+                "param",
+                "source",
+                "track",
+                "wbr",
+              ];
+              if (voidElements.includes(tagName.toLowerCase())) return;
 
-            const closingTag = `</${tagName}>`;
-            editor.executeEdits("auto-close-tag", [
-              {
-                range: new monaco.Range(
-                  position.lineNumber,
-                  position.column,
-                  position.lineNumber,
-                  position.column,
-                ),
-                text: closingTag,
-              },
-            ]);
-            // Keep cursor between opening and closing tags
-            editor.setPosition(position);
+              const closingTag = `</${tagName}>`;
+              editor.executeEdits("auto-close-tag", [
+                {
+                  range: new monaco.Range(
+                    position.lineNumber,
+                    position.column,
+                    position.lineNumber,
+                    position.column,
+                  ),
+                  text: closingTag,
+                },
+              ]);
+              // Keep cursor between opening and closing tags
+              editor.setPosition(position);
+            }
           }
         }
-      }
-    });
+      });
+    }
   };
 
   if (!workspaceRoot) {
@@ -480,7 +586,7 @@ const EditorPanel = React.memo(function EditorPanel({
                 {...(!collaborationActive && { value: tab.content })}
                 defaultValue={tab.content}
                 theme={theme === "light" ? "vs-light" : "vs-dark"}
-                options={getEditorOptions(wordWrap)}
+                options={getEditorOptions(wordWrap, featureToggles)}
                 onMount={isActive ? handleEditorMount : undefined}
                 onChange={(value) => {
                   if (value !== undefined) {
