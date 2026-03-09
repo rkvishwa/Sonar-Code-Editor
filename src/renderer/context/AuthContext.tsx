@@ -10,6 +10,8 @@ import {
   validateTeamCredentials,
   upsertSession,
   registerTeam,
+  getGlobalInternetRestriction,
+  subscribeToSettings,
 } from "../services/appwrite";
 import {
   cacheCredentials,
@@ -20,6 +22,7 @@ import {
 interface AuthContextValue {
   user: Team | null;
   loading: boolean;
+  internetBlocked: boolean;
   login: (
     teamName: string,
     password: string,
@@ -37,6 +40,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
+  const [internetBlocked, setInternetBlocked] = useState(false);
 
   useEffect(() => {
     // Attempt to restore session from cache
@@ -50,6 +54,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setLoading(false);
   }, []);
+
+  // Subscribe to the global settings for internet restriction
+  useEffect(() => {
+    if (!user || user.role === 'admin') {
+      setInternetBlocked(false);
+      return;
+    }
+
+    // Fetch initial value
+    getGlobalInternetRestriction().then(setInternetBlocked).catch(() => setInternetBlocked(false));
+
+    // Subscribe to realtime changes
+    const unsub = subscribeToSettings((blocked) => {
+      setInternetBlocked(blocked);
+    });
+
+    return () => {
+      unsub();
+    };
+  }, [user?.$id, user?.role]);
 
   const login = async (
     teamName: string,
@@ -101,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, internetBlocked, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
