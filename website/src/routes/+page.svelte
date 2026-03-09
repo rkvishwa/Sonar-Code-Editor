@@ -18,7 +18,136 @@
 	import { onMount } from 'svelte';
 
 	let mounted = $state(false);
-	onMount(() => { mounted = true; });
+	let canvas: HTMLCanvasElement;
+
+	onMount(() => {
+mounted = true;
+if (!canvas) return;
+const ctx = canvas.getContext('2d');
+if (!ctx) return;
+
+let width = 0;
+let height = 0;
+let animationFrame: number;
+
+const resize = () => {
+const rect = canvas.getBoundingClientRect();
+width = rect.width;
+height = rect.height;
+canvas.width = width * window.devicePixelRatio;
+canvas.height = height * window.devicePixelRatio;
+ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+};
+
+window.addEventListener('resize', resize);
+resize();
+
+const symbols = ['<html>', '</div>', '.class {}', 'const', '=>', '#id', '@media', 'flex', 'var()', 'import'];
+const colors = ['#38aaff', '#7dd3fc', '#ffffff'];
+
+class Meteor {
+x: number = 0;
+y: number = 0;
+speed: number = 0;
+angle: number = 0;
+symbol: string = '';
+color: string = '';
+size: number = 0;
+opacity: number = 0;
+history: {x: number, y: number}[] = [];
+
+constructor(resetToTop = false) {
+this.init(resetToTop);
+}
+
+init(resetToTop = false) {
+// Origin around 50% horizontally, 30% from top
+const originX = width * 0.5;
+const originY = height * 0.3;
+
+this.symbol = symbols[Math.floor(Math.random() * symbols.length)];
+this.color = colors[Math.floor(Math.random() * colors.length)];
+this.size = Math.random() * 6 + 12; // 12px to 18px
+this.opacity = Math.random() * 0.2 + 0.35; // 0.35 to 0.55
+
+this.speed = Math.random() * 1.2 + 0.3; // 0.3 to 1.5 speed
+
+// Angle: 360 degrees outward from center
+this.angle = Math.random() * Math.PI * 2;
+
+if (resetToTop) {
+this.x = originX;
+this.y = originY;
+} else {
+// Disperse initially
+let dist = Math.random() * Math.max(width, height);
+this.x = originX + Math.cos(this.angle) * dist;
+this.y = originY + Math.sin(this.angle) * dist;
+}
+
+this.history = [];
+}
+
+update() {
+this.history.push({x: this.x, y: this.y});
+if (this.history.length > 5) {
+this.history.shift();
+}
+
+this.x += Math.cos(this.angle) * this.speed;
+this.y += Math.sin(this.angle) * this.speed;
+
+if (this.x < -100 || this.x > width + 100 || this.y < -100 || this.y > height + 100) {
+this.init(true);
+}
+}
+
+draw(ctx: CanvasRenderingContext2D) {
+ctx.font = this.size.toString() + 'px monospace';
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+
+// Draw history trail
+for (let i = 0; i < this.history.length; i++) {
+const point = this.history[i];
+const histOpacity = this.opacity * ((i + 1) / this.history.length) * 0.4;
+ctx.fillStyle = this.color;
+ctx.globalAlpha = histOpacity;
+ctx.fillText(this.symbol, point.x, point.y);
+}
+
+// Draw current meteor
+ctx.globalAlpha = this.opacity;
+ctx.fillStyle = this.color;
+ctx.fillText(this.symbol, this.x, this.y);
+}
+}
+
+const meteors: Meteor[] = [];
+for (let i = 0; i < 35; i++) {
+meteors.push(new Meteor(false));
+}
+
+const drawScene = () => {
+if (!ctx) return;
+ctx.clearRect(0, 0, width, height);
+
+for (let meteor of meteors) {
+meteor.update();
+meteor.draw(ctx);
+}
+
+ctx.globalAlpha = 1;
+animationFrame = requestAnimationFrame(drawScene);
+};
+
+drawScene();
+
+return () => {
+window.removeEventListener('resize', resize);
+cancelAnimationFrame(animationFrame);
+};
+});
 </script>
 
 <svelte:head>
@@ -27,53 +156,16 @@
 </svelte:head>
 
 <!-- Hero Section -->
-<section class="relative flex flex-col items-center justify-center text-center px-4 pt-28 sm:pt-36 xl:pt-44 pb-20 overflow-hidden min-h-screen">
+<section class="relative flex flex-col items-center justify-center text-center px-4 pt-28 sm:pt-36 xl:pt-44 pb-20 overflow-hidden min-h-screen bg-[#050508]">
 	
-	<!-- Grid pattern background -->
-	<div class="absolute inset-0 -z-20 opacity-[0.025] dark:opacity-[0.04]" style="background-image: linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.5) 1px, transparent 1px); background-size: 60px 60px;"></div>
-	
-	<!-- Radial fade mask -->
-	<div class="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,transparent_20%,var(--mask-color)_75%)]" style="--mask-color: white;" class:dark-mask={true}></div>
+	<!-- Radial fade mask for top/sides -->
+<div class="absolute inset-0 z-0 pointer-events-none" style="background: radial-gradient(circle at top, transparent 20%, #050508 80%);"></div>
 
-	<!-- Sonar Radar -->
-	<div class="absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] sm:w-[800px] sm:h-[800px] pointer-events-none -z-10">
-		<!-- Static rings -->
-		<div class="absolute inset-0 flex items-center justify-center">
-			<div class="absolute w-[120px] h-[120px] rounded-full border border-blue-500/[0.07] dark:border-blue-400/[0.12]"></div>
-			<div class="absolute w-[240px] h-[240px] rounded-full border border-blue-500/[0.06] dark:border-blue-400/[0.10]"></div>
-			<div class="absolute w-[360px] h-[360px] rounded-full border border-blue-500/[0.05] dark:border-blue-400/[0.08]"></div>
-			<div class="absolute w-[480px] h-[480px] rounded-full border border-blue-500/[0.04] dark:border-blue-400/[0.06]"></div>
-			<div class="absolute w-[600px] h-[600px] rounded-full border border-blue-500/[0.03] dark:border-blue-400/[0.04]"></div>
-		</div>
-		<!-- Crosshair lines -->
-		<div class="absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/[0.06] to-transparent dark:via-blue-400/[0.10]"></div>
-		<div class="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-blue-500/[0.06] to-transparent dark:via-blue-400/[0.10]"></div>
-		<!-- Sweep arm -->
-		<div class="absolute inset-0 flex items-center justify-center">
-			<div class="absolute w-full h-full animate-sweep origin-center">
-				<div class="absolute top-1/2 left-1/2 w-[48%] h-[1px] origin-left bg-gradient-to-r from-blue-500/50 via-blue-400/20 to-transparent dark:from-blue-400/60 dark:via-blue-400/25"></div>
-				<!-- Sweep trail (conic gradient) -->
-				<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full rounded-full" style="background: conic-gradient(from 0deg, transparent 0deg, rgba(59,130,246,0.06) 0deg, transparent 30deg);"></div>
-			</div>
-		</div>
-		<!-- Ping ripples -->
-		<div class="absolute inset-0 flex items-center justify-center">
-			<div class="absolute w-8 h-8 rounded-full border border-blue-400/50 dark:border-blue-400/60 animate-ping-out" style="animation-delay: 0s;"></div>
-			<div class="absolute w-8 h-8 rounded-full border border-cyan-400/40 dark:border-cyan-400/50 animate-ping-out" style="animation-delay: 2s;"></div>
-			<div class="absolute w-8 h-8 rounded-full border border-blue-400/30 dark:border-blue-400/40 animate-ping-out" style="animation-delay: 4s;"></div>
-		</div>
-		<!-- Blips on the radar (scattered dots) -->
-		<div class="absolute top-[30%] left-[62%] w-1.5 h-1.5 rounded-full bg-blue-400/60 dark:bg-blue-400/80 animate-blip" style="animation-delay: 1s;"></div>
-		<div class="absolute top-[55%] left-[28%] w-1 h-1 rounded-full bg-cyan-400/50 dark:bg-cyan-400/70 animate-blip" style="animation-delay: 3s;"></div>
-		<div class="absolute top-[38%] left-[40%] w-1.5 h-1.5 rounded-full bg-blue-400/40 dark:bg-blue-400/60 animate-blip" style="animation-delay: 5s;"></div>
-		<!-- Center dot -->
-		<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-			<div class="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400 shadow-[0_0_12px_3px_rgba(59,130,246,0.3)] dark:shadow-[0_0_12px_3px_rgba(96,165,250,0.4)]"></div>
-		</div>
-		<!-- Ambient glow -->
-		<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-blue-500/[0.03] dark:bg-blue-500/[0.06] rounded-full blur-[80px]"></div>
-	</div>
-	
+<!-- Meteor Shower Canvas -->
+<div class="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden">
+<canvas bind:this={canvas} class="w-full h-full"></canvas>
+</div>
+
 	<!-- Hero Content -->
 	<div class="relative z-10 flex flex-col items-center" class:animate-hero-in={mounted}>
 		<!-- Top pill badge -->
@@ -304,39 +396,7 @@
 </section>
 
 <style>
-	/* --- Dark mask override --- */
-	:global(.dark) .dark-mask {
-		--mask-color: #09090b;
-	}
-
-	/* --- Radar sweep --- */
-	@keyframes sweep {
-		from { transform: rotate(0deg); }
-		to { transform: rotate(360deg); }
-	}
-	.animate-sweep {
-		animation: sweep 5s linear infinite;
-	}
-
-	/* --- Sonar ping --- */
-	@keyframes ping-out {
-		0% { transform: scale(1); opacity: 0.7; }
-		100% { transform: scale(14); opacity: 0; }
-	}
-	.animate-ping-out {
-		animation: ping-out 4s cubic-bezier(0, 0, 0.2, 1) infinite;
-	}
-
-	/* --- Blip --- */
-	@keyframes blip {
-		0%, 100% { opacity: 0; transform: scale(0); }
-		10% { opacity: 1; transform: scale(1); }
-		30% { opacity: 1; transform: scale(1); }
-		50% { opacity: 0; transform: scale(0); }
-	}
-	.animate-blip {
-		animation: blip 6s ease-in-out infinite;
-	}
+	
 
 	/* --- Gradient text --- */
 	@keyframes gradient-move {
@@ -389,3 +449,9 @@
 		to { opacity: 1; transform: translateX(0); }
 	}
 </style>
+
+
+
+
+
+
