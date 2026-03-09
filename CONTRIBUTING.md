@@ -10,17 +10,18 @@ First off, thank you for considering contributing to **Sonar Code Editor**! We w
 ## 🛠️ How to Contribute
 
 ### 🍴 1.⃣ Fork the Repository
-Click the **"Fork"** button at the top right of this repository's page to create a copy of the project in your own GitHub account.
+Click the **"Fork"** button at the top right of this repository's page to create a copy of the project in your own GitHub account. **Please base your changes on the `development` branch.**
 
 ### 💻 2.⃣ Clone Your Fork
-Clone the forked repository to your local machine:
+Clone the forked repository to your local machine and checkout the `development` branch:
 ```bash
 git clone https://github.com/YOUR-USERNAME/Sonar-Code-Editor.git
 cd Sonar-Code-Editor
+git checkout development
 ```
 
 ### 🌱 3.⃣ Create a Branch
-Create a new branch for your feature or bugfix:
+Create a new branch for your feature or bugfix **based on the `development` branch**:
 ```bash
 git checkout -b feature/your-feature-name
 ```
@@ -47,7 +48,8 @@ git push origin feature/your-feature-name
 2. Click on the **Pull Requests** tab, then the **New Pull Request** button.
 3. Click the link to **compare across forks**.
 4. Select your fork and branch on the right side.
-5. Provide a clear title and detailed description for your PR.
-6. Click **Create Pull Request**.
+5. **Make sure to set the base branch to `development`.**
+6. Provide a clear title and detailed description for your PR.
+7. Click **Create Pull Request**.
 
 We will review your PR as soon as possible. Thank you for your contribution! 🎉 🎉
