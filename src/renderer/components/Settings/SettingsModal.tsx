@@ -94,6 +94,14 @@ export default function SettingsModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Reset active tab to default when modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab("Text Editor");
+      setSearchQuery("");
+    }
+  }, [isOpen]);
+
   // Refresh activity log when opening the modal or switching to the Activity Log tab
   useEffect(() => {
     if (
