@@ -62,6 +62,7 @@ interface CollaborationContextValue {
   ) => void;
   unbindEditor: () => void;
   getCurrentEditorContent: () => string | null;
+  getFileContent: (filePath: string, workspaceRoot?: string) => string | null;
   ydoc: Y.Doc | null;
   provider: WebsocketProvider | null;
   // Shared file methods
@@ -721,6 +722,35 @@ export function CollaborationProvider({
     return model ? model.getValue() : null;
   }, []);
 
+  // Get the latest collaborative content for a file from the Yjs document.
+  // This is used when an inactive tab becomes active to show the up-to-date
+  // content instead of stale React state.
+  const getFileContent = useCallback(
+    (filePath: string, workspaceRoot?: string): string | null => {
+      if (!ydocRef.current) return null;
+
+      // Calculate relative path from workspace root (same logic as bindEditor)
+      let relativePath = filePath;
+      if (workspaceRoot) {
+        const normalizedFile = filePath.replace(/\\\\/g, "/");
+        const normalizedRoot = workspaceRoot.replace(/\\\\/g, "/");
+        if (normalizedFile.startsWith(normalizedRoot)) {
+          relativePath = normalizedFile.substring(normalizedRoot.length);
+          if (relativePath.startsWith("/")) {
+            relativePath = relativePath.substring(1);
+          }
+        }
+      }
+
+      const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
+      const ytext = ydocRef.current.getText(docName);
+      const content = ytext.toString();
+      // Return null if the Y.Text is empty (file hasn't been shared yet)
+      return content.length > 0 ? content : null;
+    },
+    [],
+  );
+
   // Share a file with all connected users
   const shareFile = useCallback((file: SharedFile) => {
     if (!ydocRef.current) {
@@ -921,6 +951,7 @@ export function CollaborationProvider({
       bindEditor,
       unbindEditor,
       getCurrentEditorContent,
+      getFileContent,
       ydoc: ydocRef.current,
       provider: providerRef.current,
       // Shared file methods
@@ -956,6 +987,7 @@ export function CollaborationProvider({
       bindEditor,
       unbindEditor,
       getCurrentEditorContent,
+      getFileContent,
       shareFile,
       getSharedFiles,
       setActiveSharedFile,
