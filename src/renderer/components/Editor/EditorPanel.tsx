@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import MonacoEditor, { type OnMount } from "@monaco-editor/react";
 import {
   Radar,
@@ -225,113 +225,103 @@ const EditorPanel = React.memo(function EditorPanel({
     };
   }, [onEditorUnmount]);
 
-  // Create a per-tab onMount handler that stores the editor in the Map
-  // and sets up auto-close / keyboard tracking.  Each MonacoEditor calls
-  // this once on mount (even inactive ones), ensuring we always have a
-  // reference for every open tab.
-  const createEditorMountHandler = useCallback(
-    (tabPath: string, tabIsActive: boolean) => {
-      return ((editor: editor.IStandaloneCodeEditor, monaco: any) => {
-        // Store editor in the per-tab map
-        editorMapRef.current.set(tabPath, editor);
+  // Editor mount handler — sets up auto-close tags, keyboard tracking,
+  // and stores the editor in the per-tab map.  Called for ALL editors
+  // (active and inactive) so we always have a reference for every open tab.
+  const handleEditorMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
 
-        // Only update the active editor ref + trigger binding for the active tab
-        if (tabIsActive) {
-          editorRef.current = editor;
-          setEditorMountTick((c) => c + 1);
-        }
+    // Trigger re-evaluation of the binding effect now that the editor is ready
+    setEditorMountTick((c) => c + 1);
 
-        // Enable auto-closing HTML tags via linked editing
-        monaco.languages.html?.htmlDefaults?.setOptions?.({
-          format: { contentUnformatted: "" },
-        });
+    // Enable auto-closing HTML tags via linked editing
+    monaco.languages.html?.htmlDefaults?.setOptions?.({
+      format: { contentUnformatted: "" },
+    });
 
-        // Track local keyboard input.  onKeyDown fires synchronously before
-        // onDidChangeModelContent for the same keystroke, so the flag is true
-        // when the content-change handler runs.  queueMicrotask resets it
-        // after all synchronous handlers complete, so the next remote change
-        // from y-monaco will see the flag as false.
-        editor.onKeyDown(() => {
-          isUserInputRef.current = true;
-          queueMicrotask(() => {
-            isUserInputRef.current = false;
-          });
-        });
+    // Track local keyboard input.  onKeyDown fires synchronously before
+    // onDidChangeModelContent for the same keystroke, so the flag is true
+    // when the content-change handler runs.  queueMicrotask resets it
+    // after all synchronous handlers complete, so the next remote change
+    // from y-monaco will see the flag as false.
+    editor.onKeyDown(() => {
+      isUserInputRef.current = true;
+      queueMicrotask(() => {
+        isUserInputRef.current = false;
+      });
+    });
 
-        // For HTML-like languages, auto-insert closing tag when typing '>'
-        const htmlLanguages = ["html", "xml", "php", "handlebars", "razor"];
-        editor.onDidChangeModelContent((e) => {
-          // Skip if this is our own auto-close edit (prevents re-entrancy)
-          if (isLocalAutoCloseRef.current) return;
-          // Skip remote collaboration changes — y-monaco applies bulk syncs
-          // with isFlush=true, which would otherwise trigger a duplicate
-          // closing tag on every remote peer.
-          if (e.isFlush) return;
-          // During collaboration, only auto-close for local user input.
-          // Uses a ref so the check always sees the latest value (the closure
-          // is created once on mount and never re-created).
-          if (collaborationActiveRef.current && !isUserInputRef.current) return;
-          const model = editor.getModel();
-          if (!model) return;
-          const lang = model.getLanguageId();
-          if (!htmlLanguages.includes(lang)) return;
+    // For HTML-like languages, auto-insert closing tag when typing '>'
+    const htmlLanguages = ["html", "xml", "php", "handlebars", "razor"];
+    editor.onDidChangeModelContent((e) => {
+      // Skip if this is our own auto-close edit (prevents re-entrancy)
+      if (isLocalAutoCloseRef.current) return;
+      // Skip remote collaboration changes — y-monaco applies bulk syncs
+      // with isFlush=true, which would otherwise trigger a duplicate
+      // closing tag on every remote peer.
+      if (e.isFlush) return;
+      // During collaboration, only auto-close for local user input.
+      // Uses a ref so the check always sees the latest value (the closure
+      // is created once on mount and never re-created).
+      if (collaborationActiveRef.current && !isUserInputRef.current) return;
+      const model = editor.getModel();
+      if (!model) return;
+      const lang = model.getLanguageId();
+      if (!htmlLanguages.includes(lang)) return;
 
-          for (const change of e.changes) {
-            if (change.text === ">") {
-              const position = editor.getPosition();
-              if (!position) return;
-              const lineContent = model.getLineContent(position.lineNumber);
-              const beforeCursor = lineContent.substring(0, position.column - 1);
+      for (const change of e.changes) {
+        if (change.text === ">") {
+          const position = editor.getPosition();
+          if (!position) return;
+          const lineContent = model.getLineContent(position.lineNumber);
+          const beforeCursor = lineContent.substring(0, position.column - 1);
 
-              // Match an opening tag (not self-closing, not a closing tag)
-              const tagMatch = beforeCursor.match(
-                /<([a-zA-Z][a-zA-Z0-9-]*)\b[^/]*$/,
-              );
-              if (tagMatch) {
-                const tagName = tagMatch[1];
-                // Skip void/self-closing HTML elements
-                const voidElements = [
-                  "area",
-                  "base",
-                  "br",
-                  "col",
-                  "embed",
-                  "hr",
-                  "img",
-                  "input",
-                  "link",
-                  "meta",
-                  "param",
-                  "source",
-                  "track",
-                  "wbr",
-                ];
-                if (voidElements.includes(tagName.toLowerCase())) return;
+          // Match an opening tag (not self-closing, not a closing tag)
+          const tagMatch = beforeCursor.match(
+            /<([a-zA-Z][a-zA-Z0-9-]*)\b[^/]*$/,
+          );
+          if (tagMatch) {
+            const tagName = tagMatch[1];
+            // Skip void/self-closing HTML elements
+            const voidElements = [
+              "area",
+              "base",
+              "br",
+              "col",
+              "embed",
+              "hr",
+              "img",
+              "input",
+              "link",
+              "meta",
+              "param",
+              "source",
+              "track",
+              "wbr",
+            ];
+            if (voidElements.includes(tagName.toLowerCase())) return;
 
-                const closingTag = `</${tagName}>`;
-                isLocalAutoCloseRef.current = true;
-                editor.executeEdits("auto-close-tag", [
-                  {
-                    range: new monaco.Range(
-                      position.lineNumber,
-                      position.column,
-                      position.lineNumber,
-                      position.column,
-                    ),
-                    text: closingTag,
-                  },
-                ]);
-                // Keep cursor between opening and closing tags
-                editor.setPosition(position);
-                isLocalAutoCloseRef.current = false;
-              }
-            }
+            const closingTag = `</${tagName}>`;
+            isLocalAutoCloseRef.current = true;
+            editor.executeEdits("auto-close-tag", [
+              {
+                range: new monaco.Range(
+                  position.lineNumber,
+                  position.column,
+                  position.lineNumber,
+                  position.column,
+                ),
+                text: closingTag,
+              },
+            ]);
+            // Keep cursor between opening and closing tags
+            editor.setPosition(position);
+            isLocalAutoCloseRef.current = false;
           }
-        });
-      }) as OnMount;
-    },
-    [],
-  );
+        }
+      }
+    });
+  };
 
   if (!workspaceRoot) {
     return (
@@ -545,7 +535,10 @@ const EditorPanel = React.memo(function EditorPanel({
                 defaultValue={tab.content}
                 theme={theme === "light" ? "vs-light" : "vs-dark"}
                 options={getEditorOptions(wordWrap)}
-                onMount={createEditorMountHandler(tab.path, isActive)}
+                onMount={(mountedEditor, mountedMonaco) => {
+                  editorMapRef.current.set(tab.path, mountedEditor);
+                  handleEditorMount(mountedEditor, mountedMonaco);
+                }}
                 onChange={(value) => {
                   if (value !== undefined) {
                     if (!collaborationActive) {
