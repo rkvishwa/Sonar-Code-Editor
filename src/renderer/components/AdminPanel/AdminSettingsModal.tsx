@@ -10,6 +10,8 @@ interface AdminSettingsModalProps {
   onClose: () => void;
   user: Team | null;
   onLogout: () => void;
+  theme: string;
+  onThemeChange: (val: string) => void;
   onTeamNameUpdated: (newName: string) => void;
 }
 
@@ -18,6 +20,8 @@ export default function AdminSettingsModal({
   onClose,
   user,
   onLogout,
+  theme,
+  onThemeChange,
   onTeamNameUpdated,
 }: AdminSettingsModalProps) {
   const [activeTab, setActiveTab] = useState('Account');
@@ -102,6 +106,10 @@ export default function AdminSettingsModal({
   const showPrivacy = !isSearching
     ? activeTab === 'Privacy'
     : matchesSearch('Privacy') || matchesSearch('Block') || matchesSearch('Internet') || matchesSearch('Restriction');
+
+  const showAppearance = !isSearching
+    ? activeTab === 'Appearance'
+    : matchesSearch('Appearance') || matchesSearch('Color Theme') || matchesSearch('interface theme');
 
   const handleSaveName = async () => {
     const trimmed = newTeamName.trim();
@@ -226,10 +234,50 @@ export default function AdminSettingsModal({
             >
               Privacy
             </li>
+            <li
+              className={(isSearching ? showAppearance : activeTab === 'Appearance') ? 'active' : ''}
+              onClick={() => setActiveTab('Appearance')}
+            >
+              Appearance
+            </li>
           </ul>
         </div>
 
         <div className="vscode-settings-content">
+          {showAppearance && (
+            <div className="vscode-settings-section">
+              <h2 className="vscode-settings-section-title">Appearance</h2>
+
+              {(isSearching
+                ? matchesSearch("Color Theme") ||
+                matchesSearch("interface theme") ||
+                matchesSearch("Appearance")
+                : true) && (
+                  <div className="vscode-setting-item">
+                    <div className="vscode-setting-header">
+                      <span className="vscode-setting-title">
+                        Workbench: <span className="highlight">Color Theme</span>
+                      </span>
+                      <div className="vscode-setting-description">
+                        Select your interface theme or let it match your system.
+                      </div>
+                    </div>
+                    <div className="vscode-setting-control">
+                      <select
+                        className="vscode-select"
+                        value={theme}
+                        onChange={(e) => onThemeChange(e.target.value)}
+                      >
+                        <option value="system">System Default</option>
+                        <option value="light">Light Theme</option>
+                        <option value="dark">Dark Theme</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+            </div>
+          )}
+
           {showActivityLogs && (
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Activity Logs</h2>
