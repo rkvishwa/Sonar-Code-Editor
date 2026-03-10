@@ -485,6 +485,29 @@ function IDEContent() {
     collaboration.onWorkspaceMetadataChange,
   ]);
 
+  // Save collaborative edits to local tabs before the session stops
+  useEffect(() => {
+    if (!collaboration.isActive || !collaboration.onBeforeSessionStop) return;
+    
+    const unsub = collaboration.onBeforeSessionStop(() => {
+      setTabs((prev) =>
+        prev.map((t) => {
+          const collabContent = collaboration.getFileContent(
+            t.path,
+            workspaceRootRef.current ?? undefined,
+          );
+          if (collabContent !== null && collabContent !== t.content) {
+            // Keep the latest edits so the file doesn't revert
+            return { ...t, content: collabContent, isDirty: true };
+          }
+          return t;
+        }),
+      );
+    });
+    
+    return unsub;
+  }, [collaboration.isActive, collaboration.onBeforeSessionStop, collaboration.getFileContent]);
+
   // Share workspace with files when host opens a folder
   useEffect(() => {
     if (!collaboration.isActive) return;
