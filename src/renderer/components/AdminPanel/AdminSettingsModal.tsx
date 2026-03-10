@@ -62,6 +62,8 @@ export default function AdminSettingsModal({
 
   useEffect(() => {
     if (isOpen) {
+      setActiveTab('Account');
+      setSearchQuery('');
       setNewTeamName(user?.teamName || '');
       setEditingName(false);
       setNameError('');
