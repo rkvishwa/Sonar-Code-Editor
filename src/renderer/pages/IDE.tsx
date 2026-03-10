@@ -733,15 +733,14 @@ function IDEContent() {
     (deletedPath: string, type: "file" | "directory") => {
       setTabs((prev) => {
         const next = prev.map((t) => {
+          const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+          const dNorm = deletedPath.replace(/\\/g, "/").toLowerCase();
+          
           if (type === "directory") {
-            if (
-              t.path.startsWith(deletedPath + "/") ||
-              t.path.startsWith(deletedPath + "\\") ||
-              t.path === deletedPath
-            ) {
+            if (tNorm === dNorm || tNorm.startsWith(dNorm + "/")) {
               return { ...t, isDeleted: true };
             }
-          } else if (t.path === deletedPath) {
+          } else if (tNorm === dNorm) {
             return { ...t, isDeleted: true };
           }
           return t;
@@ -776,12 +775,10 @@ function IDEContent() {
       setTabs((prev) => {
         let updated = false;
         const next = prev.map((t) => {
-          // If it was a directory renamed, we should update paths inside it
-          if (
-            t.path === oldPath ||
-            t.path.startsWith(oldPath + "/") ||
-            t.path.startsWith(oldPath + "\\")
-          ) {
+          const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+          const oNorm = oldPath.replace(/\\/g, "/").toLowerCase();
+          
+          if (tNorm === oNorm || tNorm.startsWith(oNorm + "/")) {
             updated = true;
             const newFilePath = newPath + t.path.slice(oldPath.length);
             const newName = newFilePath.split(/[\\/]/).pop() || "";
@@ -793,11 +790,9 @@ function IDEContent() {
         if (updated) {
           setActiveTabPath((current) => {
             if (!current) return null;
-            if (
-              current === oldPath ||
-              current.startsWith(oldPath + "/") ||
-              current.startsWith(oldPath + "\\")
-            ) {
+            const cNorm = current.replace(/\\/g, "/").toLowerCase();
+            const oNorm = oldPath.replace(/\\/g, "/").toLowerCase();
+            if (cNorm === oNorm || cNorm.startsWith(oNorm + "/")) {
               return newPath + current.slice(oldPath.length);
             }
             return current;
@@ -828,9 +823,11 @@ function IDEContent() {
   const handleFileCreated = useCallback(
     async (fullPath: string, _name: string) => {
       setTabs((prev) =>
-        prev.map((t) =>
-          t.path === fullPath ? { ...t, isDeleted: false } : t
-        )
+        prev.map((t) => {
+          const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+          const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
+          return tNorm === fNorm ? { ...t, isDeleted: false } : t;
+        })
       );
       try {
         const wsRoot = workspaceRootRef.current;
@@ -923,18 +920,17 @@ function IDEContent() {
                   await window.electronAPI.fs.writeFile(fullPath, op.content);
                   
                   // Crucial Sync Step: Manually seed the Y.Text document with the received payload.
-                  // Without this, if the file was revived from a deletion (using Undo), the remote
-                  // client recreates the file locally but its Yjs document map remains completely
-                  // empty or desynchronized, dropping all future collaborative edits until restarted.
                   collaboration.setFileContent(fullPath, op.content, wsRoot);
                 }
               } catch (createErr) {
                 console.warn(`Remote create-file failed: ${relPath}`, createErr);
               }
               setTabs((prev) =>
-                prev.map((t) =>
-                  t.path === fullPath ? { ...t, isDeleted: false } : t
-                )
+                prev.map((t) => {
+                  const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+                  const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
+                  return tNorm === fNorm ? { ...t, isDeleted: false } : t;
+                })
               );
               break;
             case "create-folder":
