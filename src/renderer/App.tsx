@@ -194,6 +194,18 @@ export default function App() {
   // null = checking, true = granted, false = denied
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
 
+  useEffect(() => {
+    // Add platform class to body for OS-specific styling globally
+    const platform = window.navigator.userAgent.toLowerCase();
+    if (platform.includes("mac")) {
+      document.body.classList.add("platform-mac");
+    } else if (platform.includes("win")) {
+      document.body.classList.add("platform-windows");
+    } else {
+      document.body.classList.add("platform-linux");
+    }
+  }, []);
+
   const checkPermission = useCallback(async () => {
     if (!window.electronAPI?.system?.checkPermission) {
       // Not in Electron (dev web mode) — allow through

@@ -331,13 +331,14 @@ export default function AdminDashboard() {
 
   return (
     <div className="admin-container">
-      {/* Heavy Glassmorphic Vercel Header */}
       <div className="admin-header">
         <div className="admin-header-left">
-          <span className="admin-logo">
-            <Radar className="logo-icon" size={18} />
-            Sonar Admin
-          </span>
+          <div className="admin-logo">
+            <span className="logo-icon-wrapper">
+              <Radar className="logo-icon" size={20} />
+            </span>
+            <span className="logo-text">Sonar Admin</span>
+          </div>
           <span className="admin-live-badge">
             <span className="live-dot" />
             Live System
