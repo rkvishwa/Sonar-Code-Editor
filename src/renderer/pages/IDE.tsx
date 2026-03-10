@@ -921,6 +921,12 @@ function IDEContent() {
                 await window.electronAPI.fs.createFile(fullPath);
                 if (op.content) {
                   await window.electronAPI.fs.writeFile(fullPath, op.content);
+                  
+                  // Crucial Sync Step: Manually seed the Y.Text document with the received payload.
+                  // Without this, if the file was revived from a deletion (using Undo), the remote
+                  // client recreates the file locally but its Yjs document map remains completely
+                  // empty or desynchronized, dropping all future collaborative edits until restarted.
+                  collaboration.setFileContent(fullPath, op.content, wsRoot);
                 }
               } catch (createErr) {
                 console.warn(`Remote create-file failed: ${relPath}`, createErr);

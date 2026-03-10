@@ -108,6 +108,7 @@ interface CollaborationContextValue {
   unbindEditor: () => void;
   getCurrentEditorContent: () => string | null;
   getFileContent: (filePath: string, workspaceRoot?: string) => string | null;
+  setFileContent: (filePath: string, content: string, workspaceRoot?: string) => void;
   ydoc: Y.Doc | null;
   provider: WebsocketProvider | null;
   // Shared file methods
@@ -941,6 +942,30 @@ export function CollaborationProvider({
     [],
   );
 
+  // Directly initialize or overwrite the collaborative content for a file.
+  // This is critical when an external file creation (e.g. undoing a file deletion)
+  // brings a file back with content. It ensures the Yjs document reflects the
+  // disk content even if nobody has bound an editor to it yet.
+  const setFileContent = useCallback(
+    (filePath: string, content: string, workspaceRoot?: string) => {
+      if (!ydocRef.current) return;
+
+      let relativePath = filePath;
+      if (workspaceRoot) {
+        relativePath = toRelativePath(filePath, workspaceRoot);
+      }
+      const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
+
+      const ytext = ydocRef.current.getText(docName);
+      if (ytext.toString() !== content) {
+        // Clear and replace the content
+        ytext.delete(0, ytext.length);
+        ytext.insert(0, content);
+      }
+    },
+    [],
+  );
+
   // Share a file with all connected users
   const shareFile = useCallback((file: SharedFile) => {
     if (!ydocRef.current) {
@@ -1143,6 +1168,7 @@ export function CollaborationProvider({
       unbindEditor,
       getCurrentEditorContent,
       getFileContent,
+      setFileContent,
       ydoc: ydocRef.current,
       provider: providerRef.current,
       // Shared file methods
