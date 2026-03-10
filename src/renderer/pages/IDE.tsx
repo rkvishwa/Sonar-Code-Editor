@@ -826,20 +826,29 @@ function IDEContent() {
   );
 
   const handleFileCreated = useCallback(
-    (fullPath: string, _name: string) => {
+    (fullPath: string, _name: string, isRestore?: boolean) => {
       setTabs((prev) =>
-        prev.map((t) =>
-          t.path === fullPath ? { ...t, isDeleted: false } : t
-        )
+        prev.map((t) => {
+          if (t.path !== fullPath) return t;
+          return {
+            ...t,
+            isDeleted: false,
+            content: isRestore ? t.content : "",
+            isDirty: isRestore ? t.isDirty : false,
+          };
+        })
       );
       try {
         const wsRoot = workspaceRootRef.current;
         if (collabActiveRef.current && wsRoot) {
           const relativePath = toRelativePath(fullPath, wsRoot);
+          const existingTab = tabsRef.current.find((t) => t.path === fullPath);
+          const broadcastContent = isRestore ? (existingTab?.content ?? "") : "";
+
           broadcastFileOpRef.current({
             type: "create-file",
             relativePath,
-            content: "",
+            content: broadcastContent,
           });
         }
       } catch (err) {
@@ -916,7 +925,7 @@ function IDEContent() {
               }
               setTabs((prev) =>
                 prev.map((t) =>
-                  t.path === fullPath ? { ...t, isDeleted: false } : t
+                  t.path === fullPath ? { ...t, isDeleted: false, content: op.content || "", isDirty: false } : t
                 )
               );
               break;
