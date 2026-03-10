@@ -13,11 +13,29 @@
 		Zap,
 		ArrowRight,
 		Monitor,
-		Sparkles
+		Sparkles,
+		Settings
 	} from 'lucide-svelte';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 
 	let mounted = $state(false);
+	
+	// Spotlight effect state
+	let mouseX = $state(0);
+	let mouseY = $state(0);
+	let isHovering = $state(false);
+	let sectionRef: HTMLElement;
+
+	function handleMouseMove(e: MouseEvent) {
+		if (!sectionRef) return;
+		const rect = sectionRef.getBoundingClientRect();
+		mouseX = e.clientX - rect.left;
+		mouseY = e.clientY - rect.top;
+	}
+
+	function handleMouseEnter() { isHovering = true; }
+	function handleMouseLeave() { isHovering = false; }
+
 	onMount(() => {
 		mounted = true;
 	});
@@ -155,55 +173,97 @@ Real-time collaboration, exam monitoring, and secure coding � powered by Monac
   </div>
 
   <!-- Dashboard Preview -->
-	<div class="self-center mt-20 sm:mt-28 max-w-4xl w-full relative z-10" class:animate-float-in={mounted}>
-		<div class="absolute -inset-px bg-gradient-to-b from-blue-500/20 via-transparent to-transparent rounded-2xl"></div>
-		<div class="absolute -inset-4 bg-gradient-to-b from-blue-500/[0.07] to-transparent rounded-3xl blur-2xl"></div>
-		<div class="relative bg-white dark:bg-[#111113] rounded-xl border border-zinc-200/80 dark:border-white/[0.08] shadow-2xl shadow-zinc-300/40 dark:shadow-none overflow-hidden">
+	<div 
+		bind:this={sectionRef}
+		onmousemove={handleMouseMove}
+		onmouseenter={handleMouseEnter}
+		onmouseleave={handleMouseLeave}
+		class="self-center mt-20 sm:mt-28 max-w-4xl w-full relative z-10 group" 
+		class:animate-float-in={mounted}
+	>
+		<!-- Magnetic ambient glow (Spotlight aura) -->
+		<div class="absolute -inset-10 transition-opacity duration-300 pointer-events-none blur-3xl rounded-3xl"
+			style="background: radial-gradient(400px circle at {mouseX}px {mouseY}px, rgba(56, 189, 248, 0.15), transparent 60%); opacity: {isHovering ? 1 : 0};"
+		></div>
+
+		<!-- Magnetic glowing border effect -->
+		<div class="absolute -inset-[1px] rounded-2xl transition-opacity duration-300 pointer-events-none"
+			style="background: radial-gradient(800px circle at {mouseX}px {mouseY}px, rgba(56, 189, 248, 0.5), transparent 40%); opacity: {isHovering ? 1 : 0};"
+		></div>
+
+		<!-- Static subtle background border fallback -->
+		<div class="absolute -inset-[1px] bg-gradient-to-br from-zinc-200/50 to-zinc-100/10 dark:from-white/10 dark:to-transparent rounded-2xl opacity-80 blur-[1px] group-hover:opacity-30 transition-opacity duration-500"></div>
+		
+		<div class="relative bg-white dark:bg-[#0a0a0c] rounded-xl border border-zinc-200/50 dark:border-white/[0.05] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] overflow-hidden backdrop-blur-xl">
 			<!-- Window chrome -->
-			<div class="h-10 bg-zinc-50 dark:bg-[#1a1a1d] border-b border-zinc-200/80 dark:border-white/[0.06] flex items-center justify-between px-4">
-				<div class="flex gap-1.5">
-					<div class="w-2.5 h-2.5 rounded-full bg-zinc-300 dark:bg-zinc-700"></div>
-					<div class="w-2.5 h-2.5 rounded-full bg-zinc-300 dark:bg-zinc-700"></div>
-					<div class="w-2.5 h-2.5 rounded-full bg-zinc-300 dark:bg-zinc-700"></div>
+			<div class="h-12 bg-white/50 dark:bg-[#121214]/50 border-b border-zinc-100 dark:border-white/[0.04] flex items-center justify-between px-5 backdrop-blur-md">
+				<div class="flex gap-2">
+					<div class="w-3 h-3 rounded-full bg-zinc-200 dark:bg-zinc-700/80"></div>
+					<div class="w-3 h-3 rounded-full bg-zinc-200 dark:bg-zinc-700/80"></div>
+					<div class="w-3 h-3 rounded-full bg-zinc-200 dark:bg-zinc-700/80"></div>
 				</div>
-				<div class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono tracking-wider flex items-center gap-1.5 uppercase">
-					<Activity size={10} class="text-blue-500" />
+				<div class="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono tracking-widest flex items-center gap-2 uppercase">
+					<Activity size={12} class="text-blue-500" />
 					<span>Sonar — Admin Dashboard</span>
 				</div>
 				<div class="w-14"></div>
 			</div>
 			<!-- Body -->
-			<div class="h-[320px] sm:h-[360px] flex">
+			<div class="h-[340px] sm:h-[400px] flex bg-white/80 dark:bg-[#0a0a0c]/80">
 				<!-- Sidebar -->
-				<div class="w-44 border-r border-zinc-100 dark:border-white/[0.05] p-3 space-y-1 hidden sm:block bg-zinc-50/50 dark:bg-transparent">
-					<div class="flex items-center gap-2.5 text-[13px] text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-500/10 px-2.5 py-2 rounded-lg">
-						<Activity size={14} /> <span>Live Session</span>
+				<div class="w-56 border-r border-zinc-100 dark:border-white/[0.04] p-4 space-y-1.5 hidden sm:block">
+					<div class="flex items-center gap-3 text-[14px] text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-500/10 px-3 py-2.5 rounded-lg transition-colors cursor-pointer">
+						<Activity size={16} /> <span>Admin Panel</span>
 					</div>
-					<div class="flex items-center gap-2.5 text-[13px] text-zinc-500 dark:text-zinc-400 px-2.5 py-2 rounded-lg">
-						<Users size={14} /> <span>Users (12)</span>
+					<div class="flex items-center gap-3 text-[14px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-white/[0.02] px-3 py-2.5 rounded-lg transition-colors cursor-pointer">
+						<Users size={16} /> <span>Collaboration</span>
 					</div>
-					<div class="flex items-center gap-2.5 text-[13px] text-zinc-500 dark:text-zinc-400 px-2.5 py-2 rounded-lg">
-						<Eye size={14} /> <span>Logs</span>
+					<div class="flex items-center gap-3 text-[14px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-white/[0.02] px-3 py-2.5 rounded-lg transition-colors cursor-pointer">
+						<FileBox size={16} /> <span>Workspace</span>
 					</div>
-					<div class="flex items-center gap-2.5 text-[13px] text-zinc-500 dark:text-zinc-400 px-2.5 py-2 rounded-lg">
-						<ShieldAlert size={14} /> <span>Alerts</span>
+					<div class="flex items-center gap-3 text-[14px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-white/[0.02] px-3 py-2.5 rounded-lg transition-colors cursor-pointer">
+						<Monitor size={16} /> <span>Preview</span>
+					</div>
+					<div class="flex items-center gap-3 text-[14px] text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-white/[0.02] px-3 py-2.5 rounded-lg transition-colors cursor-pointer">
+						<Settings size={16} /> <span>Settings</span>
 					</div>
 				</div>
 				<!-- Feed -->
-				<div class="flex-1 p-5 sm:p-6 font-mono text-xs sm:text-[13px] text-left overflow-hidden">
-					<div class="flex justify-between items-center mb-5 pb-3 border-b border-zinc-100 dark:border-white/[0.05]">
-						<div class="text-zinc-800 dark:text-white font-semibold text-sm">Activity Feed</div>
-						<div class="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-medium border border-emerald-100 dark:border-emerald-500/20">
-							<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+				<div class="flex-1 p-6 sm:p-8 font-mono text-[13px] text-left overflow-hidden bg-white dark:bg-[#0a0a0c]">
+					<div class="flex justify-between items-center mb-6 pb-4 border-b border-zinc-100 dark:border-white/[0.04]">
+						<div class="text-zinc-900 dark:text-zinc-100 font-bold tracking-tight font-sans text-base">Activity Feed</div>
+						<div class="flex items-center gap-2 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-md text-[11px] font-medium border border-emerald-100 dark:border-emerald-500/20 font-sans shadow-sm shadow-emerald-500/5">
+							<span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse relative">
+								<span class="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-50"></span>
+							</span>
 							Recording
 						</div>
 					</div>
-					<div class="space-y-3 text-zinc-600 dark:text-zinc-400">
-						<div class="flex gap-3 items-center animate-feed-line" style="animation-delay:0.2s"><span class="text-zinc-400 dark:text-zinc-600 shrink-0">[10:42:01]</span> <span class="text-zinc-800 dark:text-white font-medium">user_2</span> <span class="truncate">joined session <code class="text-blue-600 dark:text-blue-400">'exam_A1'</code></span></div>
-						<div class="flex gap-3 items-center animate-feed-line" style="animation-delay:0.4s"><span class="text-zinc-400 dark:text-zinc-600 shrink-0">[10:42:15]</span> <span class="text-zinc-800 dark:text-white font-medium">user_2</span> <span class="truncate">typing in <code class="text-blue-600 dark:text-blue-400">src/main.ts</code></span></div>
-						<div class="flex gap-3 items-center text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-1.5 rounded-md border border-amber-100 dark:border-amber-500/20 -mx-1 animate-feed-line" style="animation-delay:0.6s"><span class="text-amber-400 dark:text-amber-500/60 shrink-0">[10:43:05]</span> <span class="font-medium">user_4</span> <span class="truncate">⚠ window defocus (3s)</span></div>
-						<div class="flex gap-3 items-center text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-1.5 rounded-md border border-rose-100 dark:border-rose-500/20 -mx-1 animate-feed-line" style="animation-delay:0.8s"><span class="text-rose-400 dark:text-rose-500/60 shrink-0">[10:44:12]</span> <span class="font-medium">user_1</span> <span class="truncate">🚨 unauthorized paste</span></div>
-						<div class="flex gap-3 items-center opacity-50 animate-feed-line" style="animation-delay:1s"><span class="text-zinc-400 dark:text-zinc-600 shrink-0">[10:45:00]</span> <span class="truncate">Exporting log to PDF…</span></div>
+					<div class="space-y-4 text-zinc-600 dark:text-zinc-400/90 tracking-tight leading-relaxed">
+						<div class="flex gap-4 items-center animate-feed-line" style="animation-delay:0.2s">
+							<span class="text-zinc-400 dark:text-zinc-500/80 shrink-0">[10:42:01]</span> 
+							<span class="text-zinc-800 dark:text-zinc-200 font-medium">user_2</span> 
+							<span class="truncate">joined session <span class="text-blue-600 dark:text-blue-400 font-medium">'exam_A1'</span></span>
+						</div>
+						<div class="flex gap-4 items-center animate-feed-line" style="animation-delay:0.4s">
+							<span class="text-zinc-400 dark:text-zinc-500/80 shrink-0">[10:42:15]</span> 
+							<span class="text-zinc-800 dark:text-zinc-200 font-medium">user_2</span> 
+							<span class="truncate">typing in <span class="text-blue-600 dark:text-blue-400 font-medium">src/main.ts</span></span>
+						</div>
+						<div class="flex gap-4 items-center text-amber-700 dark:text-amber-400 bg-[#fffbeb] dark:bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-500/20 -mx-3 animate-feed-line" style="animation-delay:0.6s">
+							<span class="text-amber-500 dark:text-amber-500/70 shrink-0">[10:43:05]</span> 
+							<span class="font-medium text-amber-800 dark:text-amber-300">user_4</span> 
+							<span class="truncate">⚠ window defocus (3s)</span>
+						</div>
+						<div class="flex gap-4 items-center text-rose-700 dark:text-rose-400 bg-[#fff1f2] dark:bg-rose-500/10 px-3 py-2 rounded-lg border border-rose-200 dark:border-rose-500/20 -mx-3 animate-feed-line" style="animation-delay:0.8s">
+							<span class="text-rose-400 dark:text-rose-500/70 shrink-0">[10:44:12]</span> 
+							<span class="font-medium text-rose-800 dark:text-rose-300">user_1</span> 
+							<span class="truncate">🚨 unauthorized paste</span>
+						</div>
+						<div class="flex gap-4 items-center text-zinc-400 dark:text-zinc-500/80 animate-feed-line mt-6" style="animation-delay:1s">
+							<span class="shrink-0">[10:45:00]</span> 
+							<span class="truncate">Exporting log to PDF…</span>
+						</div>
 					</div>
 				</div>
 			</div>
