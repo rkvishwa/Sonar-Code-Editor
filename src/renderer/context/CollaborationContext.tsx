@@ -55,6 +55,7 @@ interface CollaborationContextValue {
   startHost: (overrideName?: string) => Promise<void>;
   joinSession: (hostIp: string, overrideName?: string) => Promise<void>;
   stopSession: () => Promise<void>;
+  onBeforeSessionStop: (callback: () => void) => () => void;
   bindEditor: (
     monacoEditor: editor.IStandaloneCodeEditor,
     filePath: string,
@@ -173,6 +174,7 @@ export function CollaborationProvider({
   const fileOpCallbacksRef = useRef<Set<(op: FileOperation) => void>>(
     new Set(),
   );
+  const beforeStopCallbacksRef = useRef<Set<() => void>>(new Set());
 
   // Save username to localStorage when it changes
   useEffect(() => {
@@ -584,8 +586,16 @@ export function CollaborationProvider({
     [initializeYjs, userName, user?.$id],
   );
 
+  const onBeforeSessionStop = useCallback((callback: () => void) => {
+    beforeStopCallbacksRef.current.add(callback);
+    return () => {
+      beforeStopCallbacksRef.current.delete(callback);
+    };
+  }, []);
+
   const stopSession = useCallback(async () => {
     try {
+      beforeStopCallbacksRef.current.forEach((cb) => cb());
       cleanup();
       await window.electronAPI.collaboration.stopSession();
       setStatus(null);
@@ -1080,6 +1090,7 @@ export function CollaborationProvider({
       startHost,
       joinSession,
       stopSession,
+      onBeforeSessionStop,
       bindEditor,
       unbindEditor,
       getCurrentEditorContent,
@@ -1116,6 +1127,7 @@ export function CollaborationProvider({
       startHost,
       joinSession,
       stopSession,
+      onBeforeSessionStop,
       bindEditor,
       unbindEditor,
       getCurrentEditorContent,
