@@ -28,6 +28,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
       { key: 'snippetSuggestions', label: 'Snippet Suggestions', description: 'Show code snippet suggestions in autocomplete' },
       { key: 'parameterHints', label: 'Parameter Hints', description: 'Show function parameter hints when typing' },
       { key: 'codeCompletionTriggerCharacters', label: 'Completion Trigger Characters', description: 'Trigger completions on special characters like . and (' },
+      { key: 'htmlTagAutoSuggest', label: 'HTML Tag Suggest', description: 'Automatically suggest HTML tags when typing <' },
     ],
   },
   {
@@ -349,16 +350,16 @@ export default function AdminSettingsModal({
         <div className="vscode-settings-sidebar">
           <ul className="vscode-settings-tree">
             <li
-              className={(isSearching ? showEditorFeatures : activeTab === 'Editor Features') ? 'active' : ''}
-              onClick={() => setActiveTab('Editor Features')}
-            >
-              Editor Features
-            </li>
-            <li
               className={(isSearching ? showAccount : activeTab === 'Account') ? 'active' : ''}
               onClick={() => setActiveTab('Account')}
             >
               Account
+            </li>
+            <li
+              className={(isSearching ? showEditorFeatures : activeTab === 'Editor Features') ? 'active' : ''}
+              onClick={() => setActiveTab('Editor Features')}
+            >
+              Editor Features
             </li>
             <li
               className={(isSearching ? showActivityLogs : activeTab === 'Activity Logs') ? 'active' : ''}

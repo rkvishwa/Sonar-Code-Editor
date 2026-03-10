@@ -144,6 +144,22 @@ function IDEContent() {
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [activeTabPath, setActiveTabPath] = useState<string | null>(null);
+
+  // Auto-launch a blank file if there are no tabs and no workspace
+  useEffect(() => {
+    if (tabs.length === 0 && !workspaceRoot) {
+      const defaultPath = "Untitled-1.html";
+      setTabs([{
+        path: defaultPath,
+        name: "Untitled-1.html",
+        content: "<!-- Auto-generated scratchpad -->\n<html>\n  <body>\n    \n  </body>\n</html>\n",
+        isDirty: false,
+        language: "html",
+        isPreviewFile: false,
+      }]);
+      setActiveTabPath(defaultPath);
+    }
+  }, []);
   const [showPreview, setShowPreview] = useState(true);
   const [showExplorer, setShowExplorer] = useState(true);
   const [theme, setTheme] = useState(

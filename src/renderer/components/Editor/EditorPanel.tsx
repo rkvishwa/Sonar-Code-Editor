@@ -53,21 +53,46 @@ const getEditorOptions = (wordWrap: boolean, ft: EditorFeatureToggles = DEFAULT_
   // IntelliSense & Suggestions
   suggestOnTriggerCharacters: ft.codeCompletionTriggerCharacters,
   quickSuggestions: ft.intellisenseSuggest
-    ? { other: true, comments: false, strings: false }
+    ? { other: true, comments: true, strings: true }
     : false,
   parameterHints: { enabled: ft.parameterHints },
   wordBasedSuggestions: ft.intellisenseSuggest ? ("currentDocument" as const) : ("off" as const),
   acceptSuggestionOnEnter: ft.intellisenseSuggest ? ("on" as const) : ("off" as const),
   tabCompletion: ft.snippetSuggestions ? ("on" as const) : ("off" as const),
   snippetSuggestions: ft.snippetSuggestions ? ("inline" as const) : ("none" as const),
-  suggest: ft.intellisenseSuggest
-    ? undefined
-    : { showMethods: false, showFunctions: false, showConstructors: false, showFields: false, showVariables: false, showClasses: false, showStructs: false, showInterfaces: false, showModules: false, showProperties: false, showEvents: false, showOperators: false, showUnits: false, showValues: false, showConstants: false, showEnums: false, showEnumMembers: false, showKeywords: false, showWords: false, showColors: false, showFiles: false, showReferences: false, showFolders: false, showTypeParameters: false, showSnippets: false },
+  suggest: {
+    showMethods: ft.intellisenseSuggest,
+    showFunctions: ft.intellisenseSuggest,
+    showConstructors: ft.intellisenseSuggest,
+    showFields: ft.intellisenseSuggest,
+    showVariables: ft.intellisenseSuggest,
+    showClasses: ft.intellisenseSuggest,
+    showStructs: ft.intellisenseSuggest,
+    showInterfaces: ft.intellisenseSuggest,
+    showModules: ft.intellisenseSuggest,
+    showProperties: ft.intellisenseSuggest,
+    showEvents: ft.intellisenseSuggest,
+    showOperators: ft.intellisenseSuggest,
+    showUnits: ft.intellisenseSuggest,
+    showValues: ft.intellisenseSuggest,
+    showConstants: ft.intellisenseSuggest,
+    showEnums: ft.intellisenseSuggest,
+    showEnumMembers: ft.intellisenseSuggest,
+    showKeywords: ft.intellisenseSuggest,
+    showWords: ft.intellisenseSuggest,
+    showColors: ft.intellisenseSuggest,
+    showFiles: ft.intellisenseSuggest,
+    showReferences: ft.intellisenseSuggest,
+    showFolders: ft.intellisenseSuggest,
+    showTypeParameters: ft.intellisenseSuggest,
+    showSnippets: ft.snippetSuggestions || ft.htmlTagAutoSuggest,
+  },
 
   // UI Enhancements
   hover: { enabled: ft.hover },
   codeLens: ft.codeLens,
   inlayHints: { enabled: ft.inlayHints ? ("on" as const) : ("off" as const) },
+  inlineSuggest: { enabled: ft.inlineHints },
   lightbulb: { enabled: (ft.lightbulbActions ? "onCode" : "off") as any },
   linkedEditing: ft.linkedEditing,
 
@@ -232,148 +257,253 @@ const EditorPanel = React.memo(function EditorPanel({
   const featureTogglesRef = useRef(featureToggles);
   useEffect(() => {
     featureTogglesRef.current = featureToggles;
+
+    // Reactively update code markers/diagnostics based on toggles changing post-mount
+    if (editorRef.current) {
+      const monaco = (window as any).monaco; // Access global monaco instance if available, or try fetching from editor model
+      if (monaco) {
+        const updateDiagnosticOptions = (defaults: any) => {
+          if (!defaults?.setDiagnosticsOptions) return;
+          const opts: any = {};
+          if (!featureToggles.errorSquiggles && !featureToggles.warningSquiggles) {
+            opts.noSemanticValidation = true;
+            opts.noSyntaxValidation = true;
+          }
+          defaults.setDiagnosticsOptions(opts);
+        };
+        // TypeScript / JavaScript
+        updateDiagnosticOptions(monaco.languages.typescript?.typescriptDefaults);
+        updateDiagnosticOptions(monaco.languages.typescript?.javascriptDefaults);
+      }
+    }
   }, [featureToggles]);
+
+  const htmlSnippetDisposerRef = useRef<{ dispose: () => void } | null>(null);
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
-    const ft = featureTogglesRef.current;
 
     // Trigger re-evaluation of the binding effect now that the editor is ready
     setEditorMountTick((c) => c + 1);
 
-    // ── Disable navigation / refactoring commands when toggles are OFF ──
-    // We remove keybindings by overriding them with a no-op condition.
-    const disableAction = (actionId: string) => {
+    // ── Emmet-style HTML Tag Auto-suggest ──
+    if (!htmlSnippetDisposerRef.current) {
+      const completionLanguages = ["html", "xml", "php", "handlebars", "razor", "javascript", "typescript", "markdown"];
+      htmlSnippetDisposerRef.current = monaco.languages.registerCompletionItemProvider(
+        completionLanguages,
+        {
+          triggerCharacters: [
+            "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+            "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+            "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "<"
+          ],
+          provideCompletionItems: (model: any, position: any) => {
+            if (!featureTogglesRef.current.htmlTagAutoSuggest) {
+              return { suggestions: [] };
+            }
+
+            const textUntilPosition = model.getValueInRange({
+              startLineNumber: position.lineNumber,
+              startColumn: 1,
+              endLineNumber: position.lineNumber,
+              endColumn: position.column,
+            });
+
+            // Match normal tags like "div", and Emmet multipliers like "li*5"
+            // Group 1: leading space or bracket
+            // Group 2: optional < bracket manually typed by user
+            // Group 3: tag name
+            // Group 5: optional multiplier number (if group 4 matched)
+            const match = textUntilPosition.match(/(^|\s|>)(<)?([a-zA-Z][a-zA-Z0-9-]*)(\*([1-9][0-9]*))?$/);
+            if (!match) return { suggestions: [] };
+
+            const hasBracket = !!match[2];
+            const word = match[3];
+            const multiplierStr = match[5];
+            const hasMultiplier = !!multiplierStr;
+            const fullMatchLength = word.length + (hasBracket ? 1 : 0) + (hasMultiplier ? multiplierStr.length + 1 : 0);
+
+            const wordRange = {
+              startLineNumber: position.lineNumber,
+              endLineNumber: position.lineNumber,
+              startColumn: position.column - fullMatchLength,
+              endColumn: position.column,
+            };
+
+            const voidElements = [
+              "area", "base", "br", "col", "embed", "hr", "img", "input",
+              "link", "meta", "param", "source", "track", "wbr"
+            ];
+
+            const HTML_TAGS = [
+              "a", "abbr", "address", "area", "article", "aside", "audio", "b", "base", "bdi", "bdo", "blockquote", "body", "br", "button", "canvas", "caption", "cite", "code", "col", "colgroup", "data", "datalist", "dd", "del", "details", "dfn", "dialog", "div", "dl", "dt", "em", "embed", "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hgroup", "hr", "html", "i", "iframe", "img", "input", "ins", "kbd", "label", "legend", "li", "link", "main", "map", "mark", "menu", "meta", "meter", "nav", "noscript", "object", "ol", "optgroup", "option", "output", "p", "picture", "pre", "progress", "q", "rp", "rt", "ruby", "s", "samp", "script", "section", "select", "slot", "small", "source", "span", "strong", "style", "sub", "summary", "sup", "table", "tbody", "td", "template", "textarea", "tfoot", "th", "thead", "time", "title", "tr", "track", "u", "ul", "var", "video", "wbr"
+            ];
+
+            // If the user actively typed a multiplier, aggressively suggest their exact tag * N
+            if (hasMultiplier) {
+              const count = parseInt(multiplierStr, 10);
+              const tagName = word;
+              const isVoid = voidElements.includes(tagName.toLowerCase());
+
+              let generatedSnippet = "";
+              for (let i = 1; i <= count; i++) {
+                if (isVoid) {
+                  generatedSnippet += `<${tagName}>\n`;
+                } else {
+                  generatedSnippet += `<${tagName}>$${i}</${tagName}>\n`;
+                }
+              }
+              // Trim trailing newline
+              generatedSnippet = generatedSnippet.replace(/\n$/, "");
+
+              return {
+                suggestions: [
+                  {
+                    label: `${tagName}*${count}`,
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: generatedSnippet,
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    detail: `Emit ${count} <${tagName}> tags`,
+                    range: wordRange,
+                  }
+                ]
+              };
+            }
+
+            // Otherwise, provide the array of standard tags
+            return {
+              suggestions: HTML_TAGS.map((tag) => {
+                const isVoid = voidElements.includes(tag.toLowerCase());
+                const insertText = isVoid ? `<${tag}>` : `<${tag}>$1</${tag}>`;
+                return {
+                  label: tag,
+                  kind: monaco.languages.CompletionItemKind.Snippet,
+                  insertText: insertText,
+                  insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                  detail: `HTML <${tag}> tag`,
+                  range: wordRange,
+                };
+              }),
+            };
+          }
+        }
+      );
+    }
+
+    // ── Dynamic Action Interception ──
+    // Instead of overriding actions once (which cannot be easily un-done)
+    // we hook into the editor's command execution to conditionally block commands
+    editor.onKeyDown((e) => {
+      // Very basic checking for demonstration - in Monaco intercepting commands via onKeyDown is tricky
+      // The most resilient way to dynamically block actions without breaking keybinds is to overwrite the run method
+    });
+
+    // A reliable way to block UI commands/actions dynamically in Monaco is to 
+    // patch the `run` method of built-in actions so they check our ref.
+    const patchActionDynamically = (actionId: string, toggleKey: keyof EditorFeatureToggles) => {
       const action = editor.getAction(actionId);
-      if (action) {
-        // Override the keybinding by adding a precondition that is always false
-        editor.addAction({
-          id: actionId + '.disabled',
-          label: action.label + ' (disabled)',
-          precondition: 'false',
-          run: () => {},
-        });
+      if (action && !(action as any)._isPatched) {
+        const originalRun = action.run.bind(action);
+        action.run = async (...args: any[]) => {
+          if (!featureTogglesRef.current[toggleKey]) {
+            // Block execution
+            return;
+          }
+          return originalRun(...args);
+        };
+        (action as any)._isPatched = true;
       }
     };
 
-    if (!ft.goToDefinition) {
-      disableAction('editor.action.revealDefinition');
-      disableAction('editor.action.revealDefinitionAside');
-    }
-    if (!ft.goToDeclaration) {
-      disableAction('editor.action.revealDeclaration');
-    }
-    if (!ft.goToImplementation) {
-      disableAction('editor.action.goToImplementation');
-    }
-    if (!ft.findReferences) {
-      disableAction('editor.action.goToReferences');
-    }
-    if (!ft.renameSymbol) {
-      disableAction('editor.action.rename');
-    }
-    if (!ft.formatDocument) {
-      disableAction('editor.action.formatDocument');
-    }
-    if (!ft.formatSelection) {
-      disableAction('editor.action.formatSelection');
-    }
-    if (!ft.codeActionsQuickFixes) {
-      disableAction('editor.action.quickFix');
-      disableAction('editor.action.codeAction');
-    }
-    if (!ft.peekDefinition) {
-      disableAction('editor.action.peekDefinition');
-    }
-    if (!ft.peekReferences) {
-      disableAction('editor.action.referenceSearch.trigger');
-    }
+    patchActionDynamically('editor.action.revealDefinition', 'goToDefinition');
+    patchActionDynamically('editor.action.revealDefinitionAside', 'goToDefinition');
+    patchActionDynamically('editor.action.revealDeclaration', 'goToDeclaration');
+    patchActionDynamically('editor.action.goToImplementation', 'goToImplementation');
+    patchActionDynamically('editor.action.goToReferences', 'findReferences');
+    patchActionDynamically('editor.action.rename', 'renameSymbol');
+    patchActionDynamically('editor.action.formatDocument', 'formatDocument');
+    patchActionDynamically('editor.action.formatSelection', 'formatSelection');
+    patchActionDynamically('editor.action.quickFix', 'codeActionsQuickFixes');
+    patchActionDynamically('editor.action.codeAction', 'codeActionsQuickFixes');
+    patchActionDynamically('editor.action.peekDefinition', 'peekDefinition');
+    patchActionDynamically('editor.action.referenceSearch.trigger', 'peekReferences');
 
     // ── Diagnostics visibility ──
-    // If error/warning squiggles are disabled independently,
-    // we set model marker severity filtering.
-    // renderValidationDecorations already handles the overall toggle.
-    // For fine-grained control, we modify diagnostics options.
-    if (!ft.errorSquiggles || !ft.warningSquiggles) {
-      const updateDiagnosticOptions = (defaults: any) => {
-        if (!defaults?.setDiagnosticsOptions) return;
-        const opts: any = {};
-        if (!ft.errorSquiggles && !ft.warningSquiggles) {
-          opts.noSemanticValidation = true;
-          opts.noSyntaxValidation = true;
-        }
-        defaults.setDiagnosticsOptions(opts);
-      };
-      // TypeScript / JavaScript
-      updateDiagnosticOptions(monaco.languages.typescript?.typescriptDefaults);
-      updateDiagnosticOptions(monaco.languages.typescript?.javascriptDefaults);
-    }
+    const updateDiagnosticOptions = (defaults: any) => {
+      if (!defaults?.setDiagnosticsOptions) return;
+      const opts: any = {};
+      // Evaluate using the current toggles
+      if (!featureTogglesRef.current.errorSquiggles && !featureTogglesRef.current.warningSquiggles) {
+        opts.noSemanticValidation = true;
+        opts.noSyntaxValidation = true;
+      }
+      defaults.setDiagnosticsOptions(opts);
+    };
+    // TypeScript / JavaScript
+    updateDiagnosticOptions(monaco.languages.typescript?.typescriptDefaults);
+    updateDiagnosticOptions(monaco.languages.typescript?.javascriptDefaults);
 
     // ── HTML setup ──
     monaco.languages.html?.htmlDefaults?.setOptions?.({
       format: { contentUnformatted: "" },
+      suggest: { html5: featureTogglesRef.current.htmlTagAutoSuggest },
     });
 
-    // ── Closing tag auto-complete (only if toggle is ON) ──
-    if (ft.closingTagAutoComplete) {
-      const htmlLanguages = ["html", "xml", "php", "handlebars", "razor"];
-      editor.onDidChangeModelContent((e) => {
-        const model = editor.getModel();
-        if (!model) return;
-        const lang = model.getLanguageId();
-        if (!htmlLanguages.includes(lang)) return;
+    // ── Closing tag auto-complete (Evaluates dynamically via ref) ──
+    const autoCloseHtmlLanguages = ["html", "xml", "php", "handlebars", "razor", "javascript", "typescript", "markdown"];
+    editor.onDidChangeModelContent((e) => {
+      if (!featureTogglesRef.current.closingTagAutoComplete) return;
 
-        for (const change of e.changes) {
-          if (change.text === ">") {
-            const position = editor.getPosition();
-            if (!position) return;
-            const lineContent = model.getLineContent(position.lineNumber);
-            const beforeCursor = lineContent.substring(0, position.column - 1);
+      const model = editor.getModel();
+      if (!model) return;
+      const lang = model.getLanguageId();
+      if (!autoCloseHtmlLanguages.includes(lang)) return;
 
-            // Match an opening tag (not self-closing, not a closing tag)
-            const tagMatch = beforeCursor.match(
-              /<([a-zA-Z][a-zA-Z0-9-]*)\b[^/]*$/,
-            );
-            if (tagMatch) {
-              const tagName = tagMatch[1];
-              // Skip void/self-closing HTML elements
-              const voidElements = [
-                "area",
-                "base",
-                "br",
-                "col",
-                "embed",
-                "hr",
-                "img",
-                "input",
-                "link",
-                "meta",
-                "param",
-                "source",
-                "track",
-                "wbr",
-              ];
-              if (voidElements.includes(tagName.toLowerCase())) return;
+      // Only process manual user typing (avoiding undo/redo or large programmatic edits confusing cursor)
+      if (e.isFlush) return;
 
-              const closingTag = `</${tagName}>`;
-              editor.executeEdits("auto-close-tag", [
-                {
-                  range: new monaco.Range(
-                    position.lineNumber,
-                    position.column,
-                    position.lineNumber,
-                    position.column,
-                  ),
-                  text: closingTag,
-                },
-              ]);
-              // Keep cursor between opening and closing tags
-              editor.setPosition(position);
-            }
+      for (const change of e.changes) {
+        if (change.text === ">") {
+          const position = editor.getPosition();
+          if (!position) return;
+          const lineContent = model.getLineContent(position.lineNumber);
+          const beforeCursor = lineContent.substring(0, position.column - 1);
+
+          // Match an opening tag (not self-closing, not a closing tag)
+          const tagMatch = beforeCursor.match(
+            /<([a-zA-Z][a-zA-Z0-9-]*)\b[^/]*$/
+          );
+          if (tagMatch) {
+            const tagName = tagMatch[1];
+            // Skip void/self-closing HTML elements
+            const voidElements = [
+              "area", "base", "br", "col", "embed", "hr", "img", "input",
+              "link", "meta", "param", "source", "track", "wbr",
+            ];
+            if (voidElements.includes(tagName.toLowerCase())) return;
+
+            // Check if there is already a closing tag immediately after cursor
+            const afterCursor = lineContent.substring(position.column - 1);
+            if (afterCursor.startsWith(`</${tagName}>`)) return;
+
+            const closingTag = `</${tagName}>`;
+            editor.executeEdits("auto-close-tag", [
+              {
+                range: new monaco.Range(
+                  position.lineNumber,
+                  position.column,
+                  position.lineNumber,
+                  position.column,
+                ),
+                text: closingTag,
+              },
+            ]);
+            // Keep cursor between opening and closing tags
+            editor.setPosition(position);
           }
         }
-      });
-    }
+      }
+    });
   };
 
   if (!workspaceRoot) {

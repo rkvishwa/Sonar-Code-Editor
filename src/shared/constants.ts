@@ -54,5 +54,5 @@ export const APP_CONFIG = {
   COLLECTION_SESSIONS: 'sessions',
   COLLECTION_ACTIVITY_LOGS: 'activityLogs',
   COLLECTION_REPORTS: 'reports',
-  COLLECTION_EDITOR_FEATURES: 'editorFeatures',
+  COLLECTION_SETTINGS: 'settings',
 } as const;

@@ -208,6 +208,7 @@ export interface EditorFeatureToggles {
   autoClosingDelete: boolean;
   autoClosingOvertype: boolean;
   autoSurround: boolean;
+  htmlTagAutoSuggest: boolean;
   closingTagAutoComplete: boolean;
   codeLens: boolean;
   inlineHints: boolean;
@@ -241,6 +242,7 @@ export const DEFAULT_FEATURE_TOGGLES: EditorFeatureToggles = {
   autoClosingDelete: false,
   autoClosingOvertype: false,
   autoSurround: false,
+  htmlTagAutoSuggest: false,
   closingTagAutoComplete: false,
   codeLens: false,
   inlineHints: false,

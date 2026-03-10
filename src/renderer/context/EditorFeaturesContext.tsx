@@ -32,8 +32,8 @@ export function EditorFeaturesProvider({ children }: { children: ReactNode }) {
 
   // Subscribe to real-time changes
   useEffect(() => {
-    const unsub = subscribeToEditorFeatures((toggles) => {
-      setFeatureToggles(toggles);
+    const unsub = subscribeToEditorFeatures((key, value) => {
+      setFeatureToggles((prev) => ({ ...prev, [key]: value }));
     });
     return unsub;
   }, []);
