@@ -826,7 +826,7 @@ function IDEContent() {
   );
 
   const handleFileCreated = useCallback(
-    (fullPath: string, _name: string) => {
+    async (fullPath: string, _name: string) => {
       setTabs((prev) =>
         prev.map((t) =>
           t.path === fullPath ? { ...t, isDeleted: false } : t
@@ -836,10 +836,21 @@ function IDEContent() {
         const wsRoot = workspaceRootRef.current;
         if (collabActiveRef.current && wsRoot) {
           const relativePath = toRelativePath(fullPath, wsRoot);
+          
+          let content = "";
+          // Try to read the file content so that restoring a file (e.g., undo delete)
+          // sends the actual content to peers instead of corrupting their end with an empty file.
+          try {
+            content = await window.electronAPI.fs.readFile(fullPath);
+          } catch (readErr) {
+            console.warn(`Could not read file for broadcast: ${fullPath}`, readErr);
+            // Fallback to empty string if file is unreadable or binary
+          }
+
           broadcastFileOpRef.current({
             type: "create-file",
             relativePath,
-            content: "",
+            content,
           });
         }
       } catch (err) {
@@ -1001,7 +1012,8 @@ function IDEContent() {
               break;
             }
           }
-          setFileTreeRefreshKey((k) => k + 1);
+          // Always trigger a refresh of the file tree so the user sees remote changes immediately
+          setFileTreeRefreshKey((prev) => prev + 1);
         } catch (err) {
           console.error("Failed to apply remote file operation:", op.type, err);
         }
