@@ -8,14 +8,13 @@ on:
         required: false
         default: 'development'
 
-jobs:
-  build:
-    name: Build for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest]
+permissions:
+  contents: write
 
+jobs:
+  build-mac:
+    name: Build macOS (Development)
+    runs-on: macos-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -25,27 +24,81 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
           cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci
 
-      - name: Build Electron App
-        run: npm run package
+      - name: Set App Version dynamic
+        run: npm --no-git-tag-version version 1.0.0-beta-manual.${{ github.run_number }}
+
+      - name: Create .env file
+        shell: bash
+        run: |
+          echo "VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}" >> .env
+          echo "VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}" >> .env
+          echo "VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}" >> .env
+          echo "VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}" >> .env
+          echo "VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}" >> .env
+          echo "VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}" >> .env
+          echo "VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}" >> .env
+          echo "VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}" >> .env
+
+      - name: Build macOS app (DMG)
+        run: npm run build && npx electron-builder --mac --publish never
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
           CSC_SKIP_SIGNING: true 
 
-      - name: Upload macOS Artifact (DMG)
-        if: matrix.os == 'macos-latest'
+      - name: Upload macOS Artifact
         uses: actions/upload-artifact@v4
         with:
           name: macOS-App-DMG
           path: release/*.dmg
           retention-days: 7
 
-      - name: Upload Windows Artifact (EXE)
-        if: matrix.os == 'windows-latest'
+  build-win:
+    name: Build Windows (Development)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'development' }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Set App Version dynamic
+        run: npm --no-git-tag-version version 1.0.0-beta-manual.${{ github.run_number }}
+
+      - name: Create .env file
+        shell: bash
+        run: |
+          echo "VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}" >> .env
+          echo "VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}" >> .env
+          echo "VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}" >> .env
+          echo "VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}" >> .env
+          echo "VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}" >> .env
+          echo "VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}" >> .env
+          echo "VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}" >> .env
+          echo "VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}" >> .env
+
+      - name: Build Windows app (EXE)
+        run: npm run build && npx electron-builder --win --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_SKIP_SIGNING: true 
+
+      - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Windows-App-EXE
