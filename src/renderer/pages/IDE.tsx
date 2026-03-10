@@ -695,6 +695,17 @@ function IDEContent() {
     );
   }, []);
 
+  // Provide the latest collaborative content for a file.
+  // Used by EditorPanel to show up-to-date content when switching tabs,
+  // since React state tab.content is not updated during collaboration.
+  const getCollaborativeContent = useCallback(
+    (filePath: string): string | null => {
+      if (!collaboration.isActive) return null;
+      return collaboration.getFileContent(filePath, workspaceRoot ?? undefined);
+    },
+    [collaboration.isActive, collaboration.getFileContent, workspaceRoot],
+  );
+
   const handleFileDeleted = useCallback(
     (deletedPath: string, type: "file" | "directory") => {
       setTabs((prev) => {
@@ -1146,6 +1157,7 @@ function IDEContent() {
               onEditorMount={collaboration.bindEditor}
               onEditorUnmount={collaboration.unbindEditor}
               wordWrap={wordWrap}
+              getCollaborativeContent={getCollaborativeContent}
             />
           </Panel>
           {showPreview && (
