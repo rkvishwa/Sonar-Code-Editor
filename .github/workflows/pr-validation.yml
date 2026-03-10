@@ -26,8 +26,7 @@ jobs:
         run: npm ci
 
       - name: Build Electron App (Unsigned)
-      
-        run: npm run build
+        run: npm run package
         env:
           CSC_SKIP_SIGNING: true 
 
@@ -36,7 +35,7 @@ jobs:
         with:
           name: build-${{ matrix.os }}
           path: |
-            dist/*.exe
-            dist/*.dmg
-            dist/*.zip
+            release/*.exe
+            release/*.dmg
+            release/*.zip
           retention-days: 3
