@@ -240,15 +240,17 @@ const EditorPanel = React.memo(function EditorPanel({
     });
 
     // Track local keyboard input.  onKeyDown fires synchronously before
-    // onDidChangeModelContent for the same keystroke, so the flag is true
-    // when the content-change handler runs.  queueMicrotask resets it
-    // after all synchronous handlers complete, so the next remote change
-    // from y-monaco will see the flag as false.
+    // the character is inserted (which happens in the browser's `input`
+    // event).  We use setTimeout(0) instead of queueMicrotask because
+    // microtask checkpoints run between `keydown` and `input` events,
+    // which would reset the flag before Monaco processes the character
+    // and fires onDidChangeModelContent.  setTimeout(0) schedules a
+    // macrotask that runs after ALL related events are processed.
     editor.onKeyDown(() => {
       isUserInputRef.current = true;
-      queueMicrotask(() => {
+      setTimeout(() => {
         isUserInputRef.current = false;
-      });
+      }, 0);
     });
 
     // For HTML-like languages, auto-insert closing tag when typing '>'
