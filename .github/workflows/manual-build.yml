@@ -1,0 +1,53 @@
+name: "Manual Build (Development)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build from (defaults to development)'
+        required: false
+        default: 'development'
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'development' }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Electron App
+        run: npm run package
+        env:
+          CSC_SKIP_SIGNING: true 
+
+      - name: Upload macOS Artifact (DMG)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS-App-DMG
+          path: release/*.dmg
+          retention-days: 7
+
+      - name: Upload Windows Artifact (EXE)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-App-EXE
+          path: release/*.exe
+          retention-days: 7
