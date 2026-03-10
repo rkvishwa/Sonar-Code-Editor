@@ -549,7 +549,7 @@ function FileTreeNode({
           if (e.key === "F2") {
             e.preventDefault();
             startRename();
-          } else if (e.key === "Delete" || e.key === "Del") {
+          } else if (e.key === "Delete" || e.key === "Del" || (e.metaKey && e.key === "Backspace")) {
             e.preventDefault();
             handleDeleteMenuClick();
           } else if (e.key === "Enter") {
