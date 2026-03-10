@@ -680,6 +680,28 @@ export function CollaborationProvider({
         providerRef.current.awareness,
       );
 
+      // Monkey-patch _rerenderDecorations to prevent recursive
+      // deltaDecorations errors.  y-monaco's decoration re-render triggers
+      // cursor change → awareness update → another decoration re-render,
+      // causing Monaco to throw "Invoking deltaDecorations recursively".
+      // Deferring recursive calls to the next frame avoids the error.
+      const origRerender = (binding as any)._rerenderDecorations;
+      if (typeof origRerender === "function") {
+        let isRerendering = false;
+        (binding as any)._rerenderDecorations = () => {
+          if (isRerendering) {
+            requestAnimationFrame(() => origRerender.call(binding));
+            return;
+          }
+          isRerendering = true;
+          try {
+            origRerender.call(binding);
+          } finally {
+            isRerendering = false;
+          }
+        };
+      }
+
       // Monkey-patch destroy() to be idempotent.  y-monaco registers an
       // internal `monacoModel.onWillDispose(() => this.destroy())` callback
       // that fires when React unmounts the <MonacoEditor> (key change on
