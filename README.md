@@ -100,6 +100,20 @@ If you encounter any bugs or want to see what's currently being worked on, check
 
 *Application download links and website information will be updated here in the future. Stay tuned!*
 
+## 👥 Contributors
+
+A huge thank you to everyone who has contributed to the Sonar Code Editor project:
+
+| | | | Commits |
+| :---: | :--- | :--- | :---: |
+| <img src="https://github.com/rkvishwa.png?size=40" width="40" style="border-radius: 50%; margin-top: 15px;" /> | **RKK Vishva Kumar** | [@rkvishwa](https://github.com/rkvishwa) | 179 |
+| <img src="https://github.com/Kasun-Kumara.png?size=40" width="40" style="border-radius: 50%;" /> | **Kasun Kumara** | [@Kasun-Kumara](https://github.com/Kasun-Kumara) | 42 |
+| <img src="https://github.com/SadeepaNHerath.png?size=40" width="40" style="border-radius: 50%;" /> | **Sadeepa N. Herath** | [@SadeepaNHerath](https://github.com/SadeepaNHerath) | 33 |
+| <img src="https://github.com/harshasilva.png?size=40" width="40" style="border-radius: 50%;" /> | **Harsha Silva** | [@harshasilva](https://github.com/harshasilva) | 9 |
+| <img src="https://github.com/Senuka-Deneth.png?size=40" width="40" style="border-radius: 50%;" /> | **Senuka Deneth** | [@Senuka-Deneth](https://github.com/Senuka-Deneth) | 4 |
+| <img src="https://github.com/Praveen-R-2518.png?size=40" width="40" style="border-radius: 50%;" /> | **Praveen Ramanathan** | [@Praveen-R-2518](https://github.com/Praveen-R-2518) | 2 |
+| <img src="https://github.com/Thesaru-p.png?size=40" width="40" style="border-radius: 50%;" /> | **Thesaru P** | [@Thesaru-p](https://github.com/Thesaru-p) | 2 |
+
 ## 📜 License
 
 This project is licensed under the **MIT License**.
