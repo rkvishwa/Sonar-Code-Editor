@@ -819,36 +819,41 @@ function IDEContent() {
   );
 
   const handleFileCreated = useCallback(
-    async (fullPath: string, _name: string) => {
+    async (fullPath: string, _name: string, savedContent?: string) => {
       let restoredContent = "";
 
       try {
         const wsRoot = workspaceRootRef.current;
         if (collabActiveRef.current && wsRoot) {
-          // Check if Y.Text already has content for this file (from previous
-          // collaboration session before deletion). Y.Text represents the
-          // latest collaborative state, so prefer it over disk content.
-          const ytextContent = collaboration.isActive
-            ? collaboration.getFileContent(fullPath, wsRoot)
-            : null;
-
-          if (ytextContent) {
-            // Y.Text already has content — use it as authoritative source.
-            restoredContent = ytextContent;
-            console.log(`Using Y.Text content for restored file: ${fullPath} (${restoredContent.length} chars)`);
+          // Priority 1: pre-captured content from the undo stack (most reliable —
+          // captured right before the file was renamed to .trash, so it always
+          // has the correct content regardless of editor/Y.Text state).
+          if (savedContent !== undefined) {
+            restoredContent = savedContent;
           } else {
-            // Y.Text is empty — read from disk (the .trash rename put content back).
-            try {
-              restoredContent = await window.electronAPI.fs.readFile(fullPath);
-            } catch (readErr) {
-              console.warn(`Could not read file for broadcast: ${fullPath}`, readErr);
+            // Priority 2: Y.Text content (latest collaborative state, if the
+            // file was open in any editor during this session).
+            const ytextContent = collaboration.isActive
+              ? collaboration.getFileContent(fullPath, wsRoot)
+              : null;
+
+            if (ytextContent) {
+              restoredContent = ytextContent;
+              console.log(`Using Y.Text content for restored file: ${fullPath} (${restoredContent.length} chars)`);
+            } else {
+              // Priority 3: read from disk (the .trash rename put content back).
+              try {
+                restoredContent = await window.electronAPI.fs.readFile(fullPath);
+              } catch (readErr) {
+                console.warn(`Could not read file for broadcast: ${fullPath}`, readErr);
+              }
             }
           }
 
-          // Ensure Y.Text is in sync with the content we're broadcasting.
+          // Ensure Y.Text is in sync with the content we're restoring.
           setFileContentRef.current(fullPath, restoredContent, wsRoot);
 
-          // Write the authoritative content back to disk so that non-editor
+          // Write authoritative content back to disk so that non-editor
           // opens (via openFile → readFile) always see the correct content.
           if (restoredContent) {
             try {
@@ -865,11 +870,22 @@ function IDEContent() {
             content: restoredContent,
           });
         } else {
-          // Non-collaboration: read content so we can restore tab.content
-          try {
-            restoredContent = await window.electronAPI.fs.readFile(fullPath);
-          } catch (readErr) {
-            console.warn(`Could not read restored file: ${fullPath}`, readErr);
+          // Non-collaboration: use pre-captured content if available,
+          // otherwise read from disk.
+          if (savedContent !== undefined) {
+            restoredContent = savedContent;
+            // Write it back to disk to ensure consistency.
+            try {
+              await window.electronAPI.fs.writeFile(fullPath, restoredContent);
+            } catch (writeErr) {
+              console.warn(`Could not write restored content to disk: ${fullPath}`, writeErr);
+            }
+          } else {
+            try {
+              restoredContent = await window.electronAPI.fs.readFile(fullPath);
+            } catch (readErr) {
+              console.warn(`Could not read restored file: ${fullPath}`, readErr);
+            }
           }
         }
       } catch (err) {
