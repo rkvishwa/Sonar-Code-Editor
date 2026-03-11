@@ -51,6 +51,7 @@ Commit your changes with a clear and descriptive commit message:
 git add .
 git commit -m "feat: concise description of your feature #<issue_number>"
 ```
+*Always include the issue number (e.g., `#12`) in your commit message if your changes address a specific issue.*
 
 _Always include the issue number (e.g., `#12`) in your commit message if your changes address a specific issue._
 
@@ -63,7 +64,6 @@ git push origin feature/your-feature-name
 ```
 
 ### 🔄 7.0 Create a Pull Request (PR)
-
 1. Go to the original Sonar Code Editor repository on GitHub.
 2. Click on the **Pull Requests** tab, then the **New Pull Request** button.
 3. Click the link to **compare across forks**.

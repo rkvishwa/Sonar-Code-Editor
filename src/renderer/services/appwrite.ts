@@ -1242,4 +1242,19 @@ export function subscribeToSettings(callback: (blocked: boolean) => void): () =>
   );
 }
 
+export function subscribeToSettings(callback: (blocked: boolean) => void): () => void {
+  const unsub = client.subscribe(
+    `databases.${DB_ID}.collections.${COL_SETTINGS}.documents`,
+    (response: RealtimeResponseEvent<any>) => {
+      if (response.events.some((e) => e.includes('update') || e.includes('create'))) {
+        const payload = response.payload;
+        if (payload.settingType === 'blockInternetAccess') {
+          callback(payload.settingValue === 'true');
+        }
+      }
+    }
+  );
+  return unsub;
+}
+
 export { client, databases };
