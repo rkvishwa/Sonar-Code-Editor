@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, Users, LogOut, Settings, Key, CheckCircle2, Eye, EyeOff, Trash2 } from 'lucide-react';
-import { updateTeamName, updateTeamPassword, flushAllActivityLogs } from '../../services/appwrite';
+import { Search, ArrowLeft, X, Users, LogOut, Settings, Key, CheckCircle2, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { updateTeamName, updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction } from '../../services/appwrite';
 import { cacheCredentials } from '../../services/localStore';
 import { Team } from '../../../shared/types';
 import '../Settings/SettingsModal.css';
@@ -10,6 +10,8 @@ interface AdminSettingsModalProps {
   onClose: () => void;
   user: Team | null;
   onLogout: () => void;
+  theme: string;
+  onThemeChange: (val: string) => void;
   onTeamNameUpdated: (newName: string) => void;
 }
 
@@ -18,6 +20,8 @@ export default function AdminSettingsModal({
   onClose,
   user,
   onLogout,
+  theme,
+  onThemeChange,
   onTeamNameUpdated,
 }: AdminSettingsModalProps) {
   const [activeTab, setActiveTab] = useState('Account');
@@ -46,6 +50,12 @@ export default function AdminSettingsModal({
   const [flushError, setFlushError] = useState('');
   const [flushSuccess, setFlushSuccess] = useState('');
 
+  // Restriction state
+  const [globalRestriction, setGlobalRestriction] = useState(false);
+  const [savingRestriction, setSavingRestriction] = useState(false);
+  const [restrictionError, setRestrictionError] = useState('');
+  const [restrictionSuccess, setRestrictionSuccess] = useState('');
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) onClose();
@@ -56,6 +66,8 @@ export default function AdminSettingsModal({
 
   useEffect(() => {
     if (isOpen) {
+      setActiveTab('Account');
+      setSearchQuery('');
       setNewTeamName(user?.teamName || '');
       setEditingName(false);
       setNameError('');
@@ -67,6 +79,12 @@ export default function AdminSettingsModal({
       setPasswordSuccess('');
       setFlushError('');
       setFlushSuccess('');
+      setGlobalRestriction(false);
+      setRestrictionError('');
+      setRestrictionSuccess('');
+      if (user?.role === 'admin') {
+        getGlobalInternetRestriction().then(setGlobalRestriction).catch(console.error);
+      }
     }
   }, [isOpen, user]);
 
@@ -84,6 +102,14 @@ export default function AdminSettingsModal({
   const showActivityLogs = !isSearching
     ? activeTab === 'Activity Logs'
     : matchesSearch('Flush') || matchesSearch('Activity') || matchesSearch('Logs');
+
+  const showPrivacy = !isSearching
+    ? activeTab === 'Privacy'
+    : matchesSearch('Privacy') || matchesSearch('Block') || matchesSearch('Internet') || matchesSearch('Restriction');
+
+  const showAppearance = !isSearching
+    ? activeTab === 'Appearance'
+    : matchesSearch('Appearance') || matchesSearch('Color Theme') || matchesSearch('interface theme');
 
   const handleSaveName = async () => {
     const trimmed = newTeamName.trim();
@@ -143,6 +169,21 @@ export default function AdminSettingsModal({
     setFlushing(false);
   };
 
+  const handleToggleRestriction = async (checked: boolean) => {
+    setSavingRestriction(true);
+    setRestrictionError('');
+    setRestrictionSuccess('');
+    const result = await setGlobalInternetRestriction(checked);
+    if (result.success) {
+      setGlobalRestriction(checked);
+      setRestrictionSuccess(checked ? 'Internet blocking enabled for all teams' : 'Internet blocking disabled for all teams');
+      setTimeout(() => setRestrictionSuccess(''), 3000);
+    } else {
+      setRestrictionError(result.error || 'Failed to update restriction');
+    }
+    setSavingRestriction(false);
+  };
+
   const isWindows = navigator.userAgent.toLowerCase().includes('win');
 
   return (
@@ -151,8 +192,12 @@ export default function AdminSettingsModal({
         className="vscode-settings-header-tabs"
         style={{ paddingLeft: isWindows ? '0px' : '75px' }}
       >
-        <div className="vscode-settings-tab active">Admin Settings</div>
-        <button className="vscode-settings-close" onClick={onClose}><X size={16} /></button>
+        <div className="vscode-settings-tab active">
+          Admin Settings
+          <button className="vscode-settings-tab-close" onClick={onClose} title="Close">
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="vscode-settings-searchbar-container">
@@ -183,10 +228,56 @@ export default function AdminSettingsModal({
             >
               Activity Logs
             </li>
+            <li
+              className={(isSearching ? showPrivacy : activeTab === 'Privacy') ? 'active' : ''}
+              onClick={() => setActiveTab('Privacy')}
+            >
+              Privacy
+            </li>
+            <li
+              className={(isSearching ? showAppearance : activeTab === 'Appearance') ? 'active' : ''}
+              onClick={() => setActiveTab('Appearance')}
+            >
+              Appearance
+            </li>
           </ul>
         </div>
 
         <div className="vscode-settings-content">
+          {showAppearance && (
+            <div className="vscode-settings-section">
+              <h2 className="vscode-settings-section-title">Appearance</h2>
+
+              {(isSearching
+                ? matchesSearch("Color Theme") ||
+                matchesSearch("interface theme") ||
+                matchesSearch("Appearance")
+                : true) && (
+                  <div className="vscode-setting-item">
+                    <div className="vscode-setting-header">
+                      <span className="vscode-setting-title">
+                        Workbench: <span className="highlight">Color Theme</span>
+                      </span>
+                      <div className="vscode-setting-description">
+                        Select your interface theme or let it match your system.
+                      </div>
+                    </div>
+                    <div className="vscode-setting-control">
+                      <select
+                        className="vscode-select"
+                        value={theme}
+                        onChange={(e) => onThemeChange(e.target.value)}
+                      >
+                        <option value="system">System Default</option>
+                        <option value="light">Light Theme</option>
+                        <option value="dark">Dark Theme</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+            </div>
+          )}
+
           {showActivityLogs && (
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Activity Logs</h2>
@@ -213,6 +304,43 @@ export default function AdminSettingsModal({
                   </div>
                   {flushError && <div className="account-error">{flushError}</div>}
                   {flushSuccess && <div className="account-success"><CheckCircle2 size={12} /> {flushSuccess}</div>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showPrivacy && (
+            <div className="vscode-settings-section">
+              <h2 className="vscode-settings-section-title">Privacy</h2>
+
+              <div className="account-card">
+                <div className="account-members-section">
+                  <div className="account-members-header">
+                    <span className="vscode-setting-title"><span className="highlight">Internet Restriction</span></span>
+                  </div>
+                  <div className="vscode-setting-description">Control internet access restrictions for all non-admin teams.</div>
+
+                  <div className="admin-password-form">
+                    <div className="vscode-setting-item" style={{ padding: 0, border: 'none' }}>
+                      <div className="vscode-setting-header">
+                        <span className="vscode-setting-title" style={{ fontSize: 13, color: '#d4d4d4' }}>Block Internet Access</span>
+                        <div className="vscode-setting-description">If enabled, non-admin teams will be restricted from using the IDE while connected to the internet.</div>
+                      </div>
+                      <div className="vscode-setting-control">
+                        <label className="vscode-checkbox-label">
+                          <input
+                            type="checkbox"
+                            className="vscode-checkbox"
+                            checked={globalRestriction}
+                            onChange={(e) => handleToggleRestriction(e.target.checked)}
+                            disabled={savingRestriction}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  {restrictionError && <div className="account-error">{restrictionError}</div>}
+                  {restrictionSuccess && <div className="account-success"><CheckCircle2 size={12} /> {restrictionSuccess}</div>}
                 </div>
               </div>
             </div>

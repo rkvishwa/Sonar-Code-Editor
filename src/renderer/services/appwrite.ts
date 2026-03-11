@@ -16,6 +16,7 @@ const COL_TEAMS = import.meta.env.VITE_APPWRITE_COLLECTION_TEAMS || 'teams';
 const COL_SESSIONS = import.meta.env.VITE_APPWRITE_COLLECTION_SESSIONS || 'sessions';
 const COL_ACTIVITY_LOGS = import.meta.env.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS || 'activityLogs';
 const COL_REPORTS = import.meta.env.VITE_APPWRITE_COLLECTION_REPORTS || 'reports';
+const COL_SETTINGS = import.meta.env.VITE_APPWRITE_COLLECTION_SETTINGS || 'settings';
 
 // ---- Teams ----
 export async function getTeamByName(teamName: string): Promise<Team | null> {
@@ -150,6 +151,8 @@ export async function updateTeamPassword(
     return { success: false, error: err?.message || 'Failed to update password' };
   }
 }
+
+
 
 // ---- Teams ----
 export async function getAdminTeamIds(): Promise<Set<string>> {
@@ -458,6 +461,43 @@ export async function getAllTeams(): Promise<Team[]> {
   }
 }
 
+export async function getGlobalInternetRestriction(): Promise<boolean> {
+  try {
+    const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
+      Query.equal('settingType', 'blockInternetAccess'),
+      Query.limit(1),
+    ]);
+    if (res.documents.length > 0) {
+      return res.documents[0].settingValue === 'true';
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export async function setGlobalInternetRestriction(blocked: boolean): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
+      Query.equal('settingType', 'blockInternetAccess'),
+      Query.limit(1),
+    ]);
+    if (res.documents.length > 0) {
+      await databases.updateDocument(DB_ID, COL_SETTINGS, res.documents[0].$id, {
+        settingValue: String(blocked),
+      });
+    } else {
+      await databases.createDocument(DB_ID, COL_SETTINGS, ID.unique(), {
+        settingType: 'blockInternetAccess',
+        settingValue: String(blocked),
+      });
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to update restriction' };
+  }
+}
+
 export async function flushAllActivityLogs(): Promise<{ success: boolean; error?: string }> {
   try {
     let hasMore = true;
@@ -553,6 +593,21 @@ export function subscribeToSessions(callback: (session: Session) => void): () =>
     (response: RealtimeResponseEvent<Session>) => {
       if (response.events.some((e) => e.includes('create') || e.includes('update'))) {
         callback(response.payload);
+      }
+    }
+  );
+  return unsub;
+}
+
+export function subscribeToSettings(callback: (blocked: boolean) => void): () => void {
+  const unsub = client.subscribe(
+    `databases.${DB_ID}.collections.${COL_SETTINGS}.documents`,
+    (response: RealtimeResponseEvent<any>) => {
+      if (response.events.some((e) => e.includes('update') || e.includes('create'))) {
+        const payload = response.payload;
+        if (payload.settingType === 'blockInternetAccess') {
+          callback(payload.settingValue === 'true');
+        }
       }
     }
   );

@@ -23,6 +23,50 @@ export interface SharedFile {
   type?: "file" | "image";
 }
 
+/**
+ * Collapse repeated slashes and strip trailing slash for stable comparison.
+ */
+function normalizePath(p: string): string {
+  return p
+    .replace(/\\/g, "/")
+    .replace(/\/{2,}/g, "/")
+    .replace(/\/+$/, "");
+}
+
+/**
+ * Convert an absolute path to a relative path against a workspace root.
+ * Handles Windows/Mac path separator differences and case-insensitive
+ * drive letters for cross-platform collaboration sync.
+ */
+function toRelativePath(fullPath: string, wsRoot: string): string {
+  const normFull = normalizePath(fullPath);
+  const normRoot = normalizePath(wsRoot);
+
+  if (normFull.toLowerCase().startsWith(normRoot.toLowerCase())) {
+    let rel = normFull.slice(normRoot.length);
+    if (rel.startsWith("/")) rel = rel.slice(1);
+    return rel;
+  }
+
+  const fullSegs = normFull.split("/");
+  const rootSegs = normRoot.split("/");
+  let matchCount = 0;
+  for (
+    let i = rootSegs.length - 1, j = fullSegs.length - 1;
+    i >= 0 && j >= 0;
+    i--, j--
+  ) {
+    if (rootSegs[i].toLowerCase() !== fullSegs[j].toLowerCase()) break;
+    matchCount++;
+  }
+  if (matchCount > 0 && matchCount === rootSegs.length) {
+    const rel = fullSegs.slice(fullSegs.length - matchCount + rootSegs.length);
+    if (rel.length > 0) return rel.join("/");
+  }
+
+  return normFull;
+}
+
 // Workspace sync metadata
 export interface WorkspaceFile {
   relativePath: string;
@@ -55,13 +99,16 @@ interface CollaborationContextValue {
   startHost: (overrideName?: string) => Promise<void>;
   joinSession: (hostIp: string, overrideName?: string) => Promise<void>;
   stopSession: () => Promise<void>;
+  onBeforeSessionStop: (callback: () => void) => () => void;
   bindEditor: (
     monacoEditor: editor.IStandaloneCodeEditor,
     filePath: string,
     workspaceRoot?: string,
   ) => void;
-  unbindEditor: () => void;
+  unbindEditor: (filePath?: string) => void;
   getCurrentEditorContent: () => string | null;
+  getFileContent: (filePath: string, workspaceRoot?: string) => string | null;
+  setFileContent: (filePath: string, content: string, workspaceRoot?: string) => void;
   ydoc: Y.Doc | null;
   provider: WebsocketProvider | null;
   // Shared file methods
@@ -84,6 +131,7 @@ interface CollaborationContextValue {
   // File operation sync
   broadcastFileOp: (op: Omit<FileOperation, "timestamp" | "clientId">) => void;
   onFileOperation: (callback: (op: FileOperation) => void) => () => void;
+  onRemoteContentChange: (callback: (filePath: string) => void) => () => void;
   connectionError: string | null;
   clearConnectionError: () => void;
 }
@@ -172,6 +220,10 @@ export function CollaborationProvider({
   const fileOpCallbacksRef = useRef<Set<(op: FileOperation) => void>>(
     new Set(),
   );
+  const remoteContentCallbacksRef = useRef<Set<(filePath: string) => void>>(
+    new Set(),
+  );
+  const beforeStopCallbacksRef = useRef<Set<() => void>>(new Set());
 
   // Save username to localStorage when it changes
   useEffect(() => {
@@ -323,6 +375,43 @@ export function CollaborationProvider({
               console.log("Received file operation:", op.type, op.relativePath);
               fileOpCallbacksRef.current.forEach((cb) => cb(op));
             });
+          }
+        });
+      });
+
+      // Observe all Y.Text changes to broadcast remote edits directly
+      ydoc.on("update", (update, origin) => {
+        // Only broadcast if the update came from a remote connection (not local)
+        // and if it's the websocket provider that triggered it.
+        // Actually, Yjs doesn't give us the type mapping directly in the update event.
+        // A better approach is to observe the entire Yjs document for sub-type changes,
+        // or just let Yjs handle the text observation.
+      });
+
+      ydoc.on("subdocs", () => { }); // Just a placeholder, we'll use a better approach below.
+
+      // We'll track which Y.Text instances we have already observed to avoid duplicates
+      const observedTexts = new Set<string>();
+
+      // Whenever a new top-level type is discovered (which corresponds to a file),
+      // we attach an observer to it.
+      ydoc.on("afterTransaction", (tr) => {
+        if (tr.local) return; // Only notify for remote changes
+
+        tr.changed.forEach((changedType, key) => {
+          if (changedType instanceof Y.Text && key) {
+            // A remote edit happened on this Y.Text!
+            // The docName (key) is the path (with slashes replaced and converted to _ usually, 
+            // but we need the actual file path. Wait, earlier we used: 
+            // relativePath.replace(/[^a-zA-Z0-9]/g, "_")
+            // This means we can't easily reverse the key back to the file path.
+            // Oh, wait, we can just let IDE.tsx check using the getFileContent with the active file.
+            // Let's just trigger a generic remote content change event because we know *some* file changed remotely!
+
+            // To be precise, let's reverse the key logic or just send the docName.
+            // For now, let's just trigger all callbacks with the docName and let consumers figure it out.
+            // Actually, we can just say "a remote edit happened".
+            remoteContentCallbacksRef.current.forEach((cb) => cb(key?.toString() || ""));
           }
         });
       });
@@ -583,8 +672,16 @@ export function CollaborationProvider({
     [initializeYjs, userName, user?.$id],
   );
 
+  const onBeforeSessionStop = useCallback((callback: () => void) => {
+    beforeStopCallbacksRef.current.add(callback);
+    return () => {
+      beforeStopCallbacksRef.current.delete(callback);
+    };
+  }, []);
+
   const stopSession = useCallback(async () => {
     try {
+      beforeStopCallbacksRef.current.forEach((cb) => cb());
       cleanup();
       await window.electronAPI.collaboration.stopSession();
       setStatus(null);
@@ -617,15 +714,7 @@ export function CollaborationProvider({
       // Calculate relative path from workspace root for consistent docName across machines
       let relativePath = filePath;
       if (workspaceRoot) {
-        // Normalize paths (handle both Windows and Unix separators)
-        const normalizedFile = filePath.replace(/\\/g, "/");
-        const normalizedRoot = workspaceRoot.replace(/\\/g, "/");
-        if (normalizedFile.startsWith(normalizedRoot)) {
-          relativePath = normalizedFile.substring(normalizedRoot.length);
-          if (relativePath.startsWith("/")) {
-            relativePath = relativePath.substring(1);
-          }
-        }
+        relativePath = toRelativePath(filePath, workspaceRoot);
       }
 
       // Create a sanitized document name from the relative path
@@ -635,6 +724,8 @@ export function CollaborationProvider({
 
       // Get or create the Y.Text type for this file
       const ytext = ydocRef.current.getText(docName);
+      const awareness = providerRef.current.awareness;
+      const doc = ydocRef.current;
 
       // Get the Monaco model
       const model = monacoEditor.getModel();
@@ -671,27 +762,157 @@ export function CollaborationProvider({
         ytext.insert(0, currentModelContent);
       }
 
-      // Create the Monaco binding with awareness for cursor sync
+      // ─── Create the MonacoBinding WITHOUT awareness ───────────────
+      // y-monaco has two bugs with cursor awareness:
+      //   1. onDidChangeCursorSelection handlers are never disposed in
+      //      destroy(), so they accumulate across rebinds and send stale
+      //      cursor positions.
+      //   2. _beforeTransaction (which saves cursor before remote edits)
+      //      is guarded by the same mutex as the model-change handler,
+      //      so it gets skipped during local typing — when a concurrent
+      //      remote edit arrives the local cursor isn't saved/restored
+      //      properly.
+      // We pass awareness=null so y-monaco doesn't register its broken
+      // cursor handlers, then set up our own properly-managed versions.
       const binding = new MonacoBinding(
         ytext,
         model,
         new Set([monacoEditor]),
-        providerRef.current.awareness,
+        null, // Don't let y-monaco manage cursor awareness
       );
 
-      // Monkey-patch destroy() to be idempotent.  y-monaco registers an
-      // internal `monacoModel.onWillDispose(() => this.destroy())` callback
-      // that fires when React unmounts the <MonacoEditor> (key change on
-      // rename, etc.)  Our own cleanup / unbindEditor will then call
-      // destroy() a second time.  The original implementation calls
-      // `doc.off(…)` / `ytext.unobserve(…)` which emit a console.warn
-      // (not throw) when the handler is already gone.  Wrapping avoids the
-      // noisy "[yjs] Tried to remove event handler that doesn't exist."
+      // ─── Our own cursor awareness management ─────────────────────
+      // These are properly disposed when destroy() is called.
+
+      // 1. Send local cursor position to awareness whenever it changes
+      const cursorDisposer = monacoEditor.onDidChangeCursorSelection(() => {
+        if (monacoEditor.getModel() !== model) return;
+        const sel = monacoEditor.getSelection();
+        if (sel === null) return;
+
+        let anchor = model.getOffsetAt(sel.getStartPosition());
+        let head = model.getOffsetAt(sel.getEndPosition());
+        if (sel.getDirection() === 1 /* RTL */) {
+          const tmp = anchor;
+          anchor = head;
+          head = tmp;
+        }
+
+        awareness.setLocalStateField("selection", {
+          anchor: Y.createRelativePositionFromTypeIndex(ytext, anchor),
+          head: Y.createRelativePositionFromTypeIndex(ytext, head),
+        });
+      });
+
+      // 2. Render remote cursor decorations when awareness changes
+      let decorationIds: string[] = [];
+      let isRerendering = false;
+
+      const rerenderDecorations = () => {
+        if (monacoEditor.getModel() !== model) return;
+        const newDecorations: any[] = [];
+
+        awareness.getStates().forEach((state: any, clientID: number) => {
+          if (
+            clientID !== doc.clientID &&
+            state.selection != null &&
+            state.selection.anchor != null &&
+            state.selection.head != null
+          ) {
+            const anchorAbs = Y.createAbsolutePositionFromRelativePosition(
+              state.selection.anchor,
+              doc,
+            );
+            const headAbs = Y.createAbsolutePositionFromRelativePosition(
+              state.selection.head,
+              doc,
+            );
+            if (
+              anchorAbs !== null &&
+              headAbs !== null &&
+              anchorAbs.type === ytext &&
+              headAbs.type === ytext
+            ) {
+              let start, end, afterContentClassName: string | null, beforeContentClassName: string | null;
+              if (anchorAbs.index < headAbs.index) {
+                start = model.getPositionAt(anchorAbs.index);
+                end = model.getPositionAt(headAbs.index);
+                afterContentClassName =
+                  "yRemoteSelectionHead yRemoteSelectionHead-" + clientID;
+                beforeContentClassName = null;
+              } else {
+                start = model.getPositionAt(headAbs.index);
+                end = model.getPositionAt(anchorAbs.index);
+                afterContentClassName = null;
+                beforeContentClassName =
+                  "yRemoteSelectionHead yRemoteSelectionHead-" + clientID;
+              }
+              newDecorations.push({
+                range: {
+                  startLineNumber: start.lineNumber,
+                  startColumn: start.column,
+                  endLineNumber: end.lineNumber,
+                  endColumn: end.column,
+                },
+                options: {
+                  className:
+                    "yRemoteSelection yRemoteSelection-" + clientID,
+                  afterContentClassName,
+                  beforeContentClassName,
+                },
+              });
+            }
+          }
+        });
+
+        decorationIds = monacoEditor.deltaDecorations(
+          decorationIds,
+          newDecorations,
+        );
+      };
+
+      // Wrap to prevent recursive deltaDecorations errors
+      const safeRerenderDecorations = () => {
+        if (isRerendering) {
+          requestAnimationFrame(rerenderDecorations);
+          return;
+        }
+        isRerendering = true;
+        try {
+          rerenderDecorations();
+        } finally {
+          isRerendering = false;
+        }
+      };
+
+      awareness.on("change", safeRerenderDecorations);
+
+      // 3. Also re-render decorations after each Y.Text change so that
+      //    remote cursors update positions as content shifts.
+      const ytextDecorObserver = () => {
+        safeRerenderDecorations();
+      };
+      ytext.observe(ytextDecorObserver);
+
+      // ─── Monkey-patch destroy() ──────────────────────────────────
+      // Make it idempotent AND properly clean up our cursor handlers.
       const originalDestroy = binding.destroy.bind(binding);
       let destroyed = false;
       binding.destroy = () => {
         if (destroyed) return;
         destroyed = true;
+
+        // Clean up our own cursor awareness handlers
+        cursorDisposer.dispose();
+        awareness.off("change", safeRerenderDecorations);
+        ytext.unobserve(ytextDecorObserver);
+        // Clear decorations
+        try {
+          decorationIds = monacoEditor.deltaDecorations(decorationIds, []);
+        } catch {
+          // editor may already be disposed
+        }
+
         originalDestroy();
         // Also null-out our ref so safeDestroyBinding() becomes a no-op
         if (bindingRef.current === binding) {
@@ -708,7 +929,13 @@ export function CollaborationProvider({
     [],
   );
 
-  const unbindEditor = useCallback(() => {
+  const unbindEditor = useCallback((filePath?: string) => {
+    // If a specific filePath is provided, ONLY unbind if it matches the current file
+    if (filePath && currentFileRef.current !== filePath) {
+      console.log(`unbindEditor: ignoring request to unbind ${filePath} because active is ${currentFileRef.current}`);
+      return;
+    }
+
     safeDestroyBinding();
     currentFileRef.current = null;
     currentEditorRef.current = null;
@@ -720,6 +947,71 @@ export function CollaborationProvider({
     const model = currentEditorRef.current.getModel();
     return model ? model.getValue() : null;
   }, []);
+
+  // Helper to derive a consistent relative path across OSes
+  const toRelativePath = (fullPath: string, rootPath: string): string => {
+    // Normalize paths to use forward slashes and remove trailing slashes
+    const normalizedFullPath = fullPath.replace(/\\/g, "/").replace(/\/+$/, "");
+    const normalizedRootPath = rootPath.replace(/\\/g, "/").replace(/\/+$/, "");
+
+    // Ensure rootPath is a prefix of fullPath (case-insensitive for robustness)
+    if (normalizedFullPath.toLowerCase().startsWith(normalizedRootPath.toLowerCase())) {
+      let relative = normalizedFullPath.substring(normalizedRootPath.length);
+      // Remove any leading slash if present
+      if (relative.startsWith("/")) {
+        relative = relative.substring(1);
+      }
+      return relative;
+    }
+    // If not a sub-path, return the full path as is
+    return fullPath;
+  };
+
+  // Get the latest collaborative content for a file from the Yjs document.
+  // This is used when an inactive tab becomes active to show the up-to-date
+  // content instead of stale React state.
+  const getFileContent = useCallback(
+    (filePath: string, workspaceRoot?: string): string | null => {
+      if (!ydocRef.current) return null;
+
+      // Calculate relative path to construct docName
+      let relativePath = filePath;
+      if (workspaceRoot) {
+        relativePath = toRelativePath(filePath, workspaceRoot);
+      }
+      const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
+
+      const ytext = ydocRef.current.getText(docName);
+      const content = ytext.toString();
+      // Return null if the Y.Text is empty (file hasn't been shared yet)
+      return content.length > 0 ? content : null;
+    },
+    [],
+  );
+
+  // Directly initialize or overwrite the collaborative content for a file.
+  // This is critical when an external file creation (e.g. undoing a file deletion)
+  // brings a file back with content. It ensures the Yjs document reflects the
+  // disk content even if nobody has bound an editor to it yet.
+  const setFileContent = useCallback(
+    (filePath: string, content: string, workspaceRoot?: string) => {
+      if (!ydocRef.current) return;
+
+      let relativePath = filePath;
+      if (workspaceRoot) {
+        relativePath = toRelativePath(filePath, workspaceRoot);
+      }
+      const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
+
+      const ytext = ydocRef.current.getText(docName);
+      if (ytext.toString() !== content) {
+        // Clear and replace the content
+        ytext.delete(0, ytext.length);
+        ytext.insert(0, content);
+      }
+    },
+    [],
+  );
 
   // Share a file with all connected users
   const shareFile = useCallback((file: SharedFile) => {
@@ -851,6 +1143,17 @@ export function CollaborationProvider({
     [],
   );
 
+  // Subscribe to raw remote Y.Text edits (bypasses EditorUI)
+  const onRemoteContentChange = useCallback(
+    (callback: (docName: string) => void) => {
+      remoteContentCallbacksRef.current.add(callback);
+      return () => {
+        remoteContentCallbacksRef.current.delete(callback);
+      };
+    },
+    [],
+  );
+
   // Share workspace with files (for syncing entire folder to clients)
   const shareWorkspaceWithFiles = useCallback(
     (path: string, files: WorkspaceFile[]) => {
@@ -918,9 +1221,12 @@ export function CollaborationProvider({
       startHost,
       joinSession,
       stopSession,
+      onBeforeSessionStop,
       bindEditor,
       unbindEditor,
       getCurrentEditorContent,
+      getFileContent,
+      setFileContent,
       ydoc: ydocRef.current,
       provider: providerRef.current,
       // Shared file methods
@@ -941,6 +1247,7 @@ export function CollaborationProvider({
       // File operation sync
       broadcastFileOp,
       onFileOperation,
+      onRemoteContentChange,
       connectionError,
       clearConnectionError: () => setConnectionError(null),
     }),
@@ -953,9 +1260,11 @@ export function CollaborationProvider({
       startHost,
       joinSession,
       stopSession,
+      onBeforeSessionStop,
       bindEditor,
       unbindEditor,
       getCurrentEditorContent,
+      getFileContent,
       shareFile,
       getSharedFiles,
       setActiveSharedFile,
@@ -970,6 +1279,7 @@ export function CollaborationProvider({
       onWorkspaceMetadataChange,
       broadcastFileOp,
       onFileOperation,
+      onRemoteContentChange,
       connectionError,
     ],
   );
