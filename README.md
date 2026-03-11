@@ -14,6 +14,38 @@
 
 ---
 
+## 🚀 Download Beta Release
+
+### 🍏 Mac (Recommended)
+You can easily install the beta version using Homebrew:
+```bash
+brew install --cask rkvishwa/knurdz/sonar-code-editor
+```
+
+**Alternative: Manual Download**  
+You can also download the latest `.dmg` file directly from our [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases) page.
+[Download Mac Beta (.dmg)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.3/Sonar.Code.Editor-1.0.0-beta.3-arm64.dmg)
+
+> **Note on Mac Installation:** If you manually download the `.dmg`, macOS Gatekeeper may flag the app as damaged or from an unidentified developer because it is not yet signed in the beta phase.
+> 
+> **To bypass and install:** Open your terminal and run the following command on the extracted app file:
+> ```bash
+> sudo xattr -rd com.apple.quarantine /Applications/Sonar\ Code\ Editor.app
+> ```
+
+### 🪟 Windows
+You can download the latest `.exe` file directly from our [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases) page.
+[Download Windows Beta (.exe)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.3/Sonar.Code.Editor.Setup.1.0.0-beta.3.exe)
+
+> **Note on Windows Installation:** The stable version for Windows will be officially released on the Microsoft Store. Since this beta version `.exe` is not yet signed, Windows SmartScreen may show an "Untrusted" or "Windows protected your PC" prompt. 
+> 
+> **To bypass and install:** Click on **"More info"** and then select **"Run anyway"**.
+
+### 🐛 Known Issues in beta version 3
+If you encounter any bugs or want to see what's currently being worked on, check out our [Known Issues](https://github.com/rkvishwa/Sonar-Code-Editor/issues).
+
+---
+
 ## 📖 Overview
 
 **Sonar Code Editor** is a feature-rich desktop IDE built with Electron, React, and Vite. It leverages the robust Monaco Editor for a VS Code-like coding experience and integrates real-time collaboration using Yjs and WebSockets. Beyond standard editing, Sonar includes an administrative monitoring system, activity logging, and report generation, making it ideal for supervised coding environments, pair programming, and educational settings.
