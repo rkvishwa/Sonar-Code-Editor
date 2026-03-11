@@ -634,9 +634,8 @@ const EditorPanel = React.memo(function EditorPanel({
                 }}
                 onChange={(value) => {
                   if (value !== undefined) {
-                    if (!collaborationActive) {
-                      onContentChange(tab.path, value);
-                    } else {
+                    onContentChange(tab.path, value);
+                    if (collaborationActive) {
                       // During collaboration, pin preview tabs on edit
                       if (tab.isPreviewFile) {
                         onTabDoubleClick?.(tab.path);
