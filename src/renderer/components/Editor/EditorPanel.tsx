@@ -326,7 +326,7 @@ const EditorPanel = React.memo(function EditorPanel({
   // Unbind when collaboration ends, or when activeTabPath becomes null
   useEffect(() => {
     if (!collaborationActive && boundFileRef.current) {
-      onEditorUnmount?.();
+      onEditorUnmount?.(); // Unbinds whatever is active if no path provided
       boundFileRef.current = null;
     }
   }, [collaborationActive, onEditorUnmount]);

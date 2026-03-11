@@ -281,6 +281,18 @@ export default function AdminSettingsModal({
             >
               <Info size={14} /> About
             </li>
+            <li
+              className={(isSearching ? showPrivacy : activeTab === 'Privacy') ? 'active' : ''}
+              onClick={() => setActiveTab('Privacy')}
+            >
+              Privacy
+            </li>
+            <li
+              className={(isSearching ? showAppearance : activeTab === 'Appearance') ? 'active' : ''}
+              onClick={() => setActiveTab('Appearance')}
+            >
+              Appearance
+            </li>
           </ul>
         </div>
 
