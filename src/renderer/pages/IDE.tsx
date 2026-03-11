@@ -844,6 +844,9 @@ function IDEContent() {
             // Fallback to empty string if file is unreadable or binary
           }
 
+          // Seed the HOST's own Y.Text so the rebind picks up the correct content
+          collaboration.setFileContent(fullPath, content, wsRoot);
+
           broadcastFileOpRef.current({
             type: "create-file",
             relativePath,
