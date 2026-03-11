@@ -165,6 +165,9 @@ const EditorPanel = React.memo(function EditorPanel({
   // Counter incremented when the Monaco editor mounts, so the binding
   // useEffect re-evaluates even though editorRef is not reactive.
   const [editorMountTick, setEditorMountTick] = useState(0);
+  // Track the previous isDeleted state of the active tab so we can detect
+  // a restore (isDeleted going from true → false) and force a rebind.
+  const prevIsDeletedRef = useRef<boolean | undefined>(undefined);
 
   // When the active tab changes, look up the correct editor from the map
   // and update editorRef.  This must run BEFORE the binding effect below
@@ -176,6 +179,28 @@ const EditorPanel = React.memo(function EditorPanel({
       setEditorMountTick((c) => c + 1);
     }
   }, [activeTabPath]);
+
+  // Detect when the active tab is restored from deletion (isDeleted goes
+  // from true → false).  The old MonacoBinding is stale after the
+  // delete/restore cycle, so we must destroy it and force a fresh rebind.
+  const activeTabIsDeleted = activeTab?.isDeleted;
+  useEffect(() => {
+    if (
+      prevIsDeletedRef.current === true &&
+      activeTabIsDeleted === false &&
+      collaborationActive &&
+      activeTabPath
+    ) {
+      console.log(`File restored — forcing collaboration rebind: ${activeTabPath}`);
+      // Destroy the old stale binding
+      onEditorUnmount?.();
+      // Clear the guard so the binding effect below re-runs
+      boundFileRef.current = null;
+      // Kick the binding effect
+      setEditorMountTick((c) => c + 1);
+    }
+    prevIsDeletedRef.current = activeTabIsDeleted;
+  }, [activeTabIsDeleted, collaborationActive, activeTabPath, onEditorUnmount]);
 
   // Single binding path: bind editor to collaboration when the editor is
   // ready, collaboration becomes active, or the active file changes.
