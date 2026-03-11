@@ -262,7 +262,10 @@ function IDEContent() {
       let savedAny = false;
       for (const tab of dirtyTabs) {
         try {
-          await window.electronAPI.fs.writeFile(tab.path, tab.content);
+          const contentToSave = collabActiveRef.current
+            ? (collaboration.getFileContent(tab.path, workspaceRootRef.current ?? undefined) ?? tab.content)
+            : tab.content;
+          await window.electronAPI.fs.writeFile(tab.path, contentToSave);
           if (autoSave) {
             setTabs((prev) =>
               prev.map((t) =>
