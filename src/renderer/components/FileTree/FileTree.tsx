@@ -265,7 +265,7 @@ interface FileTreeNodeProps {
   onFileOpened: (path: string, name: string) => void;
   onFileDeleted: (path: string, type: "file" | "directory") => void;
   onFileRenamed?: (oldPath: string, newPath: string) => void;
-  onFileCreated?: (path: string, name: string) => void;
+  onFileCreated?: (path: string, name: string, savedContent?: string) => void;
   onFolderCreated?: (path: string) => void;
 }
 
@@ -398,6 +398,18 @@ function FileTreeNode({
       const dirStr = node.path.substring(0, Math.max(node.path.lastIndexOf('/'), node.path.lastIndexOf('\\')));
       const fileName = node.path.substring(Math.max(node.path.lastIndexOf('/'), node.path.lastIndexOf('\\')) + 1);
       const trashPath = `${dirStr}/.trash_${Date.now()}_${fileName}`;
+
+      // Read file content BEFORE renaming so we can restore it on undo.
+      // This is the most reliable source — it doesn't depend on Y.Text,
+      // Monaco model state, or re-reading after rename.
+      let savedContent: string | undefined;
+      if (node.type === "file") {
+        try {
+          savedContent = await window.electronAPI.fs.readFile(node.path);
+        } catch (readErr) {
+          console.warn(`Could not pre-read file for undo stack: ${node.path}`, readErr);
+        }
+      }
       
       await window.electronAPI.fs.renameItem(node.path, trashPath);
       
@@ -408,7 +420,7 @@ function FileTreeNode({
         type: node.type,
         onRestored: () => {
             if (node.type === "file") {
-               onFileCreated?.(node.path, node.name);
+               onFileCreated?.(node.path, node.name, savedContent);
             } else {
                onFolderCreated?.(node.path);
             }
@@ -720,7 +732,7 @@ interface FileTreeProps {
   newFileTrigger?: number;
   onFileDeleted?: (path: string, type: "file" | "directory") => void;
   onFileRenamed?: (oldPath: string, newPath: string) => void;
-  onFileCreated?: (path: string, name: string) => void;
+  onFileCreated?: (path: string, name: string, savedContent?: string) => void;
   onFolderCreated?: (path: string) => void;
   refreshTrigger?: number;
 }
