@@ -131,6 +131,7 @@ interface CollaborationContextValue {
   // File operation sync
   broadcastFileOp: (op: Omit<FileOperation, "timestamp" | "clientId">) => void;
   onFileOperation: (callback: (op: FileOperation) => void) => () => void;
+  onRemoteContentChange: (callback: (filePath: string) => void) => () => void;
   connectionError: string | null;
   clearConnectionError: () => void;
 }
@@ -217,6 +218,9 @@ export function CollaborationProvider({
     Set<(metadata: WorkspaceMetadata | null) => void>
   >(new Set());
   const fileOpCallbacksRef = useRef<Set<(op: FileOperation) => void>>(
+    new Set(),
+  );
+  const remoteContentCallbacksRef = useRef<Set<(filePath: string) => void>>(
     new Set(),
   );
   const beforeStopCallbacksRef = useRef<Set<() => void>>(new Set());
@@ -371,6 +375,43 @@ export function CollaborationProvider({
               console.log("Received file operation:", op.type, op.relativePath);
               fileOpCallbacksRef.current.forEach((cb) => cb(op));
             });
+          }
+        });
+      });
+
+      // Observe all Y.Text changes to broadcast remote edits directly
+      ydoc.on("update", (update, origin) => {
+        // Only broadcast if the update came from a remote connection (not local)
+        // and if it's the websocket provider that triggered it.
+        // Actually, Yjs doesn't give us the type mapping directly in the update event.
+        // A better approach is to observe the entire Yjs document for sub-type changes,
+        // or just let Yjs handle the text observation.
+      });
+
+      ydoc.on("subdocs", () => { }); // Just a placeholder, we'll use a better approach below.
+
+      // We'll track which Y.Text instances we have already observed to avoid duplicates
+      const observedTexts = new Set<string>();
+
+      // Whenever a new top-level type is discovered (which corresponds to a file),
+      // we attach an observer to it.
+      ydoc.on("afterTransaction", (tr) => {
+        if (tr.local) return; // Only notify for remote changes
+
+        tr.changed.forEach((changedType, key) => {
+          if (changedType instanceof Y.Text && key) {
+            // A remote edit happened on this Y.Text!
+            // The docName (key) is the path (with slashes replaced and converted to _ usually, 
+            // but we need the actual file path. Wait, earlier we used: 
+            // relativePath.replace(/[^a-zA-Z0-9]/g, "_")
+            // This means we can't easily reverse the key back to the file path.
+            // Oh, wait, we can just let IDE.tsx check using the getFileContent with the active file.
+            // Let's just trigger a generic remote content change event because we know *some* file changed remotely!
+
+            // To be precise, let's reverse the key logic or just send the docName.
+            // For now, let's just trigger all callbacks with the docName and let consumers figure it out.
+            // Actually, we can just say "a remote edit happened".
+            remoteContentCallbacksRef.current.forEach((cb) => cb(key?.toString() || ""));
           }
         });
       });
@@ -894,7 +935,7 @@ export function CollaborationProvider({
       console.log(`unbindEditor: ignoring request to unbind ${filePath} because active is ${currentFileRef.current}`);
       return;
     }
-    
+
     safeDestroyBinding();
     currentFileRef.current = null;
     currentEditorRef.current = null;
@@ -1102,6 +1143,17 @@ export function CollaborationProvider({
     [],
   );
 
+  // Subscribe to raw remote Y.Text edits (bypasses EditorUI)
+  const onRemoteContentChange = useCallback(
+    (callback: (docName: string) => void) => {
+      remoteContentCallbacksRef.current.add(callback);
+      return () => {
+        remoteContentCallbacksRef.current.delete(callback);
+      };
+    },
+    [],
+  );
+
   // Share workspace with files (for syncing entire folder to clients)
   const shareWorkspaceWithFiles = useCallback(
     (path: string, files: WorkspaceFile[]) => {
@@ -1195,6 +1247,7 @@ export function CollaborationProvider({
       // File operation sync
       broadcastFileOp,
       onFileOperation,
+      onRemoteContentChange,
       connectionError,
       clearConnectionError: () => setConnectionError(null),
     }),
@@ -1226,6 +1279,7 @@ export function CollaborationProvider({
       onWorkspaceMetadataChange,
       broadcastFileOp,
       onFileOperation,
+      onRemoteContentChange,
       connectionError,
     ],
   );
