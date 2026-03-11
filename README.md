@@ -16,7 +16,7 @@
 
 ## 🚀 Download Beta Release
 
-### 🍏 Mac (Recommended)
+### <img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Mac Logo" align="absmiddle" /> (Recommended)
 You can easily install the beta version using Homebrew:
 ```bash
 brew install --cask rkvishwa/knurdz/sonar-code-editor
@@ -33,7 +33,7 @@ You can also download the latest `.dmg` file directly from our [GitHub Releases]
 > sudo xattr -rd com.apple.quarantine /Applications/Sonar\ Code\ Editor.app
 > ```
 
-### 🪟 Windows
+### <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Logo" align="absmiddle" />
 You can download the latest `.exe` file directly from our [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases) page.
 [Download Windows Beta (.exe)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.3/Sonar.Code.Editor.Setup.1.0.0-beta.3.exe)
 
