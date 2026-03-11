@@ -201,6 +201,30 @@ export default function AdminDashboard() {
   }, [accentColor]);
 
   useEffect(() => {
+    let activeTheme = theme;
+    if (theme === 'system') {
+      activeTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
+
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = (e: MediaQueryListEvent) => {
+        if (theme === 'system') {
+          document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+        }
+      };
+      mediaQuery.addEventListener('change', listener);
+      document.documentElement.setAttribute('data-theme', activeTheme);
+      localStorage.setItem('ide-theme', theme);
+
+      return () => mediaQuery.removeEventListener('change', listener);
+    } else {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('ide-theme', theme);
+    }
+  }, [theme]);
+
+  useEffect(() => {
     loadSessions();
 
     const unsubActivity = subscribeToActivityLogs((log: ActivityLog) => {
