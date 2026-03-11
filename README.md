@@ -24,7 +24,7 @@ brew install --cask rkvishwa/knurdz/sonar-code-editor
 
 **Alternative: Manual Download**  
 You can also download the latest `.dmg` file directly from our [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases) page.
-[Download Mac Beta (.dmg)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.3/Sonar.Code.Editor-1.0.0-beta.3-arm64.dmg)
+[Download Mac Beta (.dmg)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.4/Sonar.Code.Editor-1.0.0-beta.4-arm64.dmg)
 
 > **Note on Mac Installation:** If you manually download the `.dmg`, macOS Gatekeeper may flag the app as damaged or from an unidentified developer because it is not yet signed in the beta phase.
 > 
@@ -35,13 +35,13 @@ You can also download the latest `.dmg` file directly from our [GitHub Releases]
 
 ### <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Logo" align="absmiddle" />
 You can download the latest `.exe` file directly from our [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases) page.
-[Download Windows Beta (.exe)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.3/Sonar.Code.Editor.Setup.1.0.0-beta.3.exe)
+[Download Windows Beta (.exe)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.4/Sonar.Code.Editor.Setup.1.0.0-beta.4.exe)
 
 > **Note on Windows Installation:** The stable version for Windows will be officially released on the Microsoft Store. Since this beta version `.exe` is not yet signed, Windows SmartScreen may show an "Untrusted" or "Windows protected your PC" prompt. 
 > 
 > **To bypass and install:** Click on **"More info"** and then select **"Run anyway"**.
 
-### 🐛 Known Issues in beta version 3
+### 🐛 Known Issues in beta version 4
 If you encounter any bugs or want to see what's currently being worked on, check out our [Known Issues](https://github.com/rkvishwa/Sonar-Code-Editor/issues).
 
 ---
@@ -106,8 +106,8 @@ A huge thank you to everyone who has contributed to the Sonar Code Editor projec
 
 | | | | Commits |
 | :---: | :--- | :--- | :---: |
-| <img src="https://github.com/rkvishwa.png?size=40" width="40" style="border-radius: 50%; margin-top: 15px;" /> | **RKK Vishva Kumar** | [@rkvishwa](https://github.com/rkvishwa) | 179 |
-| <img src="https://github.com/Kasun-Kumara.png?size=40" width="40" style="border-radius: 50%;" /> | **Kasun Kumara** | [@Kasun-Kumara](https://github.com/Kasun-Kumara) | 42 |
+| <img src="https://github.com/rkvishwa.png?size=40" width="40" style="border-radius: 50%; margin-top: 15px;" /> | **RKK Vishva Kumar** | [@rkvishwa](https://github.com/rkvishwa) | 182 |
+| <img src="https://github.com/Kasun-Kumara.png?size=40" width="40" style="border-radius: 50%;" /> | **Kasun Kumara** | [@Kasun-Kumara](https://github.com/Kasun-Kumara) | 43 |
 | <img src="https://github.com/SadeepaNHerath.png?size=40" width="40" style="border-radius: 50%;" /> | **Sadeepa N. Herath** | [@SadeepaNHerath](https://github.com/SadeepaNHerath) | 33 |
 | <img src="https://github.com/harshasilva.png?size=40" width="40" style="border-radius: 50%;" /> | **Harsha Silva** | [@harshasilva](https://github.com/harshasilva) | 9 |
 | <img src="https://github.com/Senuka-Deneth.png?size=40" width="40" style="border-radius: 50%;" /> | **Senuka Deneth** | [@Senuka-Deneth](https://github.com/Senuka-Deneth) | 4 |
