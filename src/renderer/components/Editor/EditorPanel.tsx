@@ -193,10 +193,12 @@ const EditorPanel = React.memo(function EditorPanel({
 
       if (collaborationActive) {
         if (tab.isDeleted === true && prev !== true) {
-          // File just got deleted. If it's the active tab, unbind its editor.
+          // File just got deleted. If it's the active tab, unbind its editor
+          // and clear the bound-file guard so the next rebind isn't blocked.
           if (isActive) {
             console.log(`File deleted — unbinding collaboration: ${tab.path}`);
             onEditorUnmount?.(tab.path);
+            boundFileRef.current = null; // Clear so rebind isn't blocked after undo
           }
         } else if (tab.isDeleted === false && prev === true && isActive) {
           // File restored and it's the active tab: force a fresh rebind.
@@ -228,22 +230,34 @@ const EditorPanel = React.memo(function EditorPanel({
       // Only bind if the file has changed or wasn't bound before
       if (boundFileRef.current !== activeTabPath) {
         const filePathForBind = activeTabPath;
-        const timeoutId = setTimeout(() => {
+
+        const tryBind = (attempt: number) => {
           const currentPath = activeTabPathRef.current;
           // Ensure the active tab hasn't changed during the delay
           if (currentPath !== filePathForBind) return;
+
           // Always look up the editor from the map — editorRef.current can be
           // overwritten by any tab's onMount callback, so it's not reliable.
           const editor = editorMapRef.current.get(filePathForBind);
           if (!editor) {
-            console.warn(`Binding skipped: no editor found for ${filePathForBind}`);
+            // Monaco may not have mounted yet (e.g., newly-created tab).
+            // Retry a few times with growing delays before giving up.
+            if (attempt < 5) {
+              console.log(`Binding retry ${attempt + 1} — waiting for editor to mount: ${filePathForBind}`);
+              setTimeout(() => tryBind(attempt + 1), 150 * (attempt + 1));
+            } else {
+              console.warn(`Binding failed after retries — no editor found for ${filePathForBind}`);
+            }
             return;
           }
+
+          // Guard: don't double-bind if the file was already bound during a retry
+          if (boundFileRef.current === filePathForBind) return;
+
           const model = editor.getModel();
           if (model) {
             // Safety net: if Monaco model is empty but tab.content has the restored
             // file content (set by handleFileCreated on undo), seed the model now.
-            // bindEditor will then detect model content and seed Y.Text if needed.
             if (model.getValue().length === 0) {
               const tab = tabs.find((t) => t.path === filePathForBind);
               if (tab?.content) {
@@ -255,7 +269,9 @@ const EditorPanel = React.memo(function EditorPanel({
             onEditorMount?.(editor, filePathForBind, workspaceRoot || undefined);
             boundFileRef.current = filePathForBind;
           }
-        }, 100);
+        };
+
+        const timeoutId = setTimeout(() => tryBind(0), 100);
         return () => clearTimeout(timeoutId);
       }
     }
