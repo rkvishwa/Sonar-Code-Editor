@@ -16,11 +16,6 @@
       { id: 'installation', label: 'Installation' },
       { id: 'configuration', label: 'Configuration' },
     ]},
-    { group: 'Architecture', items: [
-      { id: 'architecture-overview', label: 'Overview' },
-      { id: 'electron-processes', label: 'Electron Processes' },
-      { id: 'ipc-channels', label: 'IPC Channels' },
-    ]},
     { group: 'Core Features', items: [
       { id: 'code-editor', label: 'Code Editor' },
       { id: 'file-tree', label: 'File Tree & Workspace' },
@@ -75,7 +70,7 @@
 
 <svelte:head>
   <title>Documentation | Sonar IDE</title>
-  <meta name="description" content="Complete documentation for Sonar IDE — architecture, features, security model, and developer reference." />
+  <meta name="description" content="Complete documentation for Sonar IDE — features, security model, and developer reference." />
 </svelte:head>
 
 <div class="px-6 pt-24 pb-12 lg:pt-32 lg:pb-20 max-w-7xl mx-auto w-full flex flex-col md:flex-row gap-12 transition-colors duration-200">
@@ -129,7 +124,7 @@
       </p>
       <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">
         Whether you're an administrator setting up exam sessions or a student writing code, 
-        this documentation covers everything from installation to the internal architecture.
+        this documentation covers everything from installation to advanced features.
       </p>
     </section>
 
@@ -191,190 +186,6 @@
         <p>NODE_ENV=development</p>
       </div>
     </section>
-
-    <hr class="border-zinc-200 dark:border-white/10" />
-
-    <!-- Architecture Overview -->
-    <section id="architecture-overview">
-      <h2 class="text-2xl font-bold mb-6 text-zinc-900 dark:text-white flex items-center gap-3">
-        <Layers size={22} class="text-blue-600 dark:text-blue-400" />
-        Architecture Overview
-      </h2>
-      <p class="text-zinc-600 dark:text-zinc-400 mb-6">
-        Sonar IDE uses Electron's multi-process model. The <strong>Main Process</strong> handles native OS APIs, file system operations, 
-        and the WebSocket collaboration server. The <strong>Renderer Process</strong> runs the React-based UI. 
-        A <strong>Preload Script</strong> acts as a secure bridge between the two.
-      </p>
-      <div class="grid sm:grid-cols-3 gap-4 not-prose">
-        <div class="p-5 rounded-2xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 text-center">
-          <Cpu class="text-blue-600 dark:text-blue-400 mx-auto mb-3" size={28} />
-          <h4 class="font-bold text-zinc-900 dark:text-white mb-1 text-sm">Main Process</h4>
-          <p class="text-xs text-zinc-500 dark:text-zinc-400">Node.js runtime: file I/O, IPC routing, monitoring, collaboration server, static server</p>
-        </div>
-        <div class="p-5 rounded-2xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 text-center">
-          <Shield class="text-blue-600 dark:text-blue-400 mx-auto mb-3" size={28} />
-          <h4 class="font-bold text-zinc-900 dark:text-white mb-1 text-sm">Preload Script</h4>
-          <p class="text-xs text-zinc-500 dark:text-zinc-400">Context Bridge: exposes <code class="text-blue-600 dark:text-blue-300">electronAPI</code> safely, KeyShield input capture</p>
-        </div>
-        <div class="p-5 rounded-2xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 text-center">
-          <Monitor class="text-blue-600 dark:text-blue-400 mx-auto mb-3" size={28} />
-          <h4 class="font-bold text-zinc-900 dark:text-white mb-1 text-sm">Renderer Process</h4>
-          <p class="text-xs text-zinc-500 dark:text-zinc-400">React + Vite UI: pages, components, contexts, hooks, and services</p>
-        </div>
-      </div>
-    </section>
-
-    <hr class="border-zinc-200 dark:border-white/10" />
-
-    <!-- Electron Processes -->
-    <section id="electron-processes">
-      <h2 class="text-2xl font-bold mb-6 text-zinc-900 dark:text-white flex items-center gap-3">
-        <HardDrive size={22} class="text-blue-600 dark:text-blue-400" />
-        Electron Processes
-      </h2>
-
-      <div class="space-y-6">
-        <div>
-          <h3 class="text-lg font-semibold mb-2 text-zinc-800 dark:text-zinc-200">Main Process Modules</h3>
-          <div class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 divide-y divide-zinc-200 dark:divide-white/5 text-sm">
-            <div class="p-4 flex justify-between items-start gap-4">
-              <code class="text-blue-700 dark:text-blue-300 font-semibold shrink-0">main.ts</code>
-              <span class="text-zinc-600 dark:text-zinc-400 text-right">App lifecycle, window creation, IPC routing, macOS automation permission check</span>
-            </div>
-            <div class="p-4 flex justify-between items-start gap-4">
-              <code class="text-blue-700 dark:text-blue-300 font-semibold shrink-0">ipcHandlers.ts</code>
-              <span class="text-zinc-600 dark:text-zinc-400 text-right">File system ops (read, write, create, delete, rename, search), native dialogs, clipboard access</span>
-            </div>
-            <div class="p-4 flex justify-between items-start gap-4">
-              <code class="text-blue-700 dark:text-blue-300 font-semibold shrink-0">collaborationManager.ts</code>
-              <span class="text-zinc-600 dark:text-zinc-400 text-right">WebSocket server (port 1234), room management, team validation, network interface detection</span>
-            </div>
-            <div class="p-4 flex justify-between items-start gap-4">
-              <code class="text-blue-700 dark:text-blue-300 font-semibold shrink-0">monitoring.ts</code>
-              <span class="text-zinc-600 dark:text-zinc-400 text-right">15-second heartbeat timer, activity event collection, offline queue management</span>
-            </div>
-            <div class="p-4 flex justify-between items-start gap-4">
-              <code class="text-blue-700 dark:text-blue-300 font-semibold shrink-0">staticServer.ts</code>
-              <span class="text-zinc-600 dark:text-zinc-400 text-right">Express HTTP server for localhost-only preview, auto-port detection starting from 3500</span>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <h3 class="text-lg font-semibold mb-2 text-zinc-800 dark:text-zinc-200">Preload Script</h3>
-          <p class="text-zinc-600 dark:text-zinc-400 text-sm">
-            <code class="text-blue-700 dark:text-blue-300">preload.ts</code> exposes the <code class="text-blue-700 dark:text-blue-300">electronAPI</code> 
-            object via Electron's Context Bridge. This is the only way the Renderer can access file system operations, 
-            collaboration, monitoring, clipboard, and server control — the Renderer has <strong>zero</strong> direct Node.js access.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <hr class="border-zinc-200 dark:border-white/10" />
-
-    <!-- IPC Channels -->
-    <section id="ipc-channels">
-      <h2 class="text-2xl font-bold mb-6 text-zinc-900 dark:text-white flex items-center gap-3">
-        <RefreshCw size={22} class="text-blue-600 dark:text-blue-400" />
-        IPC Channels
-      </h2>
-      <p class="text-zinc-600 dark:text-zinc-400 mb-6">
-        All communication between the Main and Renderer process flows through typed IPC channels via the Context Bridge. 
-        Here is the complete channel reference:
-      </p>
-
-      <div class="space-y-6">
-        <!-- File System -->
-        <div>
-          <h3 class="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">File System</h3>
-          <div class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 text-sm divide-y divide-zinc-100 dark:divide-white/5 overflow-hidden">
-            {#each [
-              ['fs:readDirectory', 'Recursively read folder structure (excludes dotfiles, node_modules)'],
-              ['fs:readFile', 'Read text file (detects binary via NULL byte scan in first 8KB)'],
-              ['fs:readFileBase64', 'Read file as Base64 (for images and binary display)'],
-              ['fs:writeFile', 'Write/overwrite file content (auto-creates parent dirs)'],
-              ['fs:createFile', 'Create an empty file'],
-              ['fs:createFolder', 'Create a new directory'],
-              ['fs:deleteItem', 'Delete file or folder recursively (idempotent)'],
-              ['fs:renameItem', 'Rename with case-only rename support via temp file (Windows fix)'],
-              ['fs:search', 'Full-text substring search across workspace files'],
-              ['fs:openFolderDialog', 'Native OS folder picker dialog'],
-              ['fs:openFileDialog', 'Native OS file picker dialog'],
-            ] as [channel, desc]}
-              <div class="p-3 flex gap-4">
-                <code class="text-blue-700 dark:text-blue-300 font-mono shrink-0 text-xs">{channel}</code>
-                <span class="text-zinc-600 dark:text-zinc-400 text-xs">{desc}</span>
-              </div>
-            {/each}
-          </div>
-        </div>
-
-        <!-- Monitoring -->
-        <div>
-          <h3 class="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Monitoring</h3>
-          <div class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 text-sm divide-y divide-zinc-100 dark:divide-white/5 overflow-hidden">
-            {#each [
-              ['monitoring:start', 'Begin activity tracking with team credentials'],
-              ['monitoring:stop', 'End tracking, send final offline heartbeat'],
-              ['monitoring:heartbeat', 'Main→Renderer: 15-second periodic activity sync'],
-              ['monitoring:flushQueue', 'Main→Renderer: Flush offline log queue on reconnect'],
-              ['monitoring:setCurrentFile', 'Renderer→Main: Update currently active file path'],
-            ] as [channel, desc]}
-              <div class="p-3 flex gap-4">
-                <code class="text-blue-700 dark:text-blue-300 font-mono shrink-0 text-xs">{channel}</code>
-                <span class="text-zinc-600 dark:text-zinc-400 text-xs">{desc}</span>
-              </div>
-            {/each}
-          </div>
-        </div>
-
-        <!-- Collaboration -->
-        <div>
-          <h3 class="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Collaboration</h3>
-          <div class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 text-sm divide-y divide-zinc-100 dark:divide-white/5 overflow-hidden">
-            {#each [
-              ['collaboration:startHost', 'Launch WebSocket server on port 1234, become host'],
-              ['collaboration:joinSession', 'Connect to host IP, validates team ID match'],
-              ['collaboration:stopSession', 'Close WebSocket, clean up Yjs doc and providers'],
-              ['collaboration:getStatus', 'Query current session state (active, mode, users)'],
-              ['collaboration:getLocalIp', 'Get LAN IP (prefers physical NICs over virtual)'],
-              ['collaboration:getNetworkInterfaces', 'List all available network adapters'],
-              ['collaboration:statusChange', 'Main→Renderer: Connection status broadcasts'],
-            ] as [channel, desc]}
-              <div class="p-3 flex gap-4">
-                <code class="text-blue-700 dark:text-blue-300 font-mono shrink-0 text-xs">{channel}</code>
-                <span class="text-zinc-600 dark:text-zinc-400 text-xs">{desc}</span>
-              </div>
-            {/each}
-          </div>
-        </div>
-
-        <!-- Server & System -->
-        <div>
-          <h3 class="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Server, Network & System</h3>
-          <div class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 text-sm divide-y divide-zinc-100 dark:divide-white/5 overflow-hidden">
-            {#each [
-              ['server:start', 'Start HTTP preview server for selected workspace'],
-              ['server:stop', 'Stop preview server'],
-              ['server:getUrl', 'Get current server URL (localhost:port)'],
-              ['network:status', 'Main→Renderer: Real-time connectivity updates'],
-              ['network:getStatus', 'On-demand network check (HTTP to Appwrite endpoint)'],
-              ['clipboard:readText', 'Read current clipboard contents'],
-              ['system:getActiveWindow', 'macOS: Get focused application title'],
-              ['system:checkPermission', 'Check macOS Automation permission status'],
-            ] as [channel, desc]}
-              <div class="p-3 flex gap-4">
-                <code class="text-blue-700 dark:text-blue-300 font-mono shrink-0 text-xs">{channel}</code>
-                <span class="text-zinc-600 dark:text-zinc-400 text-xs">{desc}</span>
-              </div>
-            {/each}
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <hr class="border-zinc-200 dark:border-white/10" />
 
     <!-- Code Editor -->
     <section id="code-editor">
@@ -847,7 +658,7 @@
       <h3 class="font-bold text-zinc-900 dark:text-white mb-2">Reporting Security Vulnerabilities</h3>
       <p class="text-sm text-zinc-600 dark:text-zinc-400">
         Security issues should <strong>not</strong> be reported as public GitHub issues. 
-        Please email <code class="text-blue-700 dark:text-blue-300">hello@brainvave.com</code> with a detailed disclosure. 
+        Please email <code class="text-blue-700 dark:text-blue-300">hello@knurdz.org</code> with a detailed disclosure. 
         See <a href="https://github.com/rkvishwa/Sonar-Code-Editor/blob/main/SECURITY.md" target="_blank" rel="noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">SECURITY.md</a> for the full policy.
       </p>
     </div>
