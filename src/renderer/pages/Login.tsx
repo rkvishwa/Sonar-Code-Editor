@@ -28,32 +28,53 @@ export default function Login() {
     type: "error" | "success";
   } | null>(null);
 
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: light)").matches
-    ) {
-      return "light";
-    }
-    return "dark";
-  });
+  /** Resolve the effective display theme ("light" or "dark") from an ide-theme value. */
+  const resolveTheme = (saved: string | null): "light" | "dark" => {
+    if (saved === "light") return "light";
+    if (saved === "dark") return "dark";
+    // "system" or null — fall back to OS preference
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
+      ? "light"
+      : "dark";
+  };
+
+  const [theme, setTheme] = useState<"light" | "dark">(() =>
+    resolveTheme(localStorage.getItem("ide-theme"))
+  );
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
-  // Listen for system theme changes
+  // Re-sync when the IDE (same window) changes the theme via settings
+  useEffect(() => {
+    const handleIdeThemeChanged = () => {
+      setTheme(resolveTheme(localStorage.getItem("ide-theme")));
+    };
+    window.addEventListener("ide-theme-changed", handleIdeThemeChanged);
+    return () => window.removeEventListener("ide-theme-changed", handleIdeThemeChanged);
+  }, []);
+
+  // Listen for system theme changes (only relevant when ide-theme is "system" or unset)
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
     const handleChange = (e: MediaQueryListEvent) => {
-      setTheme(e.matches ? "light" : "dark");
+      const saved = localStorage.getItem("ide-theme");
+      if (!saved || saved === "system") {
+        setTheme(e.matches ? "light" : "dark");
+      }
     };
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
   const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+    setTheme((prev) => {
+      const next = prev === "light" ? "dark" : "light";
+      // Persist to localStorage so the IDE and future sessions pick it up
+      localStorage.setItem("ide-theme", next);
+      return next;
+    });
   };
 
   const showToast = useCallback(
@@ -167,7 +188,7 @@ export default function Login() {
       <div className="login-hero">
         <div className="hero-content">
           <div className="hero-icon">
-            <Radar size={64} className="radar-icon" />
+            <Radar size={120} className="radar-icon" />
           </div>
           <h1>Sonar Code Editor</h1>
           <p>

@@ -181,10 +181,12 @@ function IDEContent() {
   // FileTree re-renders and can steal input focus on Windows/Electron).
   const collabActiveRef = useRef(collaboration.isActive);
   const broadcastFileOpRef = useRef(collaboration.broadcastFileOp);
+  const setFileContentRef = useRef(collaboration.setFileContent);
   useEffect(() => {
     collabActiveRef.current = collaboration.isActive;
     broadcastFileOpRef.current = collaboration.broadcastFileOp;
-  }, [collaboration.isActive, collaboration.broadcastFileOp]);
+    setFileContentRef.current = collaboration.setFileContent;
+  }, [collaboration.isActive, collaboration.broadcastFileOp, collaboration.setFileContent]);
 
   useEffect(() => {
     // Add platform class to body for OS-specific styling
@@ -215,11 +217,13 @@ function IDEContent() {
       mediaQuery.addEventListener("change", listener);
       document.documentElement.setAttribute("data-theme", activeTheme);
       localStorage.setItem("ide-theme", theme);
+      window.dispatchEvent(new Event("ide-theme-changed"));
 
       return () => mediaQuery.removeEventListener("change", listener);
     } else {
       document.documentElement.setAttribute("data-theme", theme);
       localStorage.setItem("ide-theme", theme);
+      window.dispatchEvent(new Event("ide-theme-changed"));
     }
   }, [theme]);
 
@@ -258,7 +262,10 @@ function IDEContent() {
       let savedAny = false;
       for (const tab of dirtyTabs) {
         try {
-          await window.electronAPI.fs.writeFile(tab.path, tab.content);
+          const contentToSave = collabActiveRef.current
+            ? (collaboration.getFileContent(tab.path, workspaceRootRef.current ?? undefined) ?? tab.content)
+            : tab.content;
+          await window.electronAPI.fs.writeFile(tab.path, contentToSave);
           if (autoSave) {
             setTabs((prev) =>
               prev.map((t) =>
@@ -285,6 +292,48 @@ function IDEContent() {
 
     return () => clearTimeout(timer);
   }, [tabs, autoSave, hotReload]);
+
+  // Listen for raw remote Yjs changes that bypass the UI (Fix for Mac client)
+  useEffect(() => {
+    if (!collaboration.isActive || !collaboration.onRemoteContentChange) return;
+
+    const unsub = collaboration.onRemoteContentChange(async (docName) => {
+      // Find which open tab corresponds to the docName.
+      // Easiest is to check all tabs:
+      const matchingTab = tabsRef.current.find(t => {
+        let relPath = t.path;
+        if (workspaceRootRef.current) {
+          relPath = toRelativePath(t.path, workspaceRootRef.current);
+        }
+        return relPath.replace(/[^a-zA-Z0-9]/g, "_") === docName;
+      });
+
+      if (matchingTab) {
+        if (autoSave) {
+          try {
+            const content = collaboration.getFileContent(matchingTab.path, workspaceRootRef.current ?? undefined);
+            if (content !== null) {
+              await window.electronAPI.fs.writeFile(matchingTab.path, content);
+              if (hotReload) {
+                window.dispatchEvent(new CustomEvent("file-saved"));
+              }
+            }
+          } catch (err) {
+            console.error("Failed to auto-save remote change for live preview:", err);
+          }
+        } else {
+          // If autosave is off, mark tab as dirty so user knows to save manually
+          setTabs((prev) =>
+            prev.map((t) =>
+              t.path === matchingTab.path ? { ...t, isDirty: true } : t,
+            ),
+          );
+        }
+      }
+    });
+
+    return unsub;
+  }, [collaboration.isActive, collaboration.onRemoteContentChange, autoSave, hotReload]);
 
   // Guard ref: prevents multiple concurrent sync / folder-dialog opens.
   // Once a sync has started (or the user has picked / cancelled a folder),
@@ -482,6 +531,29 @@ function IDEContent() {
     collaboration.status?.mode,
     collaboration.onWorkspaceMetadataChange,
   ]);
+
+  // Save collaborative edits to local tabs before the session stops
+  useEffect(() => {
+    if (!collaboration.isActive || !collaboration.onBeforeSessionStop) return;
+
+    const unsub = collaboration.onBeforeSessionStop(() => {
+      setTabs((prev) =>
+        prev.map((t) => {
+          const collabContent = collaboration.getFileContent(
+            t.path,
+            workspaceRootRef.current ?? undefined,
+          );
+          if (collabContent !== null && collabContent !== t.content) {
+            // Keep the latest edits so the file doesn't revert
+            return { ...t, content: collabContent, isDirty: true };
+          }
+          return t;
+        }),
+      );
+    });
+
+    return unsub;
+  }, [collaboration.isActive, collaboration.onBeforeSessionStop, collaboration.getFileContent]);
 
   // Share workspace with files when host opens a folder
   useEffect(() => {
@@ -693,27 +765,33 @@ function IDEContent() {
     );
   }, []);
 
+  // Provide the latest collaborative content for a file.
+  // Used by EditorPanel to show up-to-date content when switching tabs,
+  // since React state tab.content is not updated during collaboration.
+  const getCollaborativeContent = useCallback(
+    (filePath: string): string | null => {
+      if (!collaboration.isActive) return null;
+      return collaboration.getFileContent(filePath, workspaceRoot ?? undefined);
+    },
+    [collaboration.isActive, collaboration.getFileContent, workspaceRoot],
+  );
+
   const handleFileDeleted = useCallback(
     (deletedPath: string, type: "file" | "directory") => {
       setTabs((prev) => {
         const next = prev.map((t) => {
+          const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+          const dNorm = deletedPath.replace(/\\/g, "/").toLowerCase();
+
           if (type === "directory") {
-            if (
-              t.path.startsWith(deletedPath + "/") ||
-              t.path.startsWith(deletedPath + "\\") ||
-              t.path === deletedPath
-            ) {
+            if (tNorm === dNorm || tNorm.startsWith(dNorm + "/")) {
               return { ...t, isDeleted: true };
             }
-          } else if (t.path === deletedPath) {
+          } else if (tNorm === dNorm) {
             return { ...t, isDeleted: true };
           }
           return t;
         });
-        /* 
-        // We no longer remove tabs on delete, so we don't automatically close them
-        if (next.length < prev.length) { ... }
-        */
         return next;
       });
 
@@ -740,12 +818,10 @@ function IDEContent() {
       setTabs((prev) => {
         let updated = false;
         const next = prev.map((t) => {
-          // If it was a directory renamed, we should update paths inside it
-          if (
-            t.path === oldPath ||
-            t.path.startsWith(oldPath + "/") ||
-            t.path.startsWith(oldPath + "\\")
-          ) {
+          const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+          const oNorm = oldPath.replace(/\\/g, "/").toLowerCase();
+
+          if (tNorm === oNorm || tNorm.startsWith(oNorm + "/")) {
             updated = true;
             const newFilePath = newPath + t.path.slice(oldPath.length);
             const newName = newFilePath.split(/[\\/]/).pop() || "";
@@ -757,11 +833,9 @@ function IDEContent() {
         if (updated) {
           setActiveTabPath((current) => {
             if (!current) return null;
-            if (
-              current === oldPath ||
-              current.startsWith(oldPath + "/") ||
-              current.startsWith(oldPath + "\\")
-            ) {
+            const cNorm = current.replace(/\\/g, "/").toLowerCase();
+            const oNorm = oldPath.replace(/\\/g, "/").toLowerCase();
+            if (cNorm === oNorm || cNorm.startsWith(oNorm + "/")) {
               return newPath + current.slice(oldPath.length);
             }
             return current;
@@ -790,25 +864,91 @@ function IDEContent() {
   );
 
   const handleFileCreated = useCallback(
-    (fullPath: string, _name: string) => {
-      setTabs((prev) =>
-        prev.map((t) =>
-          t.path === fullPath ? { ...t, isDeleted: false } : t
-        )
-      );
+    async (fullPath: string, _name: string, savedContent?: string) => {
+      let restoredContent = "";
+
       try {
         const wsRoot = workspaceRootRef.current;
         if (collabActiveRef.current && wsRoot) {
+          // Priority 1: pre-captured content from the undo stack (most reliable —
+          // captured right before the file was renamed to .trash, so it always
+          // has the correct content regardless of editor/Y.Text state).
+          if (savedContent !== undefined) {
+            restoredContent = savedContent;
+          } else {
+            // Priority 2: Y.Text content (latest collaborative state, if the
+            // file was open in any editor during this session).
+            const ytextContent = collaboration.isActive
+              ? collaboration.getFileContent(fullPath, wsRoot)
+              : null;
+
+            if (ytextContent) {
+              restoredContent = ytextContent;
+              console.log(`Using Y.Text content for restored file: ${fullPath} (${restoredContent.length} chars)`);
+            } else {
+              // Priority 3: read from disk (the .trash rename put content back).
+              try {
+                restoredContent = await window.electronAPI.fs.readFile(fullPath);
+              } catch (readErr) {
+                console.warn(`Could not read file for broadcast: ${fullPath}`, readErr);
+              }
+            }
+          }
+
+          // Ensure Y.Text is in sync with the content we're restoring.
+          setFileContentRef.current(fullPath, restoredContent, wsRoot);
+
+          // Write authoritative content back to disk so that non-editor
+          // opens (via openFile → readFile) always see the correct content.
+          if (restoredContent) {
+            try {
+              await window.electronAPI.fs.writeFile(fullPath, restoredContent);
+            } catch (writeErr) {
+              console.warn(`Could not write restored content to disk: ${fullPath}`, writeErr);
+            }
+          }
+
           const relativePath = toRelativePath(fullPath, wsRoot);
           broadcastFileOpRef.current({
             type: "create-file",
             relativePath,
-            content: "",
+            content: restoredContent,
           });
+        } else {
+          // Non-collaboration: use pre-captured content if available,
+          // otherwise read from disk.
+          if (savedContent !== undefined) {
+            restoredContent = savedContent;
+            // Write it back to disk to ensure consistency.
+            try {
+              await window.electronAPI.fs.writeFile(fullPath, restoredContent);
+            } catch (writeErr) {
+              console.warn(`Could not write restored content to disk: ${fullPath}`, writeErr);
+            }
+          } else {
+            try {
+              restoredContent = await window.electronAPI.fs.readFile(fullPath);
+            } catch (readErr) {
+              console.warn(`Could not read restored file: ${fullPath}`, readErr);
+            }
+          }
         }
       } catch (err) {
         console.error('broadcastFileOp create-file failed:', err);
       }
+
+      // Mark the tab as not-deleted AFTER seeding Y.Text.
+      // Only update an existing tab — if it was previously closed, leave it
+      // closed. Y.Text is already seeded so collaboration will work when the
+      // user opens the file again from the file tree.
+      setTabs((prev) => {
+        const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
+        return prev.map((t) =>
+          t.path.replace(/\\/g, "/").toLowerCase() === fNorm
+            ? { ...t, isDeleted: false, content: restoredContent || t.content }
+            : t
+        );
+      });
     },
     [],
   );
@@ -869,7 +1009,7 @@ function IDEContent() {
         );
         try {
           switch (op.type) {
-            case "create-file":
+            case "create-file": {
               try {
                 await window.electronAPI.fs.createFile(fullPath);
                 if (op.content) {
@@ -878,12 +1018,24 @@ function IDEContent() {
               } catch (createErr) {
                 console.warn(`Remote create-file failed: ${relPath}`, createErr);
               }
-              setTabs((prev) =>
-                prev.map((t) =>
-                  t.path === fullPath ? { ...t, isDeleted: false } : t
-                )
-              );
+              // Seed the Yjs Y.Text for the recreated file so that
+              // collaboration sync resumes immediately.
+              if (op.content != null) {
+                setFileContentRef.current(fullPath, op.content, wsRoot);
+              }
+              // Only update existing tabs. If the tab was closed, leave it closed.
+              // Y.Text is already seeded above, so collaboration will start
+              // automatically when the user opens the file from the file tree.
+              setTabs((prev) => {
+                const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
+                return prev.map((t) =>
+                  t.path.replace(/\\/g, "/").toLowerCase() === fNorm
+                    ? { ...t, isDeleted: false, content: op.content || t.content }
+                    : t
+                );
+              });
               break;
+            }
             case "create-folder":
               try {
                 await window.electronAPI.fs.createFolder(fullPath);
@@ -901,15 +1053,16 @@ function IDEContent() {
               // re-broadcast the op and create an infinite echo loop)
               setTabs((prev) => {
                 const next = prev.map((t) => {
+                  const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+                  const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
                   if (op.isDirectory) {
                     if (
-                      t.path.startsWith(fullPath + "/") ||
-                      t.path.startsWith(fullPath + "\\") ||
-                      t.path === fullPath
+                      tNorm.startsWith(fNorm + "/") ||
+                      tNorm === fNorm
                     ) {
                       return { ...t, isDeleted: true };
                     }
-                  } else if (t.path === fullPath) {
+                  } else if (tNorm === fNorm) {
                     return { ...t, isDeleted: true };
                   }
                   return t;
@@ -933,10 +1086,11 @@ function IDEContent() {
               setTabs((prev) => {
                 let updated = false;
                 const next = prev.map((t) => {
+                  const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+                  const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
                   if (
-                    t.path === fullPath ||
-                    t.path.startsWith(fullPath + "/") ||
-                    t.path.startsWith(fullPath + "\\")
+                    tNorm === fNorm ||
+                    tNorm.startsWith(fNorm + "/")
                   ) {
                     updated = true;
                     const newFilePath =
@@ -950,10 +1104,11 @@ function IDEContent() {
                 if (updated) {
                   setActiveTabPath((current) => {
                     if (!current) return null;
+                    const cNorm = current.replace(/\\/g, "/").toLowerCase();
+                    const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
                     if (
-                      current === fullPath ||
-                      current.startsWith(fullPath + "/") ||
-                      current.startsWith(fullPath + "\\")
+                      cNorm === fNorm ||
+                      cNorm.startsWith(fNorm + "/")
                     ) {
                       return newFullPath + current.slice(fullPath.length);
                     }
@@ -965,7 +1120,8 @@ function IDEContent() {
               break;
             }
           }
-          setFileTreeRefreshKey((k) => k + 1);
+          // Always trigger a refresh of the file tree so the user sees remote changes immediately
+          setFileTreeRefreshKey((prev) => prev + 1);
         } catch (err) {
           console.error("Failed to apply remote file operation:", op.type, err);
         }
@@ -991,6 +1147,12 @@ function IDEContent() {
   const [previewInitialUrl, setPreviewInitialUrl] = useState<string | null>(
     null,
   );
+
+  useEffect(() => {
+    setPreviewInitialUrl(null);
+    setTabs([]);
+    setActiveTabPath(null);
+  }, [workspaceRoot]);
 
   const openPreviewInTab = useCallback(
     (urlFromPanel?: string) => {
@@ -1140,6 +1302,7 @@ function IDEContent() {
               onEditorMount={collaboration.bindEditor}
               onEditorUnmount={collaboration.unbindEditor}
               wordWrap={wordWrap}
+              getCollaborativeContent={getCollaborativeContent}
             />
           </Panel>
           {showPreview && (
@@ -1147,6 +1310,7 @@ function IDEContent() {
               <PanelResizeHandle className="resize-handle" />
               <Panel id="preview" order={3} defaultSize={20} minSize={15}>
                 <PreviewPanel
+                  key={workspaceRoot || 'empty'}
                   workspaceRoot={workspaceRoot}
                   activeFilePath={activeTabPath}
                   onOpenInTab={openPreviewInTab}

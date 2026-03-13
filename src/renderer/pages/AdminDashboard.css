@@ -17,94 +17,139 @@
 
 /* ---- Header ---- */
 .admin-header {
+  position: relative;
   display: flex;
-  align-items: center;
+  align-items: center; /* Windows/Linux default to center vertically */
   justify-content: space-between;
-  padding: 0 24px;
-  height: 56px;
-  background: rgba(18, 18, 20, 0.6);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 0 32px;
+  height: 64px;
+  background: linear-gradient(180deg, rgba(24, 24, 27, 0.8) 0%, rgba(18, 18, 20, 0.9) 100%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid transparent;
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.05), 0 8px 32px -8px rgba(0, 0, 0, 0.6);
   flex-shrink: 0;
   -webkit-app-region: drag;
   z-index: 10;
 }
 
+/* Adjust header for Mac traffic light buttons space */
+/* Traffic lights are typically ~16px down, 16px right. To move content BELOW them and push to the far left corner: */
+.platform-mac .admin-header {
+  height: 80px; /* Make it taller to clear the buttons */
+  align-items: flex-end; /* Push items to the bottom of the taller header */
+  padding-bottom: 12px; /* Breathing room at the new bottom */
+  padding-left: 16px; /* Reset left padding closer to the edge */
+}
+
 .admin-header > * { -webkit-app-region: no-drag; }
-.admin-header-left, .admin-header-right { display: flex; align-items: center; gap: 16px; }
+.admin-header-left, .admin-header-right { 
+  display: flex; 
+  align-items: center; 
+  gap: 20px; 
+}
 
 .admin-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.2px;
+  gap: 10px;
+  user-select: none;
+}
+.logo-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
+  height: 20px; /* Force wrapper height to precisely match SVG size */
+  width: 20px; /* Force width too to make it square */
 }
 .logo-icon {
-  color: var(--accent);
-  filter: drop-shadow(0 0 6px var(--accent-transparent));
+  margin-top: 2px; /* Pull down non-square SVG to optical center */
+}
+.logo-text {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  background: linear-gradient(135deg, #ffffff 0%, #a1a1aa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 20px; 
+  display: inline-block; 
+  padding-bottom: 0px; /* Remove old hack */
 }
 
 .admin-live-badge {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.15);
+  gap: 8px;
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
+  border: 1px solid rgba(16, 185, 129, 0.2);
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 5px 12px;
   font-size: 11px;
-  font-weight: 500;
-  color: var(--online);
+  font-weight: 600;
+  color: #34d399;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .live-dot {
   width: 6px; height: 6px;
   border-radius: 50%;
-  background: var(--online);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
-  animation: pulse-op 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background: #10b981;
+  animation: pulse-op-redesign 2s ease-in-out infinite;
 }
 
-@keyframes pulse-op { 50% { opacity: 0.3; } }
+@keyframes pulse-op-redesign { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 .last-updated {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 11px; color: var(--text-muted);
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 500;
+  color: #a1a1aa;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
 }
-.meta-icon { opacity: 0.6; }
+.meta-icon { opacity: 0.8; }
 
 .admin-user-pill {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 500;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 4px 12px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 500;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px 14px;
   border-radius: 999px;
+  color: #e4e4e7;
+  transition: background 0.2s, border-color 0.2s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
-.user-icon { color: var(--text-secondary); }
+.admin-user-pill:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
+.user-icon { color: #a1a1aa; }
 
 .admin-btn {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  background: rgba(255,255,255,0.03);
-  color: var(--text-primary);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 12px; font-weight: 500;
-  transition: all 0.2s ease;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #e4e4e7;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 12px; font-weight: 600;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 .admin-btn:hover {
-  background: rgba(255,255,255,0.06);
-  border-color: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
+.admin-btn:active { transform: translateY(0); }
 .admin-btn.neutral { color: var(--text-primary); }
-.admin-btn.danger { color: #f87171; background: rgba(239, 68, 68, 0.1); border-color: transparent; }
-.admin-btn.danger:hover { background: rgba(239, 68, 68, 0.15); }
-.admin-btn.icon-btn { padding: 6px; width: 28px; height: 28px; border-radius: 6px; }
+.admin-btn.danger { color: #fca5a5; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); }
+.admin-btn.danger:hover { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); }
+.admin-btn.icon-btn { padding: 0; width: 32px; height: 32px; border-radius: 8px; color: #a1a1aa; }
+.admin-btn.icon-btn:hover { color: #fff; }
 
 /* ---- Layout ---- */
 .admin-content {

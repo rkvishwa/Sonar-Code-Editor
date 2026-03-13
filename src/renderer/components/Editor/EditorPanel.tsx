@@ -1,5 +1,5 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
-import MonacoEditor, { type OnMount } from "@monaco-editor/react";
+import React, { useRef, useState, useEffect } from "react";
+import MonacoEditor, { type OnMount, type Monaco } from "@monaco-editor/react";
 import {
   Radar,
   FileCode2,
@@ -18,6 +18,7 @@ import {
   Palette,
 } from "lucide-react";
 import type { editor } from "monaco-editor";
+import { formatKey } from "../../utils/shortcut";
 import { OpenTab } from "../../pages/IDE";
 import PreviewPanel from "../Preview/PreviewPanel";
 import "./EditorPanel.css";
@@ -43,8 +44,9 @@ interface EditorPanelProps {
     filePath: string,
     workspaceRoot?: string,
   ) => void;
-  onEditorUnmount?: () => void;
+  onEditorUnmount?: (filePath?: string) => void;
   wordWrap?: boolean;
+  getCollaborativeContent?: (filePath: string) => string | null;
 }
 
 const getEditorOptions = (wordWrap: boolean) => ({
@@ -139,9 +141,23 @@ const EditorPanel = React.memo(function EditorPanel({
   onEditorMount,
   onEditorUnmount,
   wordWrap = true,
+  getCollaborativeContent,
 }: EditorPanelProps) {
   const activeTab = tabs.find((t) => t.path === activeTabPath);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  // Map of file path → editor instance, so we can look up the correct editor
+  // when switching tabs (each tab has its own MonacoEditor component).
+  const editorMapRef = useRef<Map<string, editor.IStandaloneCodeEditor>>(new Map());
+  // Guard to prevent auto-close handler from re-triggering on its own executeEdits
+  const isLocalAutoCloseRef = useRef(false);
+  // Tracks whether a local keyboard event preceded the content change.
+  // onKeyDown only fires for local user input, never for remote y-monaco edits,
+  // making this the most reliable way to distinguish local vs remote changes.
+  const isUserInputRef = useRef(false);
+  // Stable ref for collaborationActive so the auto-close handler (registered
+  // once per editor on mount) always sees the latest value.
+  const collaborationActiveRef = useRef(collaborationActive);
+  collaborationActiveRef.current = collaborationActive;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const boundFileRef = useRef<string | null>(null);
@@ -149,40 +165,122 @@ const EditorPanel = React.memo(function EditorPanel({
   // Counter incremented when the Monaco editor mounts, so the binding
   // useEffect re-evaluates even though editorRef is not reactive.
   const [editorMountTick, setEditorMountTick] = useState(0);
+  // Track the isDeleted state per file path so we can detect when a
+  // specific file goes from deleted→restored even if the active tab changed
+  // in between (a single ref would lose the 'true' value on tab switch).
+  const prevIsDeletedByPathRef = useRef<Map<string, boolean | undefined>>(new Map());
+
+  // When the active tab changes, look up the correct editor from the map
+  // and update editorRef.  This must run BEFORE the binding effect below
+  // so that bindEditor receives the right editor instance.
+  useEffect(() => {
+    if (activeTabPath && editorMapRef.current.has(activeTabPath)) {
+      editorRef.current = editorMapRef.current.get(activeTabPath)!;
+      // Trigger re-evaluation of the binding effect
+      setEditorMountTick((c) => c + 1);
+    }
+  }, [activeTabPath]);
+
+  const activeTabIsDeleted = activeTab?.isDeleted;
+
+  // Detect isDeleted transitions for ALL tabs in one place.
+  // Reading prev BEFORE updating stored state ensures we catch true→false transitions
+  // even when activeTabPath changed between delete and restore.
+  useEffect(() => {
+    tabs.forEach((tab) => {
+      const prev = prevIsDeletedByPathRef.current.get(tab.path);
+      const isActive = tab.path === activeTabPath;
+
+      if (collaborationActive) {
+        if (tab.isDeleted === true && prev !== true) {
+          // File just got deleted. If it's the active tab, unbind its editor
+          // and clear the bound-file guard so the next rebind isn't blocked.
+          if (isActive) {
+            console.log(`File deleted — unbinding collaboration: ${tab.path}`);
+            onEditorUnmount?.(tab.path);
+            boundFileRef.current = null; // Clear so rebind isn't blocked after undo
+          }
+        } else if (tab.isDeleted === false && prev === true && isActive) {
+          // File restored and it's the active tab: force a fresh rebind.
+          console.log(`File restored — forcing collaboration rebind: ${tab.path}`);
+          boundFileRef.current = null;
+          setEditorMountTick((c) => c + 1);
+        }
+      }
+
+      // Update stored state AFTER checking the transition (read-before-write)
+      prevIsDeletedByPathRef.current.set(tab.path, tab.isDeleted);
+    });
+  }, [tabs, collaborationActive, activeTabPath, onEditorUnmount]);
+
+  // Keep a ref to activeTabPath so that the 100ms setTimeout closure always
+  // reads the LATEST value, not a stale closure capture.
+  const activeTabPathRef = useRef(activeTabPath);
+  activeTabPathRef.current = activeTabPath;
 
   // Single binding path: bind editor to collaboration when the editor is
   // ready, collaboration becomes active, or the active file changes.
   useEffect(() => {
     if (
       collaborationActive &&
-      editorRef.current &&
       activeTabPath &&
+      !activeTabIsDeleted &&
       activeTabPath !== "__preview__"
     ) {
       // Only bind if the file has changed or wasn't bound before
       if (boundFileRef.current !== activeTabPath) {
-        // Wait for the model to be ready with a small delay
-        const timeoutId = setTimeout(() => {
-          const model = editorRef.current?.getModel();
-          if (model && model.getValue().length >= 0) {
-            console.log(`Binding collaboration for file: ${activeTabPath}`);
-            onEditorMount?.(
-              editorRef.current!,
-              activeTabPath,
-              workspaceRoot || undefined,
-            );
-            boundFileRef.current = activeTabPath;
+        const filePathForBind = activeTabPath;
+
+        const tryBind = (attempt: number) => {
+          const currentPath = activeTabPathRef.current;
+          // Ensure the active tab hasn't changed during the delay
+          if (currentPath !== filePathForBind) return;
+
+          // Always look up the editor from the map — editorRef.current can be
+          // overwritten by any tab's onMount callback, so it's not reliable.
+          const editor = editorMapRef.current.get(filePathForBind);
+          if (!editor) {
+            // Monaco may not have mounted yet (e.g., newly-created tab).
+            // Retry a few times with growing delays before giving up.
+            if (attempt < 5) {
+              console.log(`Binding retry ${attempt + 1} — waiting for editor to mount: ${filePathForBind}`);
+              setTimeout(() => tryBind(attempt + 1), 150 * (attempt + 1));
+            } else {
+              console.warn(`Binding failed after retries — no editor found for ${filePathForBind}`);
+            }
+            return;
           }
-        }, 100);
+
+          // Guard: don't double-bind if the file was already bound during a retry
+          if (boundFileRef.current === filePathForBind) return;
+
+          const model = editor.getModel();
+          if (model) {
+            // Safety net: if Monaco model is empty but tab.content has the restored
+            // file content (set by handleFileCreated on undo), seed the model now.
+            if (model.getValue().length === 0) {
+              const tab = tabs.find((t) => t.path === filePathForBind);
+              if (tab?.content) {
+                console.log(`Seeding empty Monaco model from tab.content for: ${filePathForBind}`);
+                model.setValue(tab.content);
+              }
+            }
+            console.log(`Binding collaboration for file: ${filePathForBind}`);
+            onEditorMount?.(editor, filePathForBind, workspaceRoot || undefined);
+            boundFileRef.current = filePathForBind;
+          }
+        };
+
+        const timeoutId = setTimeout(() => tryBind(0), 100);
         return () => clearTimeout(timeoutId);
       }
     }
-  }, [collaborationActive, activeTabPath, onEditorMount, editorMountTick]);
+  }, [collaborationActive, activeTabPath, activeTabIsDeleted, onEditorMount, editorMountTick]);
 
   // Unbind when collaboration ends
   useEffect(() => {
     if (!collaborationActive && boundFileRef.current) {
-      onEditorUnmount?.();
+      onEditorUnmount?.(); // Unbinds whatever is active if no path provided
       boundFileRef.current = null;
     }
   }, [collaborationActive, onEditorUnmount]);
@@ -199,20 +297,61 @@ const EditorPanel = React.memo(function EditorPanel({
     };
   }, [onEditorUnmount]);
 
-  const handleEditorMount: OnMount = (editor, monaco) => {
-    editorRef.current = editor;
-
-    // Trigger re-evaluation of the binding effect now that the editor is ready
-    setEditorMountTick((c) => c + 1);
+  // Editor mount handler — sets up auto-close tags, keyboard tracking,
+  // and stores the editor in the per-tab map.  Called for ALL editors
+  // (active and inactive) so we always have a reference for every open tab.
+  // isActiveTab: true only when this is the currently active tab's editor.
+  //   - If true:  update editorRef and trigger a binding re-evaluation.
+  //   - If false: skip editorRef update to prevent overwriting the active
+  //               editor's reference with a background tab's Monaco instance.
+  const handleEditorMount = (editor: editor.IStandaloneCodeEditor, monaco: Monaco, isActiveTab: boolean) => {
+    if (isActiveTab) {
+      editorRef.current = editor;
+      setEditorMountTick((c) => c + 1);
+    }
 
     // Enable auto-closing HTML tags via linked editing
     monaco.languages.html?.htmlDefaults?.setOptions?.({
       format: { contentUnformatted: "" },
     });
 
+    // Enforce LF (Line Feed) line endings universally.
+    // Different OS line endings (CRLF vs LF) cause the number of characters
+    // per line edit to differ between users (2 vs 1). This causes absolute
+    // character offsets to drift apart between clients, breaking y-monaco's
+    // RelativePosition cursor tracking completely.
+    const model = editor.getModel();
+    if (model) {
+      model.setEOL(monaco.editor.EndOfLineSequence.LF);
+    }
+
+    // Track local keyboard input.  onKeyDown fires synchronously before
+    // the character is inserted (which happens in the browser's `input`
+    // event).  We use setTimeout(0) instead of queueMicrotask because
+    // microtask checkpoints run between `keydown` and `input` events,
+    // which would reset the flag before Monaco processes the character
+    // and fires onDidChangeModelContent.  setTimeout(0) schedules a
+    // macrotask that runs after ALL related events are processed.
+    editor.onKeyDown(() => {
+      isUserInputRef.current = true;
+      setTimeout(() => {
+        isUserInputRef.current = false;
+      }, 0);
+    });
+
     // For HTML-like languages, auto-insert closing tag when typing '>'
     const htmlLanguages = ["html", "xml", "php", "handlebars", "razor"];
     editor.onDidChangeModelContent((e) => {
+      // Skip if this is our own auto-close edit (prevents re-entrancy)
+      if (isLocalAutoCloseRef.current) return;
+      // Skip remote collaboration changes — y-monaco applies bulk syncs
+      // with isFlush=true, which would otherwise trigger a duplicate
+      // closing tag on every remote peer.
+      if (e.isFlush) return;
+      // During collaboration, only auto-close for local user input.
+      // Uses a ref so the check always sees the latest value (the closure
+      // is created once on mount and never re-created).
+      if (collaborationActiveRef.current && !isUserInputRef.current) return;
       const model = editor.getModel();
       if (!model) return;
       const lang = model.getLanguageId();
@@ -251,6 +390,7 @@ const EditorPanel = React.memo(function EditorPanel({
             if (voidElements.includes(tagName.toLowerCase())) return;
 
             const closingTag = `</${tagName}>`;
+            isLocalAutoCloseRef.current = true;
             editor.executeEdits("auto-close-tag", [
               {
                 range: new monaco.Range(
@@ -264,6 +404,7 @@ const EditorPanel = React.memo(function EditorPanel({
             ]);
             // Keep cursor between opening and closing tags
             editor.setPosition(position);
+            isLocalAutoCloseRef.current = false;
           }
         }
       }
@@ -276,12 +417,15 @@ const EditorPanel = React.memo(function EditorPanel({
         <div className="welcome-screen">
           <div className="welcome-hero">
             <div className="welcome-logo-container">
-              <Radar size={48} className="welcome-logo" />
+              <svg width="0" height="0">
+                <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="50%" stopColor="#ffffff" />
+                  <stop offset="100%" stopColor="#000000" />
+                </linearGradient>
+              </svg>
+              <Radar size={160} className="welcome-logo" style={{ stroke: "url(#logoGradient)" }} />
             </div>
             <h1 className="welcome-title">Sonar Code Editor</h1>
-            <p className="welcome-subtitle">
-              A lightweight learning environment
-            </p>
           </div>
 
           <div className="start-section">
@@ -302,19 +446,19 @@ const EditorPanel = React.memo(function EditorPanel({
             <div className="shortcut">
               <span>Toggle Explorer</span>{" "}
               <div className="kbd-wrap">
-                <kbd>Ctrl</kbd>+<kbd>B</kbd>
+                <kbd>{formatKey("Ctrl")}</kbd>+<kbd>B</kbd>
               </div>
             </div>
             <div className="shortcut">
               <span>Toggle Preview Panel</span>{" "}
               <div className="kbd-wrap">
-                <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd>
+                <kbd>{formatKey("Ctrl")}</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd>
               </div>
             </div>
             <div className="shortcut">
               <span>Toggle Preview Tab</span>{" "}
               <div className="kbd-wrap">
-                <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>
+                <kbd>{formatKey("Ctrl")}</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>
               </div>
             </div>
           </div>
@@ -329,7 +473,13 @@ const EditorPanel = React.memo(function EditorPanel({
         <div className="welcome-screen">
           <div className="welcome-hero">
             <div className="welcome-logo-container">
-              <FileCode2 size={48} className="welcome-logo" />
+              <svg width="0" height="0">
+                <linearGradient id="logoGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="50%" stopColor="#ffffff" />
+                  <stop offset="100%" stopColor="#000000" />
+                </linearGradient>
+              </svg>
+              <FileCode2 size={160} className="welcome-logo" style={{ stroke: "url(#logoGradient2)" }} />
             </div>
             <h1 className="welcome-title">Folder Opened</h1>
             <p className="welcome-subtitle">
@@ -341,31 +491,31 @@ const EditorPanel = React.memo(function EditorPanel({
             <div className="shortcut">
               <span>Save File</span>{" "}
               <div className="kbd-wrap">
-                <kbd>Ctrl</kbd>+<kbd>S</kbd>
+                <kbd>{formatKey("Ctrl")}</kbd>+<kbd>S</kbd>
               </div>
             </div>
             <div className="shortcut">
               <span>Close Tab</span>{" "}
               <div className="kbd-wrap">
-                <kbd>Ctrl</kbd>+<kbd>W</kbd>
+                <kbd>{formatKey("Ctrl")}</kbd>+<kbd>W</kbd>
               </div>
             </div>
             <div className="shortcut">
               <span>Toggle Explorer</span>{" "}
               <div className="kbd-wrap">
-                <kbd>Ctrl</kbd>+<kbd>B</kbd>
+                <kbd>{formatKey("Ctrl")}</kbd>+<kbd>B</kbd>
               </div>
             </div>
             <div className="shortcut">
               <span>Toggle Preview Panel</span>{" "}
               <div className="kbd-wrap">
-                <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd>
+                <kbd>{formatKey("Ctrl")}</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd>
               </div>
             </div>
             <div className="shortcut">
               <span>Toggle Preview Tab</span>{" "}
               <div className="kbd-wrap">
-                <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>
+                <kbd>{formatKey("Ctrl")}</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>
               </div>
             </div>
           </div>
@@ -452,6 +602,7 @@ const EditorPanel = React.memo(function EditorPanel({
           >
             {tab.type === "preview" ? (
               <PreviewPanel
+                key={workspaceRoot || 'empty'}
                 workspaceRoot={workspaceRoot}
                 activeFilePath={activeFilePath}
                 initialUrl={previewInitialUrl}
@@ -473,22 +624,31 @@ const EditorPanel = React.memo(function EditorPanel({
               />
             ) : (
               <MonacoEditor
+                key={`${tab.path}-${collaborationActive ? 'collab' : 'solo'}`}
                 height="100%"
                 language={tab.language}
                 // When collaboration is active, don't pass value prop - let y-monaco control content
                 // This prevents cursor jumping when multiple users edit the same line
                 {...(!collaborationActive && { value: tab.content })}
-                defaultValue={tab.content}
+                defaultValue={
+                  collaborationActive && getCollaborativeContent
+                    ? (getCollaborativeContent(tab.path) ?? tab.content)
+                    : tab.content
+                }
                 theme={theme === "light" ? "vs-light" : "vs-dark"}
                 options={getEditorOptions(wordWrap)}
-                onMount={isActive ? handleEditorMount : undefined}
+                onMount={(mountedEditor, mountedMonaco) => {
+                  editorMapRef.current.set(tab.path, mountedEditor);
+                  handleEditorMount(mountedEditor, mountedMonaco, tab.path === activeTabPath);
+                }}
                 onChange={(value) => {
                   if (value !== undefined) {
-                    if (!collaborationActive) {
-                      onContentChange(tab.path, value);
-                    } else if (tab.isPreviewFile) {
-                      // Pin the tab when editing in collaboration mode
-                      onTabDoubleClick?.(tab.path);
+                    onContentChange(tab.path, value);
+                    if (collaborationActive) {
+                      // During collaboration, pin preview tabs on edit
+                      if (tab.isPreviewFile) {
+                        onTabDoubleClick?.(tab.path);
+                      }
                     }
                   }
                 }}
