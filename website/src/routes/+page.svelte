@@ -71,13 +71,16 @@
 </svelte:head>
 
 <!-- Hero Section -->
-<section class="relative flex flex-col items-start justify-center px-4 sm:px-8 lg:px-[10%] pt-20 sm:pt-24 xl:pt-32 pb-32 sm:pb-40 overflow-hidden min-h-screen">
+<section class="relative w-full pt-20 sm:pt-24 xl:pt-32 pb-32 sm:pb-40 overflow-hidden min-h-screen flex flex-col items-center justify-center px-4 sm:px-6">
 
 <!-- Radial fade mask for top/sides -->
 <div class="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(circle_at_top,transparent_16%,rgba(247,251,255,0.96)_78%)] dark:bg-[radial-gradient(circle_at_top,transparent_16%,rgba(7,16,24,0.94)_78%)]"></div>
 
+<!-- Hero Content Wrapper matching Header width -->
+<div class="relative z-10 w-full max-w-[1400px] mx-auto px-4 sm:px-6 flex flex-col items-center justify-center">
+
 <!-- Hero Two-Column Layout -->
-<div class="relative z-10 w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row items-center justify-start text-left">
+<div class="w-full flex flex-col lg:flex-row items-center justify-start text-left">
 
 <!-- Left Column Component -->
 <div class="flex flex-col items-start w-full lg:w-1/2" class:animate-hero-in={mounted}>
@@ -229,10 +232,10 @@ Real-time collaboration, exam monitoring, and secure coding - powered by Monaco 
       </div>
       </div>
   </div>
+</div>
 
   <!-- Dashboard Preview -->
-	<div 
-		bind:this={sectionRef}
+	<div 		role="presentation"		bind:this={sectionRef}
 		onmousemove={handleMouseMove}
 		onmouseenter={handleMouseEnter}
 		onmouseleave={handleMouseLeave}
@@ -471,23 +474,20 @@ Real-time collaboration, exam monitoring, and secure coding - powered by Monaco 
 	}
 
 	/* --- Hero stagger entrance --- */
-	.animate-hero-in .hero-stagger-1,
-	.animate-hero-in .hero-stagger-2,
-	.animate-hero-in .hero-stagger-3,
-	.animate-hero-in .hero-stagger-4,
-	.animate-hero-in .hero-stagger-5 {
+	.animate-hero-in :global(.hero-stagger-2),
+	.animate-hero-in :global(.hero-stagger-3),
+	.animate-hero-in :global(.hero-stagger-4),
+	.animate-hero-in :global(.hero-stagger-5) {
 		animation: fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 	}
-	.hero-stagger-1 { opacity: 0; }
-	.hero-stagger-2 { opacity: 0; }
-	.hero-stagger-3 { opacity: 0; }
-	.hero-stagger-4 { opacity: 0; }
-	.hero-stagger-5 { opacity: 0; }
-	.animate-hero-in .hero-stagger-1 { animation-delay: 0.05s; }
-	.animate-hero-in .hero-stagger-2 { animation-delay: 0.12s; }
-	.animate-hero-in .hero-stagger-3 { animation-delay: 0.2s; }
-	.animate-hero-in .hero-stagger-4 { animation-delay: 0.3s; }
-	.animate-hero-in .hero-stagger-5 { animation-delay: 0.4s; }
+	:global(.hero-stagger-2) { opacity: 0; }
+	:global(.hero-stagger-3) { opacity: 0; }
+	:global(.hero-stagger-4) { opacity: 0; }
+	:global(.hero-stagger-5) { opacity: 0; }
+	.animate-hero-in :global(.hero-stagger-2) { animation-delay: 0.12s; }
+	.animate-hero-in :global(.hero-stagger-3) { animation-delay: 0.2s; }
+	.animate-hero-in :global(.hero-stagger-4) { animation-delay: 0.3s; }
+	.animate-hero-in :global(.hero-stagger-5) { animation-delay: 0.4s; }
 
 	@keyframes fade-up {
 		from { opacity: 0; transform: translateY(16px); }
