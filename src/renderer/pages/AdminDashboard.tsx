@@ -33,6 +33,9 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [showSettings, setShowSettings] = useState(false);
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem('ide-theme') || 'system'
+  );
   const unsubRefs = useRef<Array<() => void>>([]);
   const adminIdsRef = useRef<Set<string>>(new Set());
 
@@ -97,6 +100,30 @@ export default function AdminDashboard() {
     setLastUpdated(new Date());
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    let activeTheme = theme;
+    if (theme === 'system') {
+      activeTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
+
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = (e: MediaQueryListEvent) => {
+        if (theme === 'system') {
+          document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+        }
+      };
+      mediaQuery.addEventListener('change', listener);
+      document.documentElement.setAttribute('data-theme', activeTheme);
+      localStorage.setItem('ide-theme', theme);
+
+      return () => mediaQuery.removeEventListener('change', listener);
+    } else {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('ide-theme', theme);
+    }
+  }, [theme]);
 
   useEffect(() => {
     loadSessions();
@@ -331,13 +358,14 @@ export default function AdminDashboard() {
 
   return (
     <div className="admin-container">
-      {/* Heavy Glassmorphic Vercel Header */}
       <div className="admin-header">
         <div className="admin-header-left">
-          <span className="admin-logo">
-            <Radar className="logo-icon" size={18} />
-            Sonar Admin
-          </span>
+          <div className="admin-logo">
+            <span className="logo-icon-wrapper">
+              <Radar className="logo-icon" size={20} />
+            </span>
+            <span className="logo-text">Sonar Admin</span>
+          </div>
           <span className="admin-live-badge">
             <span className="live-dot" />
             Live System
@@ -401,9 +429,9 @@ export default function AdminDashboard() {
               <div className="stat-body">
                 <span className="stat-value offline">{offlineCount}</span>
               </div>
-              <div className="stat-bar"><div className="stat-bar-fill offline" style={{ width: `${teams.length ? (offlineCount/teams.length)*100 : 0}%` }} /></div>
+              <div className="stat-bar"><div className="stat-bar-fill offline" style={{ width: `${teams.length ? (offlineCount / teams.length) * 100 : 0}%` }} /></div>
             </div>
-            
+
             <div className="stat-card">
               <div className="stat-card-header">
                 <div className="stat-icon accent"><Activity size={16} /></div>
@@ -419,36 +447,36 @@ export default function AdminDashboard() {
 
         {/* Global Action Insights */}
         <div className="admin-insights-row">
-           <div className="insight-card">
-              <div className="insight-card-header">
-                <div className="insight-title"><Monitor size={16} /> Top Distracting Apps Detected</div>
-                <span className="insight-stat-pill">Platform Wide</span>
-              </div>
-              {globalInsights.topApps.length > 0 ? (
-                <div className="top-apps-list">
-                  {globalInsights.topApps.map(([app, count], idx) => {
-                    const isFlagged = app.toLowerCase().includes('discord') || app.toLowerCase().includes('youtube') || app.toLowerCase().includes('whatsapp');
-                    const maxCount = globalInsights.topApps[0][1];
-                    const pct = Math.round((count / maxCount) * 100);
-                    return (
-                      <div key={idx} className="top-app-item">
-                        <div className="top-app-header">
-                          <span className={`top-app-name ${isFlagged ? 'flagged' : ''}`}>{app}</span>
-                          <span className="top-app-count">{count} switches</span>
-                        </div>
-                        <div className="top-app-bar">
-                          <div className={`top-app-bar-fill ${isFlagged ? 'non-ide' : ''}`} style={{ width: `${pct}%`, background: isFlagged ? '#f59e0b' : 'rgba(255,255,255,0.2)' }} />
-                        </div>
+          <div className="insight-card">
+            <div className="insight-card-header">
+              <div className="insight-title"><Monitor size={16} /> Top Distracting Apps Detected</div>
+              <span className="insight-stat-pill">Platform Wide</span>
+            </div>
+            {globalInsights.topApps.length > 0 ? (
+              <div className="top-apps-list">
+                {globalInsights.topApps.map(([app, count], idx) => {
+                  const isFlagged = app.toLowerCase().includes('discord') || app.toLowerCase().includes('youtube') || app.toLowerCase().includes('whatsapp');
+                  const maxCount = globalInsights.topApps[0][1];
+                  const pct = Math.round((count / maxCount) * 100);
+                  return (
+                    <div key={idx} className="top-app-item">
+                      <div className="top-app-header">
+                        <span className={`top-app-name ${isFlagged ? 'flagged' : ''}`}>{app}</span>
+                        <span className="top-app-count">{count} switches</span>
                       </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="insight-empty">
-                  <span style={{opacity: 0.5}}>No off-IDE app switches detected yet</span>
-                </div>
-              )}
-           </div>
+                      <div className="top-app-bar">
+                        <div className={`top-app-bar-fill ${isFlagged ? 'non-ide' : ''}`} style={{ width: `${pct}%`, background: isFlagged ? '#f59e0b' : 'rgba(255,255,255,0.2)' }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="insight-empty">
+                <span style={{ opacity: 0.5 }}>No off-IDE app switches detected yet</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Sticky Toolbar */}
@@ -456,9 +484,9 @@ export default function AdminDashboard() {
           <div className="controls-left">
             <div className="search-wrapper">
               <Search className="search-icon" size={16} />
-              <input 
-                type="text" 
-                placeholder="Search candidates..." 
+              <input
+                type="text"
+                placeholder="Search candidates..."
                 className="admin-search-input"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -477,10 +505,10 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="controls-right">
-             <div className="view-toggle">
-                <button className={`view-btn ${viewMode === 'table' ? 'active' : ''}`} onClick={() => setViewMode('table')} title="List View"><List size={16} /></button>
-                <button className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')} title="Grid View"><LayoutGrid size={16} /></button>
-             </div>
+            <div className="view-toggle">
+              <button className={`view-btn ${viewMode === 'table' ? 'active' : ''}`} onClick={() => setViewMode('table')} title="List View"><List size={16} /></button>
+              <button className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')} title="Grid View"><LayoutGrid size={16} /></button>
+            </div>
           </div>
         </div>
 
@@ -493,7 +521,7 @@ export default function AdminDashboard() {
             </div>
           ) : filteredTeams.length === 0 ? (
             <div className="state-container">
-              <ShieldAlert size={32} style={{opacity: 0.3}} />
+              <ShieldAlert size={32} style={{ opacity: 0.3 }} />
               <span>No candidates match parameters.</span>
             </div>
           ) : viewMode === 'table' ? (
@@ -519,7 +547,7 @@ export default function AdminDashboard() {
                   {filteredTeams.map((team) => {
                     const metrics = teamMetrics.get(team.teamId);
                     const riskLevel = metrics && metrics.appBlurCount > 10 ? 'high' : (metrics && metrics.appBlurCount > 3 ? 'medium' : 'low');
-                    
+
                     return (
                       <tr key={team.teamId} className={`team-row ${team.status}`}>
                         <td>
@@ -592,7 +620,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="gc-body">
                       <div className="gc-stat-row">
                         <span className="gc-label">Active Window</span>
@@ -603,15 +631,15 @@ export default function AdminDashboard() {
                         <span className="gc-val truncate" title={team.currentFile || 'N/A'}>{team.currentFile || 'N/A'}</span>
                       </div>
                       {metrics && (
-                         <div className="gc-stat-row mt-4">
-                           <span className="gc-label">Away / Focus Loss</span>
-                           <span className={`gc-val ${metrics.appBlurCount > 3 ? 'warn' : ''}`}>{metrics.appBlurCount} events</span>
-                         </div>
+                        <div className="gc-stat-row mt-4">
+                          <span className="gc-label">Away / Focus Loss</span>
+                          <span className={`gc-val ${metrics.appBlurCount > 3 ? 'warn' : ''}`}>{metrics.appBlurCount} events</span>
+                        </div>
                       )}
                     </div>
-                    
+
                     <div className="gc-footer">
-                      <span className="gc-time"><Clock size={12}/> {formatTime(team.lastSeen)}</span>
+                      <span className="gc-time"><Clock size={12} /> {formatTime(team.lastSeen)}</span>
                       <button className="gc-btn" onClick={() => handleOpenReport(team)}>Report</button>
                     </div>
                   </div>
@@ -634,6 +662,8 @@ export default function AdminDashboard() {
         onClose={() => setShowSettings(false)}
         user={user}
         onLogout={logout}
+        theme={theme}
+        onThemeChange={setTheme}
         onTeamNameUpdated={(newName) => {
           const updated = { ...user!, teamName: newName };
           localStorage.setItem('sonar_session', JSON.stringify(updated));

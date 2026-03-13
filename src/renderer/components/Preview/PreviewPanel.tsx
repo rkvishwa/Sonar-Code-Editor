@@ -151,11 +151,11 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
       wv.removeEventListener('console-message', onConsoleMessage);
       wv.removeEventListener('dom-ready', onDomReady);
     };
-  }, [serverUrl]);
+  }, [serverUrl, initialUrl]);
 
   useEffect(() => {
     const handleFileSaved = () => {
-      (webviewRef.current as any)?.reload();
+      try { (webviewRef.current as any)?.reload(); } catch (e) {}
     };
     window.addEventListener('file-saved', handleFileSaved as EventListener);
     return () => {
@@ -177,27 +177,35 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
         if (targetUrl !== currentUrl) {
           setCurrentUrl(targetUrl);
           setInputUrl(targetUrl);
-          (webviewRef.current as any).loadURL(targetUrl);
+          try {
+            (webviewRef.current as any).loadURL(targetUrl);
+          } catch (e) {
+            try { (webviewRef.current as any).src = targetUrl; } catch (e2) {}
+          }
         }
       }
     }
   }, [activeFilePath, serverUrl, workspaceRoot, followFile]);
 
   const refresh = useCallback(() => {
-    (webviewRef.current as any)?.reload();
+    try { (webviewRef.current as any)?.reload(); } catch (e) {}
   }, []);
 
   const goBack = useCallback(() => {
-    (webviewRef.current as any)?.goBack();
+    try { (webviewRef.current as any)?.goBack(); } catch (e) {}
   }, []);
 
   const goForward = useCallback(() => {
-    (webviewRef.current as any)?.goForward();
+    try { (webviewRef.current as any)?.goForward(); } catch (e) {}
   }, []);
 
   const navigateHome = useCallback(() => {
     if (serverUrl && webviewRef.current) {
-      (webviewRef.current as any).loadURL(serverUrl);
+      try {
+        (webviewRef.current as any).loadURL(serverUrl);
+      } catch (e) {
+        try { (webviewRef.current as any).src = serverUrl; } catch (e2) {}
+      }
     }
   }, [serverUrl]);
 
@@ -235,7 +243,11 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
 
     setInputUrl(targetUrl);
     setCurrentUrl(targetUrl);
-    (webviewRef.current as any).loadURL(targetUrl);
+    try {
+      (webviewRef.current as any).loadURL(targetUrl);
+    } catch (e) {
+      try { (webviewRef.current as any).src = targetUrl; } catch (e2) {}
+    }
   }, [inputUrl, serverUrl]);
 
   const openInspector = useCallback(() => {
@@ -316,7 +328,7 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
         <div className="preview-body" style={{ alignItems: 'center', justifyContent: 'center' }}>
           <div className="empty-state">
             <MonitorPlay size={48} className="empty-icon" />
-            <p>Open a folder (or file) to start the preview server</p>
+            <p>Open a folder to start the preview server</p>
           </div>
         </div>
       </div>
