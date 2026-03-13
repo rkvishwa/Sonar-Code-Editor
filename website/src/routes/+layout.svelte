@@ -1,16 +1,28 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/state';
-	import { Github, Download, Home } from 'lucide-svelte';
+	import { Github, Download, Home, Menu, X } from 'lucide-svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	let { children } = $props();
 
 	// Computed for active navigation
-	const isActive = (path: string) => page.url.pathname === path || page.url.pathname.startsWith(`${path}/`);
+	const isActive = (path: string) => page.url.pathname === path || (path !== '/' && page.url.pathname.startsWith(`${path}/`));
 	const navLinkClass = (path: string) =>
 		isActive(path)
 			? 'text-cyan-700 dark:text-cyan-200'
 			: 'text-zinc-700 dark:text-zinc-100/82 hover:text-cyan-700 dark:hover:text-cyan-200';
+
+	let isMobileMenuOpen = $state(false);
+
+	function toggleMobileMenu() {
+		isMobileMenuOpen = !isMobileMenuOpen;
+	}
+
+	// Close menu on navigation
+	$effect(() => {
+		page.url.pathname;
+		isMobileMenuOpen = false;
+	});
 </script>
 
 <div class="relative isolate min-h-screen flex flex-col overflow-x-clip bg-[#f7fbff] dark:bg-[#071018] text-zinc-900 dark:text-zinc-50 font-sans selection:bg-cyan-400/20 transition-colors duration-200">
@@ -21,7 +33,7 @@
 	</div>
 
 	<header class="fixed top-0 z-[100] w-full px-4 pt-3 sm:px-6">
-		<div class="header-shell relative mx-auto max-w-7xl rounded-2xl border border-cyan-400/30 dark:border-cyan-400/20 bg-[#e9f3ff]/78 dark:bg-[#040a16]/94 shadow-[0_18px_46px_-24px_rgba(3,40,58,0.45)] dark:shadow-[0_18px_46px_-24px_rgba(2,12,27,0.9)] backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-200">
+		<div class="header-shell relative mx-auto w-full max-w-[1400px] rounded-2xl border border-cyan-400/30 dark:border-cyan-400/20 bg-[#e9f3ff]/78 dark:bg-[#040a16]/94 shadow-[0_18px_46px_-24px_rgba(3,40,58,0.45)] dark:shadow-[0_18px_46px_-24px_rgba(2,12,27,0.9)] backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-200">
 
 			<div class="relative flex h-16 items-center justify-between px-4 sm:px-6">
 				<a href="/" class="flex items-center space-x-3 text-xl font-bold">
@@ -55,34 +67,71 @@
 				</nav>
 
 				<div class="flex items-center space-x-2 sm:space-x-3">
-					<a href="/" class="md:hidden inline-flex items-center justify-center rounded-xl border border-cyan-400/38 dark:border-cyan-300/35 bg-white/74 dark:bg-cyan-500/12 p-2 text-cyan-700 dark:text-cyan-100 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors" aria-label="Home">
-						<Home size={18} />
-					</a>
-					<ThemeToggle />
-					<a
-						href="https://github.com/rkvishwa/Sonar-Code-Editor"
-						target="_blank"
-						rel="noreferrer"
-						class="rounded-xl border border-cyan-400/38 dark:border-cyan-300/35 bg-white/74 dark:bg-white/10 p-2 text-zinc-700 dark:text-zinc-100/85 hover:text-cyan-700 dark:hover:text-cyan-200 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors"
-						aria-label="GitHub Repository"
-					>
-						<Github size={18} />
-					</a>
-					<a
-						href="/download"
-						class="rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 transition-all hover:from-cyan-400 hover:to-blue-500"
-					>
-						<span class="inline-flex items-center space-x-2">
-							<Download size={16} />
-							<span class="hidden sm:inline">Download</span>
-						</span>
-					</a>
+					<div class="hidden md:flex items-center space-x-2 sm:space-x-3">
+						<ThemeToggle />
+						<a
+							href="https://github.com/rkvishwa/Sonar-Code-Editor"
+							target="_blank"
+							rel="noreferrer"
+							class="rounded-xl border border-cyan-400/38 dark:border-cyan-300/35 bg-white/74 dark:bg-white/10 p-2 text-zinc-700 dark:text-zinc-100/85 hover:text-cyan-700 dark:hover:text-cyan-200 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors"
+							aria-label="GitHub Repository"
+						>
+							<Github size={18} />
+						</a>
+						<a
+							href="/download"
+							class="rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 transition-all hover:from-cyan-400 hover:to-blue-500"
+						>
+							<span class="inline-flex items-center space-x-2">
+								<Download size={16} />
+								<span>Download</span>
+							</span>
+						</a>
+					</div>
+					<button onclick={toggleMobileMenu} class="md:hidden inline-flex items-center justify-center rounded-xl border border-cyan-400/38 dark:border-cyan-300/35 bg-white/74 dark:bg-cyan-500/12 p-2 text-cyan-700 dark:text-cyan-100 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors" aria-label="Menu">
+						{#if isMobileMenuOpen}
+							<X size={18} />
+						{:else}
+							<Menu size={18} />
+						{/if}
+					</button>
 				</div>
 			</div>
+
+			{#if isMobileMenuOpen}
+				<div class="md:hidden border-t border-cyan-400/20 px-4 py-4 space-y-4">
+					<nav class="flex flex-col gap-3 font-semibold text-sm">
+						<a href="/" class={navLinkClass('/')}>Home</a>
+						<a href="/docs" class={navLinkClass('/docs')}>Documentation</a>
+						<a href="/developer" class={navLinkClass('/developer')}>Architecture</a>
+						<a href="/about" class={navLinkClass('/about')}>About</a>
+						<a href="/contact" class={navLinkClass('/contact')}>Contact</a>
+					</nav>
+					<div class="flex items-center gap-3 pt-4 border-t border-cyan-400/20">
+						<ThemeToggle />
+						<a
+							href="https://github.com/rkvishwa/Sonar-Code-Editor"
+							target="_blank"
+							rel="noreferrer"
+							class="rounded-xl border border-cyan-400/38 dark:border-cyan-300/35 bg-white/74 dark:bg-white/10 p-2 text-zinc-700 dark:text-zinc-100/85 hover:text-cyan-700 dark:hover:text-cyan-200 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors flex-1 flex justify-center items-center"
+							aria-label="GitHub Repository"
+						>
+							<Github size={18} />
+						</a>
+						<a
+							href="/download"
+							class="rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 transition-all hover:from-cyan-400 hover:to-blue-500 flex-1 flex justify-center items-center gap-2"
+						>
+							<Download size={16} />
+							<span>Download</span>
+						</a>
+					</div>
+				</div>
+			{/if}
 		</div>
 	</header>
 
-	<main class="relative z-10 flex-1 flex flex-col">
+	<main class="relative z-10 flex-1 flex flex-col pt-12 sm:pt-0">
 		{#key page.url.pathname}
 			<div class="page-load-smooth">
 				{@render children()}
@@ -97,10 +146,11 @@
 				<span class="font-medium text-zinc-700 dark:text-zinc-300">Sonar Code Editor</span>
 			</div>
 			
-			<div class="flex space-x-8">
+			<div class="flex flex-wrap gap-x-8 gap-y-4 justify-center md:justify-start">
 				<a href="/docs" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">Documentation</a>
 				<a href="/developer" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">Architecture</a>
 				<a href="/contact" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">Contact Us</a>
+				<a href="/privacy" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">Privacy Policy</a>
 				<a href="https://github.com/rkvishwa/Sonar-Code-Editor" target="_blank" rel="noreferrer" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">GitHub</a>
 			</div>
 			
