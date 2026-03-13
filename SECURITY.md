@@ -26,5 +26,5 @@ To function as a monitored evaluation environment, the application requires and 
 
 If you discover a security vulnerability within Sonar Code Editor, please **do not** open a public issue. 
 
-Instead, please send an e-mail to the maintainers at `hello@brainvave.com`.
+Instead, please send an e-mail to the maintainers at `hello@knurdz.org`
 We will review your disclosure and respond as soon as possible, outlining the next steps for patching and a timeline for a coordinated release.

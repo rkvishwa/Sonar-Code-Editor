@@ -52,10 +52,6 @@
 						Documentation
 						<span class={`absolute left-0 -bottom-1 h-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all ${isActive('/docs') ? 'w-full opacity-100' : 'w-0 opacity-0'}`}></span>
 					</a>
-					<a href="/developer" class={`relative pb-1 transition-colors ${navLinkClass('/developer')}`}>
-						Architecture
-						<span class={`absolute left-0 -bottom-1 h-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all ${isActive('/developer') ? 'w-full opacity-100' : 'w-0 opacity-0'}`}></span>
-					</a>
 					<a href="/about" class={`relative pb-1 transition-colors ${navLinkClass('/about')}`}>
 						About
 						<span class={`absolute left-0 -bottom-1 h-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all ${isActive('/about') ? 'w-full opacity-100' : 'w-0 opacity-0'}`}></span>
@@ -103,10 +99,6 @@
 					<nav class="flex flex-col gap-3 font-semibold text-sm">
 						<a href="/" class={navLinkClass('/')}>Home</a>
 						<a href="/docs" class={navLinkClass('/docs')}>Documentation</a>
-						<a href="/developer" class={navLinkClass('/developer')}>Architecture</a>
-						<a href="/about" class={navLinkClass('/about')}>About</a>
-						<a href="/contact" class={navLinkClass('/contact')}>Contact</a>
-					</nav>
 					<div class="flex items-center gap-3 pt-4 border-t border-cyan-400/20">
 						<ThemeToggle />
 						<a
@@ -148,10 +140,6 @@
 			
 			<div class="flex flex-wrap gap-x-8 gap-y-4 justify-center md:justify-start">
 				<a href="/docs" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">Documentation</a>
-				<a href="/developer" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">Architecture</a>
-				<a href="/contact" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">Contact Us</a>
-				<a href="/privacy" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">Privacy Policy</a>
-				<a href="https://github.com/rkvishwa/Sonar-Code-Editor" target="_blank" rel="noreferrer" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">GitHub</a>
 			</div>
 			
 			<div class="mt-6 md:mt-0">

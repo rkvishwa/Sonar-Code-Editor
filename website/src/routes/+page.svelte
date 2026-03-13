@@ -429,7 +429,7 @@ Real-time collaboration, exam monitoring, and secure coding - powered by Monaco 
 				<div class="w-10 h-10 rounded-xl bg-white/10 dark:bg-black/5 flex items-center justify-center text-white dark:text-zinc-900 mb-4 group-hover:scale-110 transition-transform">
 					<Terminal size={20} strokeWidth={1.8} />
 				</div>
-				<h3 class="text-base font-semibold text-white dark:text-zinc-900 mb-1">Explore Architecture</h3>
+				<h3 class="text-base font-semibold text-white dark:text-zinc-900 mb-1">Explore Documentation</h3>
 				<span class="text-xs text-zinc-400 dark:text-zinc-500 flex items-center gap-1">
 					View docs <ArrowRight size={11} class="group-hover:translate-x-0.5 transition-transform" />
 				</span>
