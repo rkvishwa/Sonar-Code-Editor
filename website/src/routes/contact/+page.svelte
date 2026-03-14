@@ -33,10 +33,10 @@
   />
 </svelte:head>
 
-<div class="relative overflow-hidden px-6 pt-24 pb-20 sm:pt-28 lg:pt-32">
-  <div class="relative max-w-6xl mx-auto">
+<div class="relative overflow-hidden px-6 pt-12 pb-20 sm:pt-16 lg:pt-20">
+  <div class="relative max-w-[1200px] mx-auto">
     <div class="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] items-start">
-      <section class="pt-6 lg:pt-10">
+      <section class="pt-0 lg:pt-2">
         <div
           class="inline-flex items-center gap-2 rounded-full border border-cyan-200/80 dark:border-cyan-400/20 bg-white/80 dark:bg-cyan-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700 dark:text-cyan-300 shadow-sm backdrop-blur-sm"
         >

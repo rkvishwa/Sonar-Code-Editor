@@ -116,7 +116,7 @@
 </svelte:head>
 
 <div
-  class="px-6 pt-24 pb-12 lg:pt-32 lg:pb-20 max-w-7xl mx-auto w-full flex flex-col md:flex-row gap-12 transition-colors duration-200"
+  class="px-6 pt-12 pb-12 lg:pt-16 lg:pb-20 max-w-[1200px] mx-auto w-full flex flex-col md:flex-row gap-12 transition-colors duration-200"
 >
   <!-- Sidebar Navigation -->
   <aside
