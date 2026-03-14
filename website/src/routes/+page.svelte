@@ -175,7 +175,7 @@
                 <button
                   onclick={copyMacLink}
                   aria-label="Copy link"
-                  class="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all
+                  class="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all cursor-pointer
 				{linkCopied
                     ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                     : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400'}"
@@ -204,10 +204,19 @@
             <div class="w-full sm:w-auto">
               <a
                 href="/download"
-                class="shake-btn group w-full sm:w-auto px-6 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 font-semibold rounded-lg shadow-lg shadow-zinc-900/10 dark:shadow-white/10 flex items-center justify-center gap-2 text-sm transition-all hover:-translate-y-0.5 active:translate-y-0"
+                class="group relative overflow-hidden w-full sm:w-auto px-6 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:text-white dark:hover:text-white font-semibold rounded-lg shadow-lg shadow-zinc-900/10 dark:shadow-white/10 hover:shadow-[0_0_18px_rgba(6,182,212,0.4)] flex items-center justify-center text-sm transition-all duration-300 hover:-translate-y-1 active:translate-y-0"
               >
-                <Download size={15} />
-                <span>Download for Windows</span>
+                <div
+                  class="absolute inset-0 flex items-center justify-center pointer-events-none z-0"
+                >
+                  <div
+                    class="w-0 h-full bg-cyan-600 dark:bg-cyan-500 rounded-full group-hover:w-[150%] group-hover:scale-x-110 transition-all duration-500 ease-out"
+                  ></div>
+                </div>
+                <div class="relative z-10 flex items-center gap-2">
+                  <Download size={15} />
+                  <span>Download for Windows</span>
+                </div>
               </a>
               <p
                 class="mt-3 text-[11px] font-medium text-zinc-500 dark:text-zinc-400"
@@ -226,10 +235,19 @@
             <div class="w-full sm:w-auto">
               <a
                 href="/download"
-                class="shake-btn group w-full sm:w-auto px-6 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 font-semibold rounded-lg shadow-lg shadow-zinc-900/10 dark:shadow-white/10 flex items-center justify-center gap-2 text-sm transition-all hover:-translate-y-0.5 active:translate-y-0"
+                class="group relative overflow-hidden w-full sm:w-auto px-6 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:text-white dark:hover:text-white font-semibold rounded-lg shadow-lg shadow-zinc-900/10 dark:shadow-white/10 hover:shadow-[0_0_18px_rgba(6,182,212,0.4)] flex items-center justify-center text-sm transition-all duration-300 hover:-translate-y-1 active:translate-y-0"
               >
-                <Download size={15} />
-                <span>Download Sonar IDE</span>
+                <div
+                  class="absolute inset-0 flex items-center justify-center pointer-events-none z-0"
+                >
+                  <div
+                    class="w-0 h-full bg-cyan-600 dark:bg-cyan-500 rounded-full group-hover:w-[150%] group-hover:scale-x-110 transition-all duration-500 ease-out"
+                  ></div>
+                </div>
+                <div class="relative z-10 flex items-center gap-2">
+                  <Download size={15} />
+                  <span>Download Sonar IDE</span>
+                </div>
               </a>
               <p
                 class="mt-4 text-xs text-zinc-600 dark:text-zinc-400 text-center sm:text-left"
@@ -244,7 +262,7 @@
           {/if}
           <a
             href="/docs"
-            class="shake-btn group w-full sm:w-auto px-6 py-2.5 bg-white/70 dark:bg-white/[0.06] hover:bg-white dark:hover:bg-white/[0.1] backdrop-blur-md text-zinc-700 dark:text-zinc-300 font-medium rounded-lg flex items-center justify-center gap-2 border border-zinc-200/80 dark:border-white/[0.08] text-sm transition-all hover:-translate-y-0.5 active:translate-y-0 hover:shadow-sm"
+            class="group w-full sm:w-auto px-6 py-2.5 bg-white/70 dark:bg-white/[0.06] hover:bg-white dark:hover:bg-white/[0.1] backdrop-blur-md text-zinc-700 dark:text-zinc-300 font-medium rounded-lg flex items-center justify-center gap-2 border border-zinc-200/80 dark:border-white/[0.08] text-sm transition-all hover:-translate-y-0.5 active:translate-y-0 hover:shadow-sm"
           >
             <span>Read Docs</span>
             <ArrowRight
@@ -1137,33 +1155,6 @@
     }
   }
   /* --- Shake button --- */
-  @keyframes shake {
-    0%,
-    100% {
-      transform: translate(0, -2px);
-    }
-    15% {
-      transform: translate(-4px, -2px);
-    }
-    30% {
-      transform: translate(4px, -2px);
-    }
-    45% {
-      transform: translate(-3px, -2px);
-    }
-    60% {
-      transform: translate(3px, -2px);
-    }
-    75% {
-      transform: translate(-2px, -2px);
-    }
-    90% {
-      transform: translate(2px, -2px);
-    }
-  }
-  .shake-btn:hover {
-    animation: shake 0.4s ease;
-  }
   @keyframes marqueeRight {
     0% {
       transform: translateX(-50%);
