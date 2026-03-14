@@ -80,58 +80,63 @@
     <div class="flex flex-col items-center justify-center gap-4 mb-12">
       {#if clientOS === "mac"}
         <div
-          class="w-full max-w-2xl rounded-2xl border border-cyan-300/40 dark:border-cyan-400/30 bg-white/70 dark:bg-white/5 p-4 sm:p-5"
+          class="w-full max-w-2xl rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-black/5 dark:bg-black/20 backdrop-blur-md p-6 sm:p-8 flex flex-col items-center gap-6 shadow-sm"
         >
-          <label
-            for="download-mac-link"
-            class="mb-2 text-xs uppercase tracking-[0.15em] font-semibold text-cyan-700 dark:text-cyan-300 inline-flex items-center gap-2"
-          >
-            <Terminal size={12} />
-            <span>macOS Install Command</span>
-          </label>
-          <div
-            class="rounded-xl border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-white/3 p-1.5 backdrop-blur-md flex items-center shadow-sm transition-colors hover:border-zinc-300 dark:hover:border-white/20"
-          >
-            <div class="flex items-center flex-1 min-w-0 pl-3">
-              <span class="text-zinc-500 font-mono mr-2 shrink-0">$</span>
-              <input
-                id="download-mac-link"
-                type="text"
-                value={macInstallCommand}
-                readonly
-                onclick={(event) =>
-                  (event.currentTarget as HTMLInputElement).select()}
-                class="bg-transparent text-sm font-mono text-zinc-700 dark:text-zinc-300 w-full outline-none truncate cursor-copy selection:bg-cyan-500/20"
-              />
-            </div>
-            <button
-              onclick={copyMacLink}
-              aria-label="Copy command"
-              class="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all cursor-pointer
-                {linkCopied
-                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400'}"
+          <div class="w-full">
+            <label
+              for="download-mac-link"
+              class="mb-3 text-[11px] uppercase tracking-[0.2em] font-semibold text-cyan-600 dark:text-cyan-400 justify-center flex items-center gap-2"
             >
-              {#if linkCopied}
-                <Check size={14} />
-              {:else}
-                <Copy size={14} />
-              {/if}
-            </button>
+              <Terminal size={14} />
+              <span>macOS Install Command</span>
+            </label>
+            <div
+              class="rounded-xl border border-zinc-200/80 dark:border-white/10 bg-white/50 dark:bg-white/5 p-1.5 backdrop-blur-md flex items-center shadow-sm transition-colors hover:border-zinc-300 dark:hover:border-white/20"
+            >
+              <div class="flex items-center flex-1 min-w-0 pl-3">
+                <span class="text-zinc-500 font-mono mr-2 shrink-0">$</span>
+                <input
+                  id="download-mac-link"
+                  type="text"
+                  value={macInstallCommand}
+                  readonly
+                  onclick={(event) =>
+                    (event.currentTarget as HTMLInputElement).select()}
+                  class="bg-transparent text-sm font-mono text-zinc-700 dark:text-zinc-300 w-full outline-none truncate cursor-copy selection:bg-cyan-500/20"
+                />
+              </div>
+              <button
+                onclick={copyMacLink}
+                aria-label="Copy command"
+                class="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all cursor-pointer
+                  {linkCopied
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400'}"
+              >
+                {#if linkCopied}
+                  <Check size={14} />
+                {:else}
+                  <Copy size={14} />
+                {/if}
+              </button>
+            </div>
+            <p
+              class="mt-3 text-xs text-zinc-600 dark:text-zinc-400 text-center"
+            >
+              Run this command in your terminal using Homebrew.
+            </p>
           </div>
-          <p class="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
-            Run this command in your terminal using Homebrew.
-          </p>
-          <div class="mt-5 w-full">
+
+          <div class="w-full">
             <label
               for="mac-update-link"
-              class="mb-2 text-xs text-zinc-500 dark:text-zinc-400 block font-medium"
-              >Already installed an older version? <span
+              class="mb-3 text-xs text-zinc-500 dark:text-zinc-400 font-medium justify-center flex items-center"
+              >Already installed an older version?&nbsp;<span
                 class="text-cyan-600 dark:text-cyan-400">Update here:</span
               ></label
             >
             <div
-              class="rounded-xl border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-white/3 p-1.5 backdrop-blur-md flex items-center shadow-sm transition-colors hover:border-zinc-300 dark:hover:border-white/20"
+              class="rounded-xl border border-zinc-200/80 dark:border-white/10 bg-white/50 dark:bg-white/5 p-1.5 backdrop-blur-md flex items-center shadow-sm transition-colors hover:border-zinc-300 dark:hover:border-white/20"
             >
               <div class="flex items-center flex-1 min-w-0 pl-3">
                 <span class="text-zinc-500 font-mono mr-2 shrink-0">$</span>
