@@ -887,6 +887,13 @@ export function CollaborationProvider({
 
       awareness.on("change", safeRerenderDecorations);
 
+      // Immediately render any remote cursors that are already in awareness
+      // state at bind time.  Without this initial pass, a machine that opens
+      // the file AFTER other peers are already editing will not see their
+      // cursors until those peers next move — their existing position is
+      // invisible to the late-joiner.
+      safeRerenderDecorations();
+
       // 3. Also re-render decorations after each Y.Text change so that
       //    remote cursors update positions as content shifts.
       const ytextDecorObserver = () => {
