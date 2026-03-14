@@ -1,15 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import {
-    Download,
-    Monitor,
-    ShieldAlert,
-    WifiOff,
-    Link2,
-    Copy,
-    Check,
-    Terminal,
-  } from "lucide-svelte";
+  import Download from "lucide-svelte/icons/download";
+  import Monitor from "lucide-svelte/icons/monitor";
+  import ShieldAlert from "lucide-svelte/icons/shield-alert";
+  import WifiOff from "lucide-svelte/icons/wifi-off";
+  import Link2 from "lucide-svelte/icons/link-2";
+  import Copy from "lucide-svelte/icons/copy";
+  import Check from "lucide-svelte/icons/check";
+  import Terminal from "lucide-svelte/icons/terminal";
 
   type ClientOS = "windows" | "mac" | "other";
 
