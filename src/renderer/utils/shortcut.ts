@@ -6,12 +6,12 @@ export function formatKey(key: string): string {
     switch (key.toLowerCase()) {
         case 'ctrl':
         case 'control':
-            return 'Cmd';
+            return '⌘';
         case 'alt':
             return 'Option';
         case 'windows':
         case 'win':
-            return 'Cmd';
+            return '⌘';
         default:
             return key;
     }
@@ -23,9 +23,9 @@ export function formatShortcut(shortcutString: string): string {
     // Replace common Windows modifier keys with their Mac equivalents.
     // E.g. "Ctrl+B" -> "Cmd+B", "Ctrl+Alt+Enter" -> "Cmd+Option+Enter"
     return shortcutString
-        .replace(/\bCtrl\b/gi, 'Cmd')
-        .replace(/\bControl\b/gi, 'Cmd')
+        .replace(/\bCtrl\b/gi, '⌘')
+        .replace(/\bControl\b/gi, '⌘')
         .replace(/\bAlt\b/gi, 'Option')
-        .replace(/\bWin\b/gi, 'Cmd')
-        .replace(/\bWindows\b/gi, 'Cmd');
+        .replace(/\bWin\b/gi, '⌘')
+        .replace(/\bWindows\b/gi, '⌘');
 }
