@@ -747,7 +747,7 @@ export function CollaborationProvider({
             targetYText,
             model,
             new Set([monacoEditor]),
-            null, // Don't let y-monaco manage cursor awareness
+            providerRef.current!.awareness, // Let y-monaco manage basic selections internally
           );
 
           // 1. Send local cursor position
@@ -1014,16 +1014,16 @@ export function CollaborationProvider({
         // bind to this new object do not experience lingering y-monaco corrupted
         // observers or fractured tombstoned CRDT items.
         // First delete contents of the old one in case anyone happens to still be observing it
-        if (ytext) {
-          ydocRef.current.transact(() => {
+        ydocRef.current.transact(() => {
+          if (ytext) {
             ytext!.delete(0, ytext!.length);
-          });
-        }
-        const freshText = new Y.Text();
-        if (content.length > 0) {
-          freshText.insert(0, content);
-        }
-        fileSystem.set(docName, freshText);
+          }
+          const freshText = new Y.Text();
+          fileSystem.set(docName, freshText);
+          if (content.length > 0) {
+            freshText.insert(0, content);
+          }
+        });
       } else {
         if (!ytext) {
           ytext = new Y.Text();
