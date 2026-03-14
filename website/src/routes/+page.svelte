@@ -96,16 +96,16 @@
 
 <!-- Hero Section -->
 <section
-  class="relative w-full pt-20 sm:pt-24 xl:pt-32 pb-32 sm:pb-40 overflow-hidden min-h-screen flex flex-col items-center justify-center px-4 sm:px-6"
+  class="relative w-full pt-8 mt-4 sm:pt-12 sm:mt-6 pb-32 sm:pb-40 overflow-hidden min-h-[85vh] flex flex-col items-center justify-start px-4 sm:px-6"
 >
-  <!-- Radial fade mask for top/sides -->
+  <!-- Background grid or mask if any (Disabled to fix hard edge) -->
   <div
-    class="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(circle_at_top,transparent_16%,rgba(247,251,255,0.96)_78%)] dark:bg-[radial-gradient(circle_at_top,transparent_16%,rgba(7,16,24,0.94)_78%)]"
+    class="absolute inset-0 z-0 pointer-events-none"
   ></div>
 
   <!-- Hero Content Wrapper matching Header width -->
   <div
-    class="relative z-10 w-full max-w-[1400px] mx-auto flex flex-col items-center justify-center"
+    class="relative z-10 w-full max-w-[1200px] mx-auto flex flex-col items-center justify-center"
   >
     <!-- Hero Two-Column Layout -->
     <div

@@ -6,7 +6,7 @@
 	<meta name="description" content="Privacy Policy for Sonar Code Editor" />
 </svelte:head>
 
-<section class="max-w-4xl mx-auto px-6 pt-32 pb-24 sm:pt-40 sm:pb-32">
+<section class="max-w-4xl mx-auto px-6 pt-10 pb-20 lg:pt-16 sm:pb-32">
 	<div class="max-w-3xl mx-auto">
 		<h1 class="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white mb-6">Privacy Policy</h1>
 		
