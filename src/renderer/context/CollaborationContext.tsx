@@ -181,7 +181,7 @@ export function CollaborationProvider({
   // Refs to store Yjs instances (persist across renders)
   const ydocRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<WebsocketProvider | null>(null);
-  const bindingRef = useRef<MonacoBinding | null>(null);
+  const bindingRef = useRef<{ destroy: () => void } | null>(null);
   const currentFileRef = useRef<string | null>(null);
   const currentEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -692,278 +692,242 @@ export function CollaborationProvider({
     }
   }, [cleanup]);
 
-  const bindEditor = useCallback(
-    (
-      monacoEditor: editor.IStandaloneCodeEditor,
-      filePath: string,
-      workspaceRoot?: string,
-    ) => {
-      if (!ydocRef.current || !providerRef.current) {
-        console.warn("Cannot bind editor: Collaboration not active");
-        return;
-      }
-
-      // Check if we're already bound to this file
-      if (currentFileRef.current === filePath && bindingRef.current) {
-        return;
-      }
-
-      // Clean up existing binding if switching files
-      safeDestroyBinding();
-
-      // Calculate relative path from workspace root for consistent docName across machines
-      let relativePath = filePath;
-      if (workspaceRoot) {
-        relativePath = toRelativePath(filePath, workspaceRoot);
-      }
-
-      // Create a sanitized document name from the relative path
-      // This ensures each file has its own Y.Text type and syncs across machines
-      const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
-      console.log(`Collaboration docName: ${docName} (from ${relativePath})`);
-
-      // Get or create the Y.Text type for this file
-      const fileSystem = ydocRef.current.getMap<Y.Text>("file_system");
-      let ytext = fileSystem.get(docName);
-      if (!ytext) {
-        ytext = new Y.Text();
-        fileSystem.set(docName, ytext);
-      }
-
-      const awareness = providerRef.current.awareness;
-      const doc = ydocRef.current;
-
-      // Get the Monaco model
-      const model = monacoEditor.getModel();
-      if (!model) {
-        console.warn("Cannot bind editor: No model");
-        return;
-      }
-
-      const currentYTextContent = ytext.toString();
-      const currentModelContent = model.getValue();
-
-      // Handle content synchronization:
-      // - If Y.Text has content (from another user), SET the model to match it
-      // - If Y.Text is empty but model has content (we're first), initialize Y.Text
-      // - If both are empty, nothing to do
-      if (
-        currentYTextContent.length > 0 &&
-        currentYTextContent !== currentModelContent
-      ) {
-        // Y.Text already has content from collaboration - sync model TO ytext
-        // This must happen BEFORE creating binding to avoid conflicts
-        console.log(
-          `Syncing model to collaborative content for: ${docName} (${currentYTextContent.length} chars)`,
-        );
-        model.setValue(currentYTextContent);
-      } else if (
-        currentYTextContent.length === 0 &&
-        currentModelContent.length > 0
-      ) {
-        // We're first to open this file - share our content
-        console.log(
-          `Initializing collaborative document from local file: ${docName}`,
-        );
-        ytext.insert(0, currentModelContent);
-      }
-
-      // ─── Create the MonacoBinding WITHOUT awareness ───────────────
-      // y-monaco has two bugs with cursor awareness:
-      //   1. onDidChangeCursorSelection handlers are never disposed in
-      //      destroy(), so they accumulate across rebinds and send stale
-      //      cursor positions.
-      //   2. _beforeTransaction (which saves cursor before remote edits)
-      //      is guarded by the same mutex as the model-change handler,
-      //      so it gets skipped during local typing — when a concurrent
-      //      remote edit arrives the local cursor isn't saved/restored
-      //      properly.
-      // We pass awareness=null so y-monaco doesn't register its broken
-      // cursor handlers, then set up our own properly-managed versions.
-      const binding = new MonacoBinding(
-        ytext,
-        model,
-        new Set([monacoEditor]),
-        null, // Don't let y-monaco manage cursor awareness
-      );
-
-      // ─── Our own cursor awareness management ─────────────────────
-      // These are properly disposed when destroy() is called.
-
-      // 1. Send local cursor position to awareness whenever it changes.
-      //    Also broadcast once immediately so peers see this machine's cursor
-      //    right after bind — without this initial publish, remote machines
-      //    only see the cursor after the user physically moves it.
-      const publishCursor = () => {
-        if (monacoEditor.getModel() !== model) return;
-        const sel = monacoEditor.getSelection();
-        if (sel === null) return;
-
-        let anchor = model.getOffsetAt(sel.getStartPosition());
-        let head = model.getOffsetAt(sel.getEndPosition());
-        if (sel.getDirection() === 1 /* RTL */) {
-          const tmp = anchor;
-          anchor = head;
-          head = tmp;
-        }
-
-        awareness.setLocalStateField("selection", {
-          anchor: Y.createRelativePositionFromTypeIndex(ytext, anchor),
-          head: Y.createRelativePositionFromTypeIndex(ytext, head),
-        });
-      };
-
-      const cursorDisposer = monacoEditor.onDidChangeCursorSelection(publishCursor);
-
-      // Broadcast current cursor position immediately so peers can see it
-      // without waiting for the first cursor-move event after this bind.
-      publishCursor();
-
-
-      // 2. Render remote cursor decorations when awareness changes
-      let decorationIds: string[] = [];
-      let isRerendering = false;
-
-      const rerenderDecorations = () => {
-        if (monacoEditor.getModel() !== model) return;
-        const newDecorations: any[] = [];
-
-        awareness.getStates().forEach((state: any, clientID: number) => {
-          if (
-            clientID !== doc.clientID &&
-            state.selection != null &&
-            state.selection.anchor != null &&
-            state.selection.head != null
-          ) {
-            const anchorAbs = Y.createAbsolutePositionFromRelativePosition(
-              state.selection.anchor,
-              doc,
-            );
-            const headAbs = Y.createAbsolutePositionFromRelativePosition(
-              state.selection.head,
-              doc,
-            );
-            if (
-              anchorAbs !== null &&
-              headAbs !== null &&
-              anchorAbs.type === ytext &&
-              headAbs.type === ytext
-            ) {
-              let start, end, afterContentClassName: string | null, beforeContentClassName: string | null;
-              if (anchorAbs.index < headAbs.index) {
-                start = model.getPositionAt(anchorAbs.index);
-                end = model.getPositionAt(headAbs.index);
-                afterContentClassName =
-                  "yRemoteSelectionHead yRemoteSelectionHead-" + clientID;
-                beforeContentClassName = null;
-              } else {
-                start = model.getPositionAt(headAbs.index);
-                end = model.getPositionAt(anchorAbs.index);
-                afterContentClassName = null;
-                beforeContentClassName =
-                  "yRemoteSelectionHead yRemoteSelectionHead-" + clientID;
-              }
-              newDecorations.push({
-                range: {
-                  startLineNumber: start.lineNumber,
-                  startColumn: start.column,
-                  endLineNumber: end.lineNumber,
-                  endColumn: end.column,
-                },
-                options: {
-                  className:
-                    "yRemoteSelection yRemoteSelection-" + clientID,
-                  afterContentClassName,
-                  beforeContentClassName,
-                },
-              });
-            }
-          }
-        });
-
-        decorationIds = monacoEditor.deltaDecorations(
-          decorationIds,
-          newDecorations,
-        );
-      };
-
-      // Wrap to prevent recursive deltaDecorations errors
-      const safeRerenderDecorations = () => {
-        if (isRerendering) {
-          requestAnimationFrame(rerenderDecorations);
+    const bindEditor = useCallback(
+      (
+        monacoEditor: editor.IStandaloneCodeEditor,
+        filePath: string,
+        workspaceRoot?: string,
+      ) => {
+        if (!ydocRef.current || !providerRef.current) {
+          console.warn("Cannot bind editor: Collaboration not active");
           return;
         }
-        isRerendering = true;
-        try {
-          rerenderDecorations();
-        } finally {
-          isRerendering = false;
-        }
-      };
 
-      awareness.on("change", safeRerenderDecorations);
-
-      // ── Initial cursor broadcast ──────────────────────────────────
-      // Called with a small delay so Monaco has finished initialising
-      // (getSelection() returns null synchronously right after setValue).
-      // A second call at 600 ms catches cases where the editor was just
-      // rebound after an undo and the cursor reset hasn't fired yet.
-      const publishTimer1 = setTimeout(() => publishCursor(), 100);
-      const publishTimer2 = setTimeout(() => publishCursor(), 600);
-
-      // ── Initial remote-cursor render ──────────────────────────────
-      // Immediate pass for cursors already in awareness at bind time.
-      safeRerenderDecorations();
-      // Delayed pass to catch awareness updates that arrive over the
-      // network just after we bound (typically within a few hundred ms).
-      const rerenderTimer = setTimeout(() => safeRerenderDecorations(), 700);
-
-      // 3. Also re-render decorations after each Y.Text change so that
-      //    remote cursors update positions as content shifts.
-      const ytextDecorObserver = () => {
-        safeRerenderDecorations();
-      };
-      ytext.observe(ytextDecorObserver);
-
-      // ─── Monkey-patch destroy() ──────────────────────────────────
-      // Make it idempotent AND properly clean up our cursor handlers.
-      const originalDestroy = binding.destroy.bind(binding);
-      let destroyed = false;
-      binding.destroy = () => {
-        if (destroyed) return;
-        destroyed = true;
-
-        // Cancel delayed cursor/decoration timers
-        clearTimeout(publishTimer1);
-        clearTimeout(publishTimer2);
-        clearTimeout(rerenderTimer);
-
-        // Clean up our own cursor awareness handlers
-        cursorDisposer.dispose();
-        awareness.off("change", safeRerenderDecorations);
-        ytext.unobserve(ytextDecorObserver);
-        // Clear decorations
-        try {
-          decorationIds = monacoEditor.deltaDecorations(decorationIds, []);
-        } catch {
-          // editor may already be disposed
+        if (currentFileRef.current === filePath && bindingRef.current) {
+          return;
         }
 
-        originalDestroy();
-        // Also null-out our ref so safeDestroyBinding() becomes a no-op
-        if (bindingRef.current === binding) {
-          bindingRef.current = null;
+        safeDestroyBinding();
+
+        let relativePath = filePath;
+        if (workspaceRoot) {
+          relativePath = toRelativePath(filePath, workspaceRoot);
         }
-      };
 
-      bindingRef.current = binding;
-      currentFileRef.current = filePath;
-      currentEditorRef.current = monacoEditor;
+        const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
+        console.log(`Collaboration docName: ${docName} (from ${relativePath})`);
 
-      console.log(`Bound editor to collaborative document: ${docName}`);
-    },
-    [],
-  );
+        const fileSystem = ydocRef.current.getMap<Y.Text>("file_system");
+        
+        // Helper to establish the actual monaco binding to a specific ytext
+        const establishBindingToYText = (targetYText: Y.Text) => {
+          const awareness = providerRef.current!.awareness;
+          const doc = ydocRef.current!;
+          const model = monacoEditor.getModel()!;
+          
+          const currentYTextContent = targetYText.toString();
+          const currentModelContent = model.getValue();
+
+          if (
+            currentYTextContent.length > 0 &&
+            currentYTextContent !== currentModelContent
+          ) {
+            console.log(`Syncing model to collaborative content for: ${docName} (${currentYTextContent.length} chars)`);
+            model.setValue(currentYTextContent);
+          } else if (
+            currentYTextContent.length === 0 &&
+            currentModelContent.length > 0
+          ) {
+            console.log(`Initializing collaborative document from local file: ${docName}`);
+            // Insert after pushing to Map to ensure proper clock synchronization
+            targetYText.insert(0, currentModelContent);
+          }
+
+          const newBinding = new MonacoBinding(
+            targetYText,
+            model,
+            new Set([monacoEditor]),
+            null, // Don't let y-monaco manage cursor awareness
+          );
+
+          // 1. Send local cursor position
+          const publishCursor = () => {
+            if (monacoEditor.getModel() !== model) return;
+            const sel = monacoEditor.getSelection();
+            if (sel === null) return;
+
+            let anchor = model.getOffsetAt(sel.getStartPosition());
+            let head = model.getOffsetAt(sel.getEndPosition());
+            if (sel.getDirection() === 1 /* RTL */) {
+              const tmp = anchor;
+              anchor = head;
+              head = tmp;
+            }
+
+            awareness.setLocalStateField("selection", {
+              anchor: Y.createRelativePositionFromTypeIndex(targetYText, anchor),
+              head: Y.createRelativePositionFromTypeIndex(targetYText, head),
+            });
+          };
+
+          const cursorDisposer = monacoEditor.onDidChangeCursorSelection(publishCursor);
+          const publishTimer1 = setTimeout(() => publishCursor(), 100);
+          const publishTimer2 = setTimeout(() => publishCursor(), 600);
+
+          // 2. Render remote cursor decorations
+          let decorationIds: string[] = [];
+          let isRerendering = false;
+
+          const rerenderDecorations = () => {
+            if (monacoEditor.getModel() !== model) return;
+            const newDecorations: any[] = [];
+
+            awareness.getStates().forEach((state: any, clientID: number) => {
+              if (
+                clientID !== doc.clientID &&
+                state.selection != null &&
+                state.selection.anchor != null &&
+                state.selection.head != null
+              ) {
+                const anchorAbs = Y.createAbsolutePositionFromRelativePosition(
+                  state.selection.anchor,
+                  doc,
+                );
+                const headAbs = Y.createAbsolutePositionFromRelativePosition(
+                  state.selection.head,
+                  doc,
+                );
+                if (
+                  anchorAbs !== null &&
+                  headAbs !== null &&
+                  anchorAbs.type === targetYText &&
+                  headAbs.type === targetYText
+                ) {
+                  let start, end, afterContentClassName: string | null, beforeContentClassName: string | null;
+                  if (anchorAbs.index < headAbs.index) {
+                    start = model.getPositionAt(anchorAbs.index);
+                    end = model.getPositionAt(headAbs.index);
+                    afterContentClassName = `yRemoteSelectionHead yRemoteSelectionHead-${clientID}`;
+                    beforeContentClassName = null;
+                  } else {
+                    start = model.getPositionAt(headAbs.index);
+                    end = model.getPositionAt(anchorAbs.index);
+                    afterContentClassName = null;
+                    beforeContentClassName = `yRemoteSelectionHead yRemoteSelectionHead-${clientID}`;
+                  }
+
+                  newDecorations.push({
+                  range: {
+                    startLineNumber: start.lineNumber,
+                    startColumn: start.column,
+                    endLineNumber: end.lineNumber,
+                    endColumn: end.column,
+                  },
+                  options: {
+                    className: `yRemoteSelection yRemoteSelection-${clientID}`,
+                      afterContentClassName,
+                      beforeContentClassName,
+                    },
+                  });
+                }
+              }
+            });
+
+            if (!isRerendering) {
+              isRerendering = true;
+              Promise.resolve().then(() => {
+                if (monacoEditor.getModel() === model) {
+                  decorationIds = monacoEditor.deltaDecorations(decorationIds, newDecorations);
+                }
+                isRerendering = false;
+              });
+            }
+          };
+
+          const safeRerenderDecorations = () => {
+            if (isRerendering) {
+              requestAnimationFrame(rerenderDecorations);
+              return;
+            }
+            isRerendering = true;
+            try {
+              rerenderDecorations();
+            } finally {
+              isRerendering = false;
+            }
+          };
+
+          const rerenderTimer = setTimeout(() => safeRerenderDecorations(), 700);
+
+          // 3. Clear remote cursors on specific remote user disconnect
+          const handleAwarenessUpdate = () => {
+             safeRerenderDecorations();
+          };
+
+          awareness.on("change", handleAwarenessUpdate);
+          
+          const ytextDecorObserver = () => {
+            safeRerenderDecorations();
+          };
+          targetYText.observe(ytextDecorObserver);
+
+          // Return destruction function
+          return () => {
+            clearTimeout(publishTimer1);
+            clearTimeout(publishTimer2);
+            clearTimeout(rerenderTimer);
+            newBinding.destroy();
+            cursorDisposer.dispose();
+            awareness.off("change", handleAwarenessUpdate);
+            targetYText.unobserve(ytextDecorObserver);
+            try {
+              if (monacoEditor.getModel() === model) {
+                monacoEditor.deltaDecorations(decorationIds, []);
+              }
+            } catch {}
+          };
+        };
+
+        let ytext = fileSystem.get(docName);
+        if (!ytext) {
+          ytext = new Y.Text();
+          fileSystem.set(docName, ytext);
+        }
+
+        let innerBindingDestroy = establishBindingToYText(ytext);
+
+        // Track the actively observed Y.Text reference so we can rebound if it changes
+        let activelyBoundText = fileSystem.get(docName);
+
+        // Observe the Map for Conflict Resolution:
+        // If two peers initialize `new Y.Text` simultaneously, Yjs will pick one globally based on ClientID.
+        // We MUST re-run the entire binding if the `Y.Text` object for our `docName` is replaced out from under us.
+        const handleMapEvent = (event: Y.YMapEvent<Y.Text>) => {
+           if (event.keysChanged.has(docName)) {
+               const latestText = fileSystem.get(docName);
+               if (latestText && latestText !== activelyBoundText) {
+                   console.warn(`CRITICAL: Y.Map conflict resolved for ${docName}. Object replaced! Rebounding y-monaco...`);
+                   if (innerBindingDestroy) innerBindingDestroy();
+                   activelyBoundText = latestText;
+                   innerBindingDestroy = establishBindingToYText(latestText);
+               }
+           }
+        };
+
+        fileSystem.observe(handleMapEvent);
+        // Inject cleanup wrapper
+        bindingRef.current = {
+          destroy: () => {
+             fileSystem.unobserve(handleMapEvent);
+             if (innerBindingDestroy) innerBindingDestroy();
+          }
+        };
+
+        currentFileRef.current = filePath;
+        currentEditorRef.current = monacoEditor;
+      },
+      [cleanup, initializeYjs, user?.$id],
+    );
 
   const unbindEditor = useCallback((filePath?: string) => {
     // If a specific filePath is provided, ONLY unbind if it matches the current file
