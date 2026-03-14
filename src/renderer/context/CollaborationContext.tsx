@@ -927,6 +927,11 @@ export function CollaborationProvider({
         if (destroyed) return;
         destroyed = true;
 
+        // Cancel delayed cursor/decoration timers
+        clearTimeout(publishTimer1);
+        clearTimeout(publishTimer2);
+        clearTimeout(rerenderTimer);
+
         // Clean up our own cursor awareness handlers
         cursorDisposer.dispose();
         awareness.off("change", safeRerenderDecorations);
