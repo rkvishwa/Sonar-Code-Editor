@@ -936,6 +936,7 @@ export function CollaborationProvider({
       return;
     }
 
+    console.log(`unbindEditor: unbinding from ${currentFileRef.current}`);
     safeDestroyBinding();
     currentFileRef.current = null;
     currentEditorRef.current = null;
