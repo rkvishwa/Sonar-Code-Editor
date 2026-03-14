@@ -115,11 +115,11 @@
 </svelte:head>
 
 <div
-  class="px-6 pt-12 pb-12 lg:pt-16 lg:pb-20 max-w-[1200px] mx-auto w-full flex flex-col md:flex-row gap-12 transition-colors duration-200"
+  class="px-6 pt-12 pb-12 lg:pt-16 lg:pb-20 max-w-300 mx-auto w-full flex flex-col md:flex-row gap-12 transition-colors duration-200"
 >
   <!-- Sidebar Navigation -->
   <aside
-    class="w-full md:w-64 shrink-0 font-medium sticky top-[5.5rem] self-start max-h-[calc(100vh-6.5rem)] overflow-y-auto"
+    class="w-full md:w-64 shrink-0 font-medium sticky top-22 self-start max-h-[calc(100vh-6.5rem)] overflow-y-auto"
   >
     <div class="space-y-6 pr-2">
       <div class="relative mb-6">
@@ -131,7 +131,7 @@
           type="text"
           placeholder="Filter sections..."
           bind:value={searchQuery}
-          class="w-full bg-white dark:bg-white/[0.02] border border-zinc-200 dark:border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-zinc-400"
+          class="w-full bg-white dark:bg-white/2 border border-zinc-200 dark:border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-zinc-400"
         />
       </div>
 
@@ -212,7 +212,7 @@
         Local Development
       </h3>
       <div
-        class="bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 rounded-xl p-5 font-mono text-sm text-zinc-700 dark:text-zinc-300 space-y-1 mb-6 overflow-x-auto"
+        class="bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5 rounded-xl p-5 font-mono text-sm text-zinc-700 dark:text-zinc-300 space-y-1 mb-6 overflow-x-auto"
       >
         <p class="text-zinc-500 dark:text-zinc-500"># Clone and install</p>
         <p>git clone https://github.com/rkvishwa/Sonar-Code-Editor.git</p>
@@ -229,7 +229,7 @@
         Production Build
       </h3>
       <div
-        class="bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 rounded-xl p-5 font-mono text-sm text-zinc-700 dark:text-zinc-300 space-y-1 overflow-x-auto"
+        class="bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5 rounded-xl p-5 font-mono text-sm text-zinc-700 dark:text-zinc-300 space-y-1 overflow-x-auto"
       >
         <p>npm run build</p>
         <p>
@@ -270,7 +270,7 @@
 
       <div class="grid sm:grid-cols-2 gap-4 mb-6">
         <div
-          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5"
+          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5"
         >
           <h4 class="font-semibold text-zinc-900 dark:text-white mb-2 text-sm">
             Editor Features
@@ -285,7 +285,7 @@
           </ul>
         </div>
         <div
-          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5"
+          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5"
         >
           <h4 class="font-semibold text-zinc-900 dark:text-white mb-2 text-sm">
             Supported Languages
@@ -381,7 +381,7 @@
         How It Works
       </h3>
       <div
-        class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 p-5 text-sm text-zinc-600 dark:text-zinc-400 space-y-3 mb-6"
+        class="bg-zinc-50 dark:bg-white/2 rounded-xl border border-zinc-200 dark:border-white/5 p-5 text-sm text-zinc-600 dark:text-zinc-400 space-y-3 mb-6"
       >
         <p>
           <strong class="text-zinc-900 dark:text-white"
@@ -452,7 +452,7 @@
         Tracked Events
       </h3>
       <div
-        class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 divide-y divide-zinc-100 dark:divide-white/5 text-sm overflow-hidden mb-6"
+        class="bg-zinc-50 dark:bg-white/2 rounded-xl border border-zinc-200 dark:border-white/5 divide-y divide-zinc-100 dark:divide-white/5 text-sm overflow-hidden mb-6"
       >
         {#each [["Online/Offline Status", "Monitors network connectivity and records disconnected states"], ["Window Focus", "Detects when a user leaves the IDE or switches focus away"], ["Internal Copy/Paste", "Tracks copy and paste operations within the editor"], ["External Paste Detection", "Alerts when content is pasted from an external source"], ["Active Applications", "Records which applications the user is actively viewing"], ["Current File", "Logs which file the user is currently editing"]] as [event, desc]}
           <div class="p-3 flex gap-4">
@@ -495,7 +495,7 @@
 
       <div class="grid sm:grid-cols-2 gap-4 mb-6">
         <div
-          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5"
+          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5"
         >
           <h4 class="font-semibold text-zinc-900 dark:text-white mb-2 text-sm">
             Real-time Monitoring
@@ -508,7 +508,7 @@
           </ul>
         </div>
         <div
-          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5"
+          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5"
         >
           <h4 class="font-semibold text-zinc-900 dark:text-white mb-2 text-sm">
             Activity Metrics
@@ -521,7 +521,7 @@
           </ul>
         </div>
         <div
-          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5"
+          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5"
         >
           <h4 class="font-semibold text-zinc-900 dark:text-white mb-2 text-sm">
             Dashboard Views
@@ -534,7 +534,7 @@
           </ul>
         </div>
         <div
-          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5"
+          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5"
         >
           <h4 class="font-semibold text-zinc-900 dark:text-white mb-2 text-sm">
             PDF Report Generation
@@ -580,7 +580,7 @@
       </p>
 
       <div
-        class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 p-5 mb-6"
+        class="bg-zinc-50 dark:bg-white/2 rounded-xl border border-zinc-200 dark:border-white/5 p-5 mb-6"
       >
         <h4 class="font-semibold text-zinc-900 dark:text-white mb-3 text-sm">
           Navigation Controls
@@ -646,7 +646,7 @@
         Student & General Settings
       </h3>
       <div
-        class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 divide-y divide-zinc-100 dark:divide-white/5 text-sm overflow-hidden mb-6"
+        class="bg-zinc-50 dark:bg-white/2 rounded-xl border border-zinc-200 dark:border-white/5 divide-y divide-zinc-100 dark:divide-white/5 text-sm overflow-hidden mb-6"
       >
         {#each [["Text Editor", "Auto-Save (500ms debounce), Hot Reload (refresh preview on save), Word Wrap toggle"], ["Appearance", "Theme: Light, Dark, or System (respects OS preference on load)"], ["Collaboration", "Show collaborator usernames toggle, username opacity slider (0-100%)"], ["Account", "View team name, list team members (student IDs), add members (max 5)"], ["Activity Log", "View event timeline, export as color-coded PDF with suspicious activity flags"], ["Security", "Change team password (requires current password verification)"]] as [tab, desc]}
           <div class="p-4">
@@ -666,7 +666,7 @@
         local student choices.
       </p>
       <div
-        class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 divide-y divide-zinc-100 dark:divide-white/5 text-sm overflow-hidden"
+        class="bg-zinc-50 dark:bg-white/2 rounded-xl border border-zinc-200 dark:border-white/5 divide-y divide-zinc-100 dark:divide-white/5 text-sm overflow-hidden"
       >
         {#each [["Editor Restrictions", "Locally disable Monaco's built-in Quick Suggestions (Autocomplete), Snippet Completions, and auto-closing brackets."], ["Network Constraints", "Toggle and enforce Global Internet Restrictions to completely sandbox the team."], ["Log Management", "Safely clear flagged activity logs globally or manage team connection states."], ["Activity Policies", "Define strict conditions for what constitutes an external paste or blur event."]] as [tab, desc]}
           <div class="p-4">
@@ -696,7 +696,7 @@
 
       <div class="space-y-4 text-sm text-zinc-600 dark:text-zinc-400">
         <div
-          class="p-4 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5"
+          class="p-4 rounded-xl bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5"
         >
           <h4 class="font-semibold text-zinc-900 dark:text-white mb-1">
             Team-Based Authentication
@@ -713,7 +713,7 @@
           </p>
         </div>
         <div
-          class="p-4 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5"
+          class="p-4 rounded-xl bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5"
         >
           <h4 class="font-semibold text-zinc-900 dark:text-white mb-1">
             Input Sanitization
@@ -815,7 +815,7 @@
 
       <div class="grid sm:grid-cols-2 gap-4">
         <div
-          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5"
+          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5"
         >
           <h4 class="font-semibold text-zinc-900 dark:text-white mb-3 text-sm">
             Frontend
@@ -830,7 +830,7 @@
           </ul>
         </div>
         <div
-          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5"
+          class="p-5 rounded-xl bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5"
         >
           <h4 class="font-semibold text-zinc-900 dark:text-white mb-3 text-sm">
             Desktop & Build
@@ -857,7 +857,7 @@
       </h2>
 
       <div
-        class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 p-6"
+        class="bg-zinc-50 dark:bg-white/2 rounded-xl border border-zinc-200 dark:border-white/5 p-6"
       >
         <div class="flex items-center gap-3 mb-4">
           <span
@@ -899,7 +899,7 @@
 
     <!-- Reporting Vulnerabilities -->
     <div
-      class="mt-16 p-6 rounded-2xl bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-600/10 dark:to-cyan-600/10 border border-blue-200 dark:border-blue-500/20 transition-colors duration-200"
+      class="mt-16 p-6 rounded-2xl bg-linear-to-r from-blue-50 to-cyan-50 dark:from-blue-600/10 dark:to-cyan-600/10 border border-blue-200 dark:border-blue-500/20 transition-colors duration-200"
     >
       <h3 class="font-bold text-zinc-900 dark:text-white mb-2">
         Reporting Security Vulnerabilities

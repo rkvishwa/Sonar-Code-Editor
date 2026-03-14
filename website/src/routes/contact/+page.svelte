@@ -60,7 +60,7 @@
 
         <div class="mt-10 space-y-4">
           <div
-            class="rounded-2xl border border-zinc-200/80 dark:border-white/8 bg-white/75 dark:bg-white/[0.03] p-5 backdrop-blur-sm shadow-sm"
+            class="rounded-2xl border border-zinc-200/80 dark:border-white/8 bg-white/75 dark:bg-white/3 p-5 backdrop-blur-sm shadow-sm"
           >
             <div class="flex items-start gap-4">
               <div
@@ -85,7 +85,7 @@
           </div>
 
           <div
-            class="rounded-2xl border border-zinc-200/80 dark:border-white/8 bg-white/75 dark:bg-white/[0.03] p-5 backdrop-blur-sm shadow-sm"
+            class="rounded-2xl border border-zinc-200/80 dark:border-white/8 bg-white/75 dark:bg-white/3 p-5 backdrop-blur-sm shadow-sm"
           >
             <div class="flex items-start gap-4">
               <div
@@ -110,7 +110,7 @@
           </div>
 
           <div
-            class="rounded-2xl border border-zinc-200/80 dark:border-white/8 bg-white/75 dark:bg-white/[0.03] p-5 backdrop-blur-sm shadow-sm"
+            class="rounded-2xl border border-zinc-200/80 dark:border-white/8 bg-white/75 dark:bg-white/3 p-5 backdrop-blur-sm shadow-sm"
           >
             <div class="flex items-start gap-4">
               <div
@@ -159,7 +159,7 @@
         ></div>
 
         <div
-          class="pointer-events-none absolute -inset-[1px] rounded-[2rem] bg-gradient-to-br from-cyan-200/80 via-white/30 to-blue-200/60 dark:from-cyan-400/20 dark:via-white/5 dark:to-blue-500/20 opacity-80"
+          class="pointer-events-none absolute -inset-[1px] rounded-[2rem] bg-linear-to-br from-cyan-200/80 via-white/30 to-blue-200/60 dark:from-cyan-400/20 dark:via-white/5 dark:to-blue-500/20 opacity-80"
         ></div>
 
         <section

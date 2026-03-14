@@ -75,12 +75,12 @@
   </p>
 
   <div
-    class="bg-white dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 rounded-3xl p-8 sm:p-12 mb-16 shadow-sm dark:shadow-none transition-colors duration-200"
+    class="bg-white dark:bg-white/2 border border-zinc-200 dark:border-white/5 rounded-3xl p-8 sm:p-12 mb-16 shadow-sm dark:shadow-none transition-colors duration-200"
   >
     <div class="flex flex-col items-center justify-center gap-4 mb-12">
       {#if clientOS === "mac"}
         <div
-          class="w-full max-w-2xl rounded-2xl border border-cyan-300/40 dark:border-cyan-400/30 bg-white/70 dark:bg-white/[0.05] p-4 sm:p-5"
+          class="w-full max-w-2xl rounded-2xl border border-cyan-300/40 dark:border-cyan-400/30 bg-white/70 dark:bg-white/5 p-4 sm:p-5"
         >
           <label
             for="download-mac-link"
@@ -90,7 +90,7 @@
             <span>macOS Install Command</span>
           </label>
           <div
-            class="rounded-xl border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-white/[0.03] p-1.5 backdrop-blur-md flex items-center shadow-sm transition-colors hover:border-zinc-300 dark:hover:border-white/20"
+            class="rounded-xl border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-white/3 p-1.5 backdrop-blur-md flex items-center shadow-sm transition-colors hover:border-zinc-300 dark:hover:border-white/20"
           >
             <div class="flex items-center flex-1 min-w-0 pl-3">
               <span class="text-zinc-500 font-mono mr-2 shrink-0">$</span>
@@ -131,7 +131,7 @@
               ></label
             >
             <div
-              class="rounded-xl border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-white/[0.03] p-1.5 backdrop-blur-md flex items-center shadow-sm transition-colors hover:border-zinc-300 dark:hover:border-white/20"
+              class="rounded-xl border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-white/3 p-1.5 backdrop-blur-md flex items-center shadow-sm transition-colors hover:border-zinc-300 dark:hover:border-white/20"
             >
               <div class="flex items-center flex-1 min-w-0 pl-3">
                 <span class="text-zinc-500 font-mono mr-2 shrink-0">$</span>

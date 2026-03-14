@@ -38,16 +38,16 @@
       class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.14),transparent_30%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.2),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.16),transparent_30%)]"
     ></div>
     <div
-      class="absolute inset-0 opacity-85 dark:opacity-60 [background-image:linear-gradient(rgba(71,85,105,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(71,85,105,0.16)_1px,transparent_1px)] dark:[background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:3rem_3rem] [mask-image:radial-gradient(circle_at_center,black_58%,transparent_95%)]"
+      class="absolute inset-0 opacity-85 dark:opacity-60 bg-[linear-gradient(rgba(71,85,105,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(71,85,105,0.16)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-size-[3rem_3rem] mask-[radial-gradient(circle_at_center,black_58%,transparent_95%)]"
     ></div>
     <div
       class="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.62),transparent_62%)] dark:bg-[radial-gradient(circle_at_top,rgba(8,16,25,0.28),transparent_58%)]"
     ></div>
   </div>
 
-  <header class="fixed top-0 z-[100] w-full px-4 pt-3 sm:px-6">
+  <header class="fixed top-0 z-100 w-full px-4 pt-3 sm:px-6">
     <div
-      class="header-shell relative mx-auto w-full max-w-[1200px] rounded-2xl border border-cyan-400/30 dark:border-cyan-400/20 bg-[#e9f3ff]/78 dark:bg-[#040a16]/94 shadow-[0_18px_46px_-24px_rgba(3,40,58,0.45)] dark:shadow-[0_18px_46px_-24px_rgba(2,12,27,0.9)] backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-200"
+      class="header-shell relative mx-auto w-full max-w-300 rounded-2xl border border-cyan-400/30 dark:border-cyan-400/20 bg-[#e9f3ff]/78 dark:bg-[#040a16]/94 shadow-[0_18px_46px_-24px_rgba(3,40,58,0.45)] dark:shadow-[0_18px_46px_-24px_rgba(2,12,27,0.9)] backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-200"
     >
       <div class="relative flex h-16 items-center justify-between px-4 sm:px-6">
         <a href="/" class="flex items-center space-x-3 text-xl font-bold">
@@ -61,7 +61,7 @@
             />
           </div>
           <span
-            class="bg-gradient-to-r from-cyan-700 via-sky-700 to-blue-700 bg-clip-text text-transparent dark:from-cyan-100 dark:via-sky-200 dark:to-blue-200"
+            class="bg-linear-to-r from-cyan-700 via-sky-700 to-blue-700 bg-clip-text text-transparent dark:from-cyan-100 dark:via-sky-200 dark:to-blue-200"
             >Sonar IDE</span
           >
         </a>
@@ -73,7 +73,7 @@
           >
             Home
             <span
-              class={`absolute left-0 -bottom-1 h-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all ${isActive("/") ? "w-full opacity-100" : "w-0 opacity-0"}`}
+              class={`absolute left-0 -bottom-1 h-0.5 rounded-full bg-linear-to-r from-cyan-500 to-blue-500 transition-all ${isActive("/") ? "w-full opacity-100" : "w-0 opacity-0"}`}
             ></span>
           </a>
           <a
@@ -82,7 +82,7 @@
           >
             Documentation
             <span
-              class={`absolute left-0 -bottom-1 h-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all ${isActive("/docs") ? "w-full opacity-100" : "w-0 opacity-0"}`}
+              class={`absolute left-0 -bottom-1 h-0.5 rounded-full bg-linear-to-r from-cyan-500 to-blue-500 transition-all ${isActive("/docs") ? "w-full opacity-100" : "w-0 opacity-0"}`}
             ></span>
           </a>
           <a
@@ -91,7 +91,7 @@
           >
             About
             <span
-              class={`absolute left-0 -bottom-1 h-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all ${isActive("/about") ? "w-full opacity-100" : "w-0 opacity-0"}`}
+              class={`absolute left-0 -bottom-1 h-0.5 rounded-full bg-linear-to-r from-cyan-500 to-blue-500 transition-all ${isActive("/about") ? "w-full opacity-100" : "w-0 opacity-0"}`}
             ></span>
           </a>
           <a
@@ -100,7 +100,7 @@
           >
             Contact
             <span
-              class={`absolute left-0 -bottom-1 h-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all ${isActive("/contact") ? "w-full opacity-100" : "w-0 opacity-0"}`}
+              class={`absolute left-0 -bottom-1 h-0.5 rounded-full bg-linear-to-r from-cyan-500 to-blue-500 transition-all ${isActive("/contact") ? "w-full opacity-100" : "w-0 opacity-0"}`}
             ></span>
           </a>
         </nav>
@@ -119,7 +119,7 @@
             </a>
             <a
               href="/download"
-              class="rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 transition-all hover:from-cyan-400 hover:to-blue-500 cursor-pointer"
+              class="rounded-full bg-linear-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 transition-all hover:from-cyan-400 hover:to-blue-500 cursor-pointer"
             >
               <span class="inline-flex items-center space-x-2">
                 <Download size={16} />
@@ -162,7 +162,7 @@
             </a>
             <a
               href="/download"
-              class="rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 transition-all hover:from-cyan-400 hover:to-blue-500 flex-1 flex justify-center items-center gap-2 cursor-pointer"
+              class="rounded-full bg-linear-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 transition-all hover:from-cyan-400 hover:to-blue-500 flex-1 flex justify-center items-center gap-2 cursor-pointer"
             >
               <Download size={16} />
               <span>Download</span>
@@ -184,7 +184,7 @@
   <footer
     class="relative z-10 mt-auto border-t border-zinc-200/70 dark:border-white/8 pt-16 pb-8 bg-white/60 dark:bg-[#0d1520]/72 text-zinc-500 dark:text-zinc-400 backdrop-blur-xl transition-colors duration-200"
   >
-    <div class="container mx-auto px-6 max-w-[1200px]">
+    <div class="container mx-auto px-6 max-w-300">
       <div
         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 lg:gap-8 mb-16"
       >
@@ -202,7 +202,7 @@
               />
             </div>
             <span
-              class="text-xl font-bold bg-gradient-to-r from-cyan-700 via-sky-700 to-blue-700 bg-clip-text text-transparent dark:from-cyan-100 dark:via-sky-200 dark:to-blue-200"
+              class="text-xl font-bold bg-linear-to-r from-cyan-700 via-sky-700 to-blue-700 bg-clip-text text-transparent dark:from-cyan-100 dark:via-sky-200 dark:to-blue-200"
               >Sonar IDE</span
             >
           </div>
