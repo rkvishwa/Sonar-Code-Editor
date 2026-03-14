@@ -889,14 +889,19 @@ function IDEContent() {
             : null;
 
           if (ytextContent) {
-            // Y.Text already has content — use it as-is without touching Y.Text.
+            // Y.Text already has content — but since the file was deleted,
+            // the CRDT items might be out of sync with other machines or y-monaco
+            // might fail to re-bind cleanly to the same old items.
+            // Forcing a purge guarantees M1 and M2 get a completely fresh CRDT
+            // tree for this file, which guarantees perfect cursor sync.
             restoredContent = ytextContent;
-            console.log(`Using existing Y.Text content for restored file: ${fullPath} (${restoredContent.length} chars)`);
+            console.log(`Forcing Y.Text purge for restored file: ${fullPath}`);
+            setFileContentRef.current(fullPath, restoredContent, wsRoot, true /* force purge */);
           } else if (savedContent !== undefined) {
             // Y.Text is empty — seed it from the pre-delete disk snapshot.
             restoredContent = savedContent;
-            console.log(`Seeding Y.Text from savedContent for restored file: ${fullPath} (${restoredContent.length} chars)`);
-            setFileContentRef.current(fullPath, restoredContent, wsRoot);
+            console.log(`Seeding Y.Text from savedContent for restored file: ${fullPath}`);
+            setFileContentRef.current(fullPath, restoredContent, wsRoot, true /* force purge */);
           } else {
             // Last resort: read from disk.
             try {
@@ -905,7 +910,7 @@ function IDEContent() {
               console.warn(`Could not read file for broadcast: ${fullPath}`, readErr);
             }
             if (restoredContent) {
-              setFileContentRef.current(fullPath, restoredContent, wsRoot);
+              setFileContentRef.current(fullPath, restoredContent, wsRoot, true /* force purge */);
             }
           }
 

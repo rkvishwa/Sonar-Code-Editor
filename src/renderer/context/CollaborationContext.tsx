@@ -108,7 +108,7 @@ interface CollaborationContextValue {
   unbindEditor: (filePath?: string) => void;
   getCurrentEditorContent: () => string | null;
   getFileContent: (filePath: string, workspaceRoot?: string) => string | null;
-  setFileContent: (filePath: string, content: string, workspaceRoot?: string) => void;
+  setFileContent: (filePath: string, content: string, workspaceRoot?: string, forcePurge?: boolean) => void;
   ydoc: Y.Doc | null;
   provider: WebsocketProvider | null;
   // Shared file methods
@@ -1024,7 +1024,7 @@ export function CollaborationProvider({
   // brings a file back with content. It ensures the Yjs document reflects the
   // disk content even if nobody has bound an editor to it yet.
   const setFileContent = useCallback(
-    (filePath: string, content: string, workspaceRoot?: string) => {
+    (filePath: string, content: string, workspaceRoot?: string, forcePurge: boolean = false) => {
       if (!ydocRef.current) return;
 
       let relativePath = filePath;
@@ -1034,7 +1034,7 @@ export function CollaborationProvider({
       const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
 
       const ytext = ydocRef.current.getText(docName);
-      if (ytext.toString() !== content) {
+      if (forcePurge || ytext.toString() !== content) {
         // Use a single transaction so MonacoBinding sees one atomic update
         // instead of a delete followed by an insert (which would flash empty).
         ydocRef.current.transact(() => {
