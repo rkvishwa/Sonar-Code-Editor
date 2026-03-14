@@ -897,12 +897,20 @@ export function CollaborationProvider({
 
       awareness.on("change", safeRerenderDecorations);
 
-      // Immediately render any remote cursors that are already in awareness
-      // state at bind time.  Without this initial pass, a machine that opens
-      // the file AFTER other peers are already editing will not see their
-      // cursors until those peers next move — their existing position is
-      // invisible to the late-joiner.
+      // ── Initial cursor broadcast ──────────────────────────────────
+      // Called with a small delay so Monaco has finished initialising
+      // (getSelection() returns null synchronously right after setValue).
+      // A second call at 600 ms catches cases where the editor was just
+      // rebound after an undo and the cursor reset hasn't fired yet.
+      const publishTimer1 = setTimeout(() => publishCursor(), 100);
+      const publishTimer2 = setTimeout(() => publishCursor(), 600);
+
+      // ── Initial remote-cursor render ──────────────────────────────
+      // Immediate pass for cursors already in awareness at bind time.
       safeRerenderDecorations();
+      // Delayed pass to catch awareness updates that arrive over the
+      // network just after we bound (typically within a few hundred ms).
+      const rerenderTimer = setTimeout(() => safeRerenderDecorations(), 700);
 
       // 3. Also re-render decorations after each Y.Text change so that
       //    remote cursors update positions as content shifts.
