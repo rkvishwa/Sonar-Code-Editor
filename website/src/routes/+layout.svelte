@@ -33,7 +33,7 @@
 	</div>
 
 	<header class="fixed top-0 z-[100] w-full px-4 pt-3 sm:px-6">
-		<div class="header-shell relative mx-auto w-full max-w-[1400px] rounded-2xl border border-cyan-400/30 dark:border-cyan-400/20 bg-[#e9f3ff]/78 dark:bg-[#040a16]/94 shadow-[0_18px_46px_-24px_rgba(3,40,58,0.45)] dark:shadow-[0_18px_46px_-24px_rgba(2,12,27,0.9)] backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-200">
+		<div class="header-shell relative mx-auto w-full max-w-[1200px] rounded-2xl border border-cyan-400/30 dark:border-cyan-400/20 bg-[#e9f3ff]/78 dark:bg-[#040a16]/94 shadow-[0_18px_46px_-24px_rgba(3,40,58,0.45)] dark:shadow-[0_18px_46px_-24px_rgba(2,12,27,0.9)] backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-200">
 
 			<div class="relative flex h-16 items-center justify-between px-4 sm:px-6">
 				<a href="/" class="flex items-center space-x-3 text-xl font-bold">
@@ -123,7 +123,7 @@
 		</div>
 	</header>
 
-	<main class="relative z-10 flex-1 flex flex-col pt-12 sm:pt-0">
+	<main class="relative z-10 flex-1 flex flex-col pt-12">
 		{#key page.url.pathname}
 			<div class="page-load-smooth">
 				{@render children()}
@@ -139,7 +139,11 @@
 			</div>
 			
 			<div class="flex flex-wrap gap-x-8 gap-y-4 justify-center md:justify-start">
+				<a href="/" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">Home</a>
 				<a href="/docs" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">Documentation</a>
+				<a href="/about" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">About</a>
+				<a href="/contact" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">Contact</a>
+				<a href="/privacy" class="hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors">Privacy Policy</a>
 			</div>
 			
 			<div class="mt-6 md:mt-0">

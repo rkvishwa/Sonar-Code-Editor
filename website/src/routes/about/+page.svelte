@@ -31,7 +31,7 @@
   <title>About | Sonar IDE</title>
 </svelte:head>
 
-<div class="px-6 py-20 lg:py-32 max-w-5xl mx-auto w-full transition-colors duration-200">
+<div class="px-6 pt-10 pb-20 lg:pt-16 lg:pb-24 max-w-5xl mx-auto w-full transition-colors duration-200">
   <div class="text-center mb-24">
     <div class="w-16 h-16 bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-8">
       <ShieldCheck size={32} />
