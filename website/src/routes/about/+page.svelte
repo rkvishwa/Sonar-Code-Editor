@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Github, Users, ShieldCheck } from 'lucide-svelte';
+  import { Github, Users, ShieldCheck, Globe } from 'lucide-svelte';
 
   interface Contributor {
     login: string;
@@ -41,6 +41,34 @@
       Sonar Code Editor was developed to bridge the gap between powerful modern code editing and strict academic/professional integrity. It provides a reliable supervised environment without sacrificing the developer experience.
     </p>
   </div>
+
+  <section class="mb-20 relative overflow-hidden rounded-3xl bg-zinc-900 dark:bg-black text-white p-8 sm:p-12 shadow-2xl border border-zinc-800 dark:border-white/10 transition-colors duration-200">
+    <div class="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-cyan-500/20 blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 rounded-full bg-blue-500/20 blur-3xl pointer-events-none"></div>
+    
+    <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
+      <div class="flex-1">
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/10 text-cyan-300 text-xs font-semibold tracking-wider uppercase mb-4 outline outline-1 outline-white/10">
+          <span>The Community</span>
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-extrabold mb-4">Crafted by <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">knurdz</span></h2>
+        <p class="text-zinc-400 max-w-lg mb-6 leading-relaxed mx-auto md:mx-0">
+          Sonar IDE is proudly developed and maintained by the <strong>knurdz</strong> community. This project is completely open-source, and we welcome contributions from developers worldwide to help build the future of education and coding.
+        </p>
+      </div>
+      
+      <div class="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+        <a href="https://knurdz.org/" target="_blank" rel="noreferrer" class="flex items-center justify-center space-x-2 px-6 py-3.5 bg-white text-zinc-900 hover:bg-zinc-100 font-bold rounded-xl transition-all hover:scale-105 active:scale-95 shadow-lg shadow-white/10">
+          <Globe size={20} />
+          <span>knurdz.org</span>
+        </a>
+        <a href="https://github.com/knurdz" target="_blank" rel="noreferrer" class="flex items-center justify-center space-x-2 px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl outline outline-1 outline-white/20 transition-all hover:scale-105 active:scale-95">
+          <Github size={20} />
+          <span>GitHub Org</span>
+        </a>
+      </div>
+    </div>
+  </section>
 
   <section class="bg-white dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 shadow-sm dark:shadow-none rounded-3xl p-8 sm:p-12 mb-20 transition-colors duration-200">
     <div class="flex items-center space-x-3 mb-8">
