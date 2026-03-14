@@ -874,33 +874,40 @@ function IDEContent() {
       try {
         const wsRoot = workspaceRootRef.current;
         if (collabActiveRef.current && wsRoot) {
-          // Priority 1: pre-captured content from the undo stack (most reliable —
-          // captured right before the file was renamed to .trash, so it always
-          // has the correct content regardless of editor/Y.Text state).
-          if (savedContent !== undefined) {
-            restoredContent = savedContent;
-          } else {
-            // Priority 2: Y.Text content (latest collaborative state, if the
-            // file was open in any editor during this session).
-            const ytextContent = collaboration.isActive
-              ? collaboration.getFileContent(fullPath, wsRoot)
-              : null;
+          // Y.Text is NEVER wiped on delete (to preserve cursor RelativePositions),
+          // so it is the authoritative collaborative state at undo time.
+          //
+          // Priority 1: Y.Text content — preserves all Y.Text items and cursor
+          //   positions. Do NOT call setFileContent (no-op at best, destructive at
+          //   worst if disk content differs by even a line ending).
+          // Priority 2: savedContent from undo stack — used only if Y.Text is empty
+          //   (shouldn't happen, but safety net).  Seeds Y.Text via setFileContent.
+          // Priority 3: read from disk — last fallback.
 
-            if (ytextContent) {
-              restoredContent = ytextContent;
-              console.log(`Using Y.Text content for restored file: ${fullPath} (${restoredContent.length} chars)`);
-            } else {
-              // Priority 3: read from disk (the .trash rename put content back).
-              try {
-                restoredContent = await window.electronAPI.fs.readFile(fullPath);
-              } catch (readErr) {
-                console.warn(`Could not read file for broadcast: ${fullPath}`, readErr);
-              }
+          const ytextContent = collaboration.isActive
+            ? collaboration.getFileContent(fullPath, wsRoot)
+            : null;
+
+          if (ytextContent) {
+            // Y.Text already has content — use it as-is without touching Y.Text.
+            restoredContent = ytextContent;
+            console.log(`Using existing Y.Text content for restored file: ${fullPath} (${restoredContent.length} chars)`);
+          } else if (savedContent !== undefined) {
+            // Y.Text is empty — seed it from the pre-delete disk snapshot.
+            restoredContent = savedContent;
+            console.log(`Seeding Y.Text from savedContent for restored file: ${fullPath} (${restoredContent.length} chars)`);
+            setFileContentRef.current(fullPath, restoredContent, wsRoot);
+          } else {
+            // Last resort: read from disk.
+            try {
+              restoredContent = await window.electronAPI.fs.readFile(fullPath);
+            } catch (readErr) {
+              console.warn(`Could not read file for broadcast: ${fullPath}`, readErr);
+            }
+            if (restoredContent) {
+              setFileContentRef.current(fullPath, restoredContent, wsRoot);
             }
           }
-
-          // Ensure Y.Text is in sync with the content we're restoring.
-          setFileContentRef.current(fullPath, restoredContent, wsRoot);
 
           // Write authoritative content back to disk so that non-editor
           // opens (via openFile → readFile) always see the correct content.
@@ -1043,10 +1050,16 @@ function IDEContent() {
               } catch (createErr) {
                 console.warn(`Remote create-file failed: ${relPath}`, createErr);
               }
-              // Seed the Yjs Y.Text for the recreated file so that
-              // collaboration sync resumes immediately.
+              // Seed the Yjs Y.Text for the recreated file ONLY if Y.Text is
+              // empty.  If it already has content (which it normally will,
+              // since Y.Text is never wiped on delete), skip — otherwise the
+              // delete+insert in setFileContent destroys all Y.Text items
+              // and invalidates cursor RelativePositions in awareness.
               if (op.content != null) {
-                setFileContentRef.current(fullPath, op.content, wsRoot);
+                const existingContent = collaboration.getFileContent(fullPath, wsRoot);
+                if (!existingContent) {
+                  setFileContentRef.current(fullPath, op.content, wsRoot);
+                }
               }
               // Only update existing tabs. If the tab was closed, leave it closed.
               // Y.Text is already seeded above, so collaboration will start
