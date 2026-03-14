@@ -723,7 +723,13 @@ export function CollaborationProvider({
       console.log(`Collaboration docName: ${docName} (from ${relativePath})`);
 
       // Get or create the Y.Text type for this file
-      const ytext = ydocRef.current.getText(docName);
+      const fileSystem = ydocRef.current.getMap<Y.Text>("file_system");
+      let ytext = fileSystem.get(docName);
+      if (!ytext) {
+        ytext = new Y.Text();
+        fileSystem.set(docName, ytext);
+      }
+
       const awareness = providerRef.current.awareness;
       const doc = ydocRef.current;
 
@@ -1011,7 +1017,10 @@ export function CollaborationProvider({
       }
       const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
 
-      const ytext = ydocRef.current.getText(docName);
+      const fileSystem = ydocRef.current.getMap<Y.Text>("file_system");
+      const ytext = fileSystem.get(docName);
+      if (!ytext) return null;
+
       const content = ytext.toString();
       // Return null if the Y.Text is empty (file hasn't been shared yet)
       return content.length > 0 ? content : null;
@@ -1033,16 +1042,37 @@ export function CollaborationProvider({
       }
       const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
 
-      const ytext = ydocRef.current.getText(docName);
-      if (forcePurge || ytext.toString() !== content) {
-        // Use a single transaction so MonacoBinding sees one atomic update
-        // instead of a delete followed by an insert (which would flash empty).
-        ydocRef.current.transact(() => {
-          ytext.delete(0, ytext.length);
-          if (content.length > 0) {
-            ytext.insert(0, content);
-          }
-        });
+      const fileSystem = ydocRef.current.getMap<Y.Text>("file_system");
+      let ytext = fileSystem.get(docName);
+
+      if (forcePurge) {
+        // Create a completely virgin Y.Text. This guarantees that all clients who
+        // bind to this new object do not experience lingering y-monaco corrupted
+        // observers or fractured tombstoned CRDT items.
+        // First delete contents of the old one in case anyone happens to still be observing it
+        if (ytext) {
+          ydocRef.current.transact(() => {
+            ytext!.delete(0, ytext!.length);
+          });
+        }
+        const freshText = new Y.Text();
+        if (content.length > 0) {
+          freshText.insert(0, content);
+        }
+        fileSystem.set(docName, freshText);
+      } else {
+        if (!ytext) {
+          ytext = new Y.Text();
+          fileSystem.set(docName, ytext);
+        }
+        if (ytext.toString() !== content) {
+          ydocRef.current.transact(() => {
+            ytext!.delete(0, ytext!.length);
+            if (content.length > 0) {
+              ytext!.insert(0, content);
+            }
+          });
+        }
       }
     },
     [],
