@@ -25,7 +25,7 @@ import {
 } from "../../services/appwrite";
 import { cacheCredentials } from "../../services/localStore";
 import { Team } from "../../../shared/types";
-import { formatKey } from "../../utils/shortcut";
+import { formatKey, isMac } from "../../utils/shortcut";
 import "./SettingsModal.css";
 
 interface SettingsModalProps {
@@ -222,13 +222,19 @@ export default function SettingsModal({
     { action: "Toggle Explorer", keys: [formatKey("Ctrl"), "B"] },
     { action: "Toggle Preview Panel", keys: [formatKey("Ctrl"), "Shift", "V"] },
     { action: "Toggle Preview Tab", keys: [formatKey("Ctrl"), "Shift", "B"] },
+    { action: "Rename File / Folder", keys: ["F2"] },
+    { action: "Delete File / Folder", keys: isMac ? ["⌘", "⌫"] : ["Del"] },
+    { action: "Undo Delete", keys: [formatKey("Ctrl"), "Z"] },
   ];
 
   const filteredShortcuts = shortcuts.filter(
     (s) =>
       matchesSearch(s.action) ||
       s.keys.some((k) => matchesSearch(k)) ||
-      matchesSearch("Keyboard Shortcuts"),
+      matchesSearch("Keyboard Shortcuts") ||
+      matchesSearch("rename") ||
+      matchesSearch("delete") ||
+      matchesSearch("undo"),
   );
 
   const showKeyboardShortcuts = !isSearching
