@@ -50,7 +50,6 @@
         { id: "activity-monitoring", label: "Activity Monitoring" },
         { id: "admin-dashboard", label: "Admin Dashboard" },
         { id: "local-preview", label: "Local Preview" },
-        { id: "search", label: "Search" },
         { id: "settings", label: "Settings" },
       ],
     },
@@ -610,39 +609,6 @@
         </li>
         <li>Inspector button opens DevTools for the webview</li>
         <li>Supports: HTML, CSS, JS, images, fonts, media, PDFs</li>
-      </ul>
-    </section>
-
-    <hr class="border-zinc-200 dark:border-white/10" />
-
-    <!-- Search -->
-    <section id="search">
-      <h2
-        class="text-2xl font-bold mb-6 text-zinc-900 dark:text-white flex items-center gap-3"
-      >
-        <Search size={22} class="text-blue-600 dark:text-blue-400" />
-        Search
-      </h2>
-      <p class="text-zinc-600 dark:text-zinc-400 mb-4">
-        Full-text search across the entire workspace with 400ms debounce.
-        Results are grouped by file, with click-to-navigate jumping directly to
-        the matching line in the editor.
-      </p>
-      <ul
-        class="list-disc list-inside text-sm text-zinc-600 dark:text-zinc-400 space-y-1.5"
-      >
-        <li>
-          <strong>Match Case (Aa)</strong> — Toggle case-sensitive matching
-        </li>
-        <li>
-          <strong>Whole Word (ab)</strong> — Match only complete words using regex
-          word boundaries
-        </li>
-        <li>
-          Results show file path, line number, and highlighted text preview
-        </li>
-        <li>Expandable file groups for navigating large result sets</li>
-        <li>Skips binary files, node_modules, and dotfiles automatically</li>
       </ul>
     </section>
 
