@@ -16,8 +16,10 @@
   let clientOS = $state<ClientOS>("other");
   let linkCopied = $state(false);
   let updateLinkCopied = $state(false);
-  const macInstallCommand = "brew install --cask rkvishwa/knurdz/sonar-code-editor";
-  const macUpdateCommand = "brew upgrade --cask rkvishwa/knurdz/sonar-code-editor";
+  const macInstallCommand =
+    "brew install --cask rkvishwa/knurdz/sonar-code-editor";
+  const macUpdateCommand =
+    "brew upgrade --cask rkvishwa/knurdz/sonar-code-editor";
 
   function copyMacLink() {
     navigator.clipboard.writeText(macInstallCommand).then(() => {
@@ -105,7 +107,7 @@
             <button
               onclick={copyMacLink}
               aria-label="Copy command"
-              class="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all
+              class="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all cursor-pointer
                 {linkCopied
                 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                 : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400'}"
@@ -146,7 +148,7 @@
               <button
                 onclick={copyUpdateLink}
                 aria-label="Copy update link"
-                class="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all
+                class="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg transition-all cursor-pointer
                   {updateLinkCopied
                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                   : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400'}"
@@ -161,20 +163,29 @@
           </div>
         </div>
       {:else}
-        <button
-          class="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center space-x-3 transition-all hover:scale-105 active:scale-95"
-        >
-          <Monitor size={24} />
-          <div class="text-left font-sans">
-            <div class="text-sm font-medium opacity-80 leading-none mb-1">
-              Download for
+        <div class="flex flex-col items-center">
+          <a
+            href="https://github.com/rkvishwa/Sonar-Code-Editor/releases/latest/download/Sonar.IDE-Setup.exe"
+            class="group relative overflow-hidden w-full sm:w-auto px-8 py-3.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:text-white dark:hover:text-white font-bold rounded-xl shadow-lg shadow-zinc-900/10 dark:shadow-white/10 hover:shadow-[0_0_18px_rgba(6,182,212,0.4)] flex items-center justify-center text-base transition-all duration-300 hover:-translate-y-1 active:translate-y-0 cursor-pointer"
+          >
+            <div
+              class="absolute inset-0 flex items-center justify-center pointer-events-none z-0"
+            >
+              <div
+                class="w-0 h-full bg-cyan-600 dark:bg-cyan-500 rounded-full group-hover:w-[150%] group-hover:scale-x-110 transition-all duration-500 ease-out"
+              ></div>
             </div>
-            <div class="text-xl leading-none">Windows</div>
-          </div>
-        </button>
-        <p class="text-xs text-zinc-600 dark:text-zinc-400 mt-2">
-          Allow permission in your browser to download the file.
-        </p>
+            <div class="relative z-10 flex items-center gap-2.5">
+              <Download size={18} />
+              <span>Download for Windows</span>
+            </div>
+          </a>
+          <p
+            class="mt-3 text-[11px] font-medium text-zinc-500 dark:text-zinc-400"
+          >
+            Allow permission in your browser to download the file.
+          </p>
+        </div>
       {/if}
     </div>
 

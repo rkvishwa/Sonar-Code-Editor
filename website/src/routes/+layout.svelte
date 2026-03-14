@@ -11,8 +11,8 @@
     (path !== "/" && page.url.pathname.startsWith(`${path}/`));
   const navLinkClass = (path: string) =>
     isActive(path)
-      ? "text-cyan-700 dark:text-cyan-200"
-      : "text-zinc-700 dark:text-zinc-100/82 hover:text-cyan-700 dark:hover:text-cyan-200";
+      ? "text-cyan-700 dark:text-cyan-200 cursor-pointer"
+      : "text-zinc-700 dark:text-zinc-100/82 hover:text-cyan-700 dark:hover:text-cyan-200 cursor-pointer";
 
   let isMobileMenuOpen = $state(false);
 
@@ -112,14 +112,14 @@
               href="https://github.com/rkvishwa/Sonar-Code-Editor"
               target="_blank"
               rel="noreferrer"
-              class="rounded-xl border border-cyan-400/38 dark:border-cyan-300/35 bg-white/74 dark:bg-white/10 p-2 text-zinc-700 dark:text-zinc-100/85 hover:text-cyan-700 dark:hover:text-cyan-200 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors"
+              class="rounded-xl border border-cyan-400/38 dark:border-cyan-300/35 bg-white/74 dark:bg-white/10 p-2 text-zinc-700 dark:text-zinc-100/85 hover:text-cyan-700 dark:hover:text-cyan-200 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors cursor-pointer"
               aria-label="GitHub Repository"
             >
               <Github size={18} />
             </a>
             <a
               href="/download"
-              class="rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 transition-all hover:from-cyan-400 hover:to-blue-500"
+              class="rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 transition-all hover:from-cyan-400 hover:to-blue-500 cursor-pointer"
             >
               <span class="inline-flex items-center space-x-2">
                 <Download size={16} />
@@ -129,7 +129,7 @@
           </div>
           <button
             onclick={toggleMobileMenu}
-            class="md:hidden inline-flex items-center justify-center rounded-xl border border-cyan-400/38 dark:border-cyan-300/35 bg-white/74 dark:bg-cyan-500/12 p-2 text-cyan-700 dark:text-cyan-100 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors"
+            class="md:hidden inline-flex items-center justify-center rounded-xl border border-cyan-400/38 dark:border-cyan-300/35 bg-white/74 dark:bg-cyan-500/12 p-2 text-cyan-700 dark:text-cyan-100 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors cursor-pointer"
             aria-label="Menu"
           >
             {#if isMobileMenuOpen}
@@ -155,14 +155,14 @@
               href="https://github.com/rkvishwa/Sonar-Code-Editor"
               target="_blank"
               rel="noreferrer"
-              class="rounded-xl border border-cyan-400/38 dark:border-cyan-300/35 bg-white/74 dark:bg-white/10 p-2 text-zinc-700 dark:text-zinc-100/85 hover:text-cyan-700 dark:hover:text-cyan-200 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors flex-1 flex justify-center items-center"
+              class="rounded-xl border border-cyan-400/38 dark:border-cyan-300/35 bg-white/74 dark:bg-white/10 p-2 text-zinc-700 dark:text-zinc-100/85 hover:text-cyan-700 dark:hover:text-cyan-200 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 transition-colors flex-1 flex justify-center items-center cursor-pointer"
               aria-label="GitHub Repository"
             >
               <Github size={18} />
             </a>
             <a
               href="/download"
-              class="rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 transition-all hover:from-cyan-400 hover:to-blue-500 flex-1 flex justify-center items-center gap-2"
+              class="rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-cyan-500/30 transition-all hover:from-cyan-400 hover:to-blue-500 flex-1 flex justify-center items-center gap-2 cursor-pointer"
             >
               <Download size={16} />
               <span>Download</span>
@@ -331,12 +331,18 @@
         class="pt-8 border-t border-zinc-200/70 dark:border-white/8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400"
       >
         <p>&copy; {new Date().getFullYear()} Sonar Project. MIT Licensed.</p>
-        <p
-          class="flex items-center space-x-1.5 border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-white/5 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wider text-zinc-600 dark:text-zinc-300 shadow-sm"
+        <a
+          href="https://knurdz.org"
+          target="_blank"
+          rel="noreferrer"
+          class="group flex items-center space-x-1.5 border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-white/5 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 hover:border-cyan-200 dark:hover:border-cyan-800/60 hover:shadow-[0_0_12px_rgba(6,182,212,0.15)] px-3 py-1.5 rounded-full text-xs font-semibold tracking-wider text-zinc-600 dark:text-zinc-300 hover:text-cyan-700 dark:hover:text-cyan-300 shadow-sm transition-all duration-300 cursor-pointer"
         >
-          <Zap size={14} class="text-cyan-500 fill-cyan-500/20" />
+          <Zap
+            size={14}
+            class="text-cyan-500 fill-cyan-500/20 group-hover:fill-cyan-500/40 transition-colors duration-300"
+          />
           <span>POWERED BY KNURDZ</span>
-        </p>
+        </a>
       </div>
     </div>
   </footer>
