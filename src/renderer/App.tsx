@@ -6,6 +6,8 @@ import IDE from './pages/IDE';
 import AdminDashboard from './pages/AdminDashboard';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { startSecurityHeartbeat, stopSecurityHeartbeat } from './services/securityHeartbeat';
+import { getRequiredAppVersion, subscribeToRequiredAppVersion } from './services/appwrite';
+import { isAppVersionOutdated, isValidAppVersion } from './utils/version';
 
 // ── Permission gate ──────────────────────────────────────────────────────────
 // On macOS the app needs Automation/System Events access to track app switching.
@@ -217,6 +219,59 @@ function UnofficialBuildBanner() {
   );
 }
 
+function UpdateRequiredBlock({
+  currentVersion,
+  requiredVersion,
+}: {
+  currentVersion: string;
+  requiredVersion: string;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        background: '#1e1e1e',
+        color: '#d4d4d4',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        padding: '40px',
+        textAlign: 'center',
+        gap: '16px',
+      }}
+    >
+      <div style={{ fontSize: '48px', marginBottom: '8px' }}>⬆️</div>
+      <h2 style={{ color: '#f14c4c', margin: 0, fontSize: '22px' }}>
+        Update Required
+      </h2>
+      <p style={{ maxWidth: '520px', lineHeight: '1.6', margin: 0, color: '#a0a0a0' }}>
+        This build is out of date and cannot be used until it is updated to the latest required version.
+      </p>
+      <div
+        style={{
+          background: '#2d2d2d',
+          border: '1px solid #3e3e3e',
+          borderRadius: '8px',
+          padding: '16px 24px',
+          minWidth: '320px',
+        }}
+      >
+        <div style={{ marginBottom: '8px' }}>
+          <strong style={{ color: '#d4d4d4' }}>Installed version:</strong> {currentVersion}
+        </div>
+        <div>
+          <strong style={{ color: '#d4d4d4' }}>Required version:</strong> {requiredVersion}
+        </div>
+      </div>
+      <p style={{ maxWidth: '520px', lineHeight: '1.6', margin: 0, color: '#a0a0a0', fontSize: '13px' }}>
+        Contact your administrator or reinstall Sonar Code Editor using the latest build.
+      </p>
+    </div>
+  );
+}
+
 function AppRoutes({ isOfficialBuild }: { isOfficialBuild: boolean }) {
   const { user, loading, internetBlocked } = useAuth();
   const { isOnline, refreshStatus } = useNetworkStatus();
@@ -263,6 +318,9 @@ export default function App() {
   // null = checking, true = granted, false = denied
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
   const [isOfficialBuild, setIsOfficialBuild] = useState(true);
+  const [currentAppVersion, setCurrentAppVersion] = useState('Unknown');
+  const [requiredAppVersion, setRequiredAppVersion] = useState<string | null>(null);
+  const [versionCheckReady, setVersionCheckReady] = useState(false);
 
   useEffect(() => {
     // Add platform class to body for OS-specific styling globally
@@ -277,17 +335,49 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
     startSecurityHeartbeat();
 
-    window.electronAPI?.security?.getAttestationToken?.()
-      .then((token) => {
-        setIsOfficialBuild(!!token && token !== 'DEV_MODE');
-      })
-      .catch(() => {
+    const initializeVersionState = async () => {
+      try {
+        const [attestation, requiredVersion] = await Promise.all([
+          window.electronAPI?.security?.getAttestationData?.(),
+          getRequiredAppVersion(),
+        ]);
+
+        if (!mounted) {
+          return;
+        }
+
+        setIsOfficialBuild(attestation?.label === 'OFFICIAL_BUILD');
+        setCurrentAppVersion(attestation?.version || 'Unknown');
+        setRequiredAppVersion(requiredVersion);
+      } catch {
+        if (!mounted) {
+          return;
+        }
+
         setIsOfficialBuild(false);
-      });
+        setCurrentAppVersion('Unknown');
+        setRequiredAppVersion(null);
+      } finally {
+        if (mounted) {
+          setVersionCheckReady(true);
+        }
+      }
+    };
+
+    void initializeVersionState();
+
+    const unsubscribe = subscribeToRequiredAppVersion((version) => {
+      if (mounted) {
+        setRequiredAppVersion(version);
+      }
+    });
 
     return () => {
+      mounted = false;
+      unsubscribe();
       stopSecurityHeartbeat();
     };
   }, []);
@@ -321,6 +411,29 @@ export default function App() {
     // Pass the recheck function so PermissionRequired can trigger a re-check
     // (also runs automatically on window focus — see inside PermissionRequired)
     return <PermissionRequired onRecheck={checkPermission} />;
+  }
+
+  if (!versionCheckReady) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#1e1e1e', color: '#d4d4d4' }}>
+        <div>Checking app version…</div>
+      </div>
+    );
+  }
+
+  if (
+    isOfficialBuild &&
+    requiredAppVersion &&
+    isValidAppVersion(currentAppVersion) &&
+    isValidAppVersion(requiredAppVersion) &&
+    isAppVersionOutdated(currentAppVersion, requiredAppVersion)
+  ) {
+    return (
+      <UpdateRequiredBlock
+        currentVersion={currentAppVersion}
+        requiredVersion={requiredAppVersion}
+      />
+    );
   }
 
   return (

@@ -19,10 +19,21 @@ const COL_ACTIVITY_LOGS = import.meta.env.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS
 const COL_REPORTS = import.meta.env.VITE_APPWRITE_COLLECTION_REPORTS || 'reports';
 const COL_SETTINGS = import.meta.env.VITE_APPWRITE_COLLECTION_SETTINGS || 'settings';
 const VERIFY_ATTESTATION_FUNCTION_ID = import.meta.env.VITE_APPWRITE_VERIFY_ATTESTATION_FUNCTION_ID;
+const SETTING_BLOCK_INTERNET_ACCESS = 'blockInternetAccess';
+const SETTING_REQUIRED_APP_VERSION = 'requiredAppVersion';
 
 interface AttestationVerificationResponse {
   verified: boolean;
   status: Session['attestation'];
+}
+
+function getNormalizedSettingValue(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
 async function verifyBuildAttestation(attestation: AttestationData): Promise<Session['attestation']> {
@@ -516,7 +527,7 @@ export async function getAllTeams(): Promise<Team[]> {
 export async function getGlobalInternetRestriction(): Promise<boolean> {
   try {
     const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
-      Query.equal('settingType', 'blockInternetAccess'),
+      Query.equal('settingType', SETTING_BLOCK_INTERNET_ACCESS),
       Query.limit(1),
     ]);
     if (res.documents.length > 0) {
@@ -531,7 +542,7 @@ export async function getGlobalInternetRestriction(): Promise<boolean> {
 export async function setGlobalInternetRestriction(blocked: boolean): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
-      Query.equal('settingType', 'blockInternetAccess'),
+      Query.equal('settingType', SETTING_BLOCK_INTERNET_ACCESS),
       Query.limit(1),
     ]);
     if (res.documents.length > 0) {
@@ -540,13 +551,56 @@ export async function setGlobalInternetRestriction(blocked: boolean): Promise<{ 
       });
     } else {
       await databases.createDocument(DB_ID, COL_SETTINGS, ID.unique(), {
-        settingType: 'blockInternetAccess',
+        settingType: SETTING_BLOCK_INTERNET_ACCESS,
         settingValue: String(blocked),
       });
     }
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Failed to update restriction' };
+  }
+}
+
+export async function getRequiredAppVersion(): Promise<string | null> {
+  try {
+    const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
+      Query.equal('settingType', SETTING_REQUIRED_APP_VERSION),
+      Query.limit(1),
+    ]);
+
+    if (res.documents.length === 0) {
+      return null;
+    }
+
+    return getNormalizedSettingValue(res.documents[0].settingValue);
+  } catch {
+    return null;
+  }
+}
+
+export async function setRequiredAppVersion(version: string): Promise<{ success: boolean; error?: string }> {
+  const normalizedVersion = version.trim();
+
+  try {
+    const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
+      Query.equal('settingType', SETTING_REQUIRED_APP_VERSION),
+      Query.limit(1),
+    ]);
+
+    if (res.documents.length > 0) {
+      await databases.updateDocument(DB_ID, COL_SETTINGS, res.documents[0].$id, {
+        settingValue: normalizedVersion,
+      });
+    } else {
+      await databases.createDocument(DB_ID, COL_SETTINGS, ID.unique(), {
+        settingType: SETTING_REQUIRED_APP_VERSION,
+        settingValue: normalizedVersion,
+      });
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to update required app version' };
   }
 }
 
@@ -657,8 +711,23 @@ export function subscribeToSettings(callback: (blocked: boolean) => void): () =>
     (response: RealtimeResponseEvent<any>) => {
       if (response.events.some((e) => e.includes('update') || e.includes('create'))) {
         const payload = response.payload;
-        if (payload.settingType === 'blockInternetAccess') {
+        if (payload.settingType === SETTING_BLOCK_INTERNET_ACCESS) {
           callback(payload.settingValue === 'true');
+        }
+      }
+    }
+  );
+  return unsub;
+}
+
+export function subscribeToRequiredAppVersion(callback: (version: string | null) => void): () => void {
+  const unsub = client.subscribe(
+    `databases.${DB_ID}.collections.${COL_SETTINGS}.documents`,
+    (response: RealtimeResponseEvent<any>) => {
+      if (response.events.some((e) => e.includes('update') || e.includes('create'))) {
+        const payload = response.payload;
+        if (payload.settingType === SETTING_REQUIRED_APP_VERSION) {
+          callback(getNormalizedSettingValue(payload.settingValue));
         }
       }
     }

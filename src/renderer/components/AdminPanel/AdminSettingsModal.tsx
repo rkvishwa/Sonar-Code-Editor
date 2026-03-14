@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ArrowLeft, X, Users, LogOut, Settings, Key, CheckCircle2, Eye, EyeOff, Trash2 } from 'lucide-react';
-import { updateTeamName, updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction } from '../../services/appwrite';
+import {
+  updateTeamName,
+  updateTeamPassword,
+  flushAllActivityLogs,
+  getGlobalInternetRestriction,
+  setGlobalInternetRestriction,
+  getRequiredAppVersion,
+  setRequiredAppVersion,
+} from '../../services/appwrite';
 import { Team } from '../../../shared/types';
+import { isValidAppVersion } from '../../utils/version';
 import '../Settings/SettingsModal.css';
 
 interface AdminSettingsModalProps {
@@ -54,6 +63,12 @@ export default function AdminSettingsModal({
   const [savingRestriction, setSavingRestriction] = useState(false);
   const [restrictionError, setRestrictionError] = useState('');
   const [restrictionSuccess, setRestrictionSuccess] = useState('');
+  const [requiredVersion, setRequiredVersion] = useState('');
+  const [enforcedVersion, setEnforcedVersion] = useState<string | null>(null);
+  const [currentAppVersion, setCurrentAppVersion] = useState('');
+  const [savingRequiredVersion, setSavingRequiredVersion] = useState(false);
+  const [requiredVersionError, setRequiredVersionError] = useState('');
+  const [requiredVersionSuccess, setRequiredVersionSuccess] = useState('');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -81,8 +96,26 @@ export default function AdminSettingsModal({
       setGlobalRestriction(false);
       setRestrictionError('');
       setRestrictionSuccess('');
+      setRequiredVersion('');
+      setEnforcedVersion(null);
+      setCurrentAppVersion('');
+      setRequiredVersionError('');
+      setRequiredVersionSuccess('');
       if (user?.role === 'admin') {
         getGlobalInternetRestriction().then(setGlobalRestriction).catch(console.error);
+        getRequiredAppVersion()
+          .then((version) => {
+            setEnforcedVersion(version);
+            setRequiredVersion(version ?? '');
+          })
+          .catch(console.error);
+        window.electronAPI?.security?.getAttestationData?.()
+          .then((attestation) => {
+            setCurrentAppVersion(attestation?.version || 'Unknown');
+          })
+          .catch(() => {
+            setCurrentAppVersion('Unknown');
+          });
       }
     }
   }, [isOpen, user]);
@@ -104,7 +137,7 @@ export default function AdminSettingsModal({
 
   const showPrivacy = !isSearching
     ? activeTab === 'Privacy'
-    : matchesSearch('Privacy') || matchesSearch('Block') || matchesSearch('Internet') || matchesSearch('Restriction');
+    : matchesSearch('Privacy') || matchesSearch('Block') || matchesSearch('Internet') || matchesSearch('Restriction') || matchesSearch('Version') || matchesSearch('Update');
 
   const showAppearance = !isSearching
     ? activeTab === 'Appearance'
@@ -180,6 +213,44 @@ export default function AdminSettingsModal({
       setRestrictionError(result.error || 'Failed to update restriction');
     }
     setSavingRestriction(false);
+  };
+
+  const persistRequiredVersion = async (nextVersion: string) => {
+    const normalizedVersion = nextVersion.trim();
+
+    setRequiredVersionError('');
+    setRequiredVersionSuccess('');
+
+    if (normalizedVersion && !isValidAppVersion(normalizedVersion)) {
+      setRequiredVersionError('Enter a valid version such as 1.0.0 or 1.2.3-beta.1');
+      return;
+    }
+
+    setSavingRequiredVersion(true);
+    const result = await setRequiredAppVersion(normalizedVersion);
+
+    if (result.success) {
+      setEnforcedVersion(normalizedVersion || null);
+      setRequiredVersion(normalizedVersion);
+      setRequiredVersionSuccess(
+        normalizedVersion
+          ? `Minimum required app version set to ${normalizedVersion}`
+          : 'Version enforcement disabled'
+      );
+      setTimeout(() => setRequiredVersionSuccess(''), 3000);
+    } else {
+      setRequiredVersionError(result.error || 'Failed to update required app version');
+    }
+
+    setSavingRequiredVersion(false);
+  };
+
+  const handleSaveRequiredVersion = async () => {
+    await persistRequiredVersion(requiredVersion);
+  };
+
+  const handleClearRequiredVersion = async () => {
+    await persistRequiredVersion('');
   };
 
   const isWindows = navigator.userAgent.toLowerCase().includes('win');
@@ -343,6 +414,71 @@ export default function AdminSettingsModal({
                   </div>
                   {restrictionError && <div className="account-error">{restrictionError}</div>}
                   {restrictionSuccess && <div className="account-success"><CheckCircle2 size={12} /> {restrictionSuccess}</div>}
+                </div>
+              </div>
+
+              <div className="account-card" style={{ marginTop: 16 }}>
+                <div className="account-members-section">
+                  <div className="account-members-header">
+                    <span className="vscode-setting-title"><span className="highlight">Required App Version</span></span>
+                  </div>
+                  <div className="vscode-setting-description">
+                    Teams on older app versions will be blocked before they can sign in or access the IDE.
+                  </div>
+
+                  <div className="admin-password-form">
+                    <div className="admin-password-field">
+                      <label className="admin-password-label">Latest Allowed Version</label>
+                      <input
+                        type="text"
+                        className="vscode-search-input admin-password-input"
+                        placeholder="e.g. 1.0.0"
+                        value={requiredVersion}
+                        onChange={(e) => {
+                          setRequiredVersion(e.target.value);
+                          setRequiredVersionError('');
+                          setRequiredVersionSuccess('');
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            void handleSaveRequiredVersion();
+                          }
+                        }}
+                      />
+                    </div>
+
+                    <div className="vscode-setting-description">
+                      This admin device is currently running version {currentAppVersion || 'Unknown'}.
+                    </div>
+                    <div className="vscode-setting-description">
+                      {enforcedVersion
+                        ? `Currently enforced version: ${enforcedVersion}`
+                        : 'No version requirement is currently enforced.'}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        className="activity-log-btn primary"
+                        onClick={() => {
+                          void handleSaveRequiredVersion();
+                        }}
+                        disabled={savingRequiredVersion}
+                      >
+                        {savingRequiredVersion ? 'Saving...' : 'Save Version Rule'}
+                      </button>
+                      <button
+                        className="activity-log-btn secondary"
+                        onClick={() => {
+                          void handleClearRequiredVersion();
+                        }}
+                        disabled={savingRequiredVersion || !enforcedVersion}
+                      >
+                        Clear Requirement
+                      </button>
+                    </div>
+                  </div>
+                  {requiredVersionError && <div className="account-error">{requiredVersionError}</div>}
+                  {requiredVersionSuccess && <div className="account-success"><CheckCircle2 size={12} /> {requiredVersionSuccess}</div>}
                 </div>
               </div>
             </div>
