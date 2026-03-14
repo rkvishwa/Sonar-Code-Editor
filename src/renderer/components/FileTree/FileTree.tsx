@@ -643,7 +643,7 @@ function FileTreeNode({
             <div className="context-menu-separator" />
               <div className="context-menu-item danger" onClick={handleDeleteMenuClick}>
                 <span>Delete</span>
-                <span style={{ color: "var(--text-muted)" }}>Del</span>
+                <span style={{ color: "var(--text-muted)" }}>{isWindows ? "Del" : "⌘⌫"}</span>
               </div>
             </div>,
             document.body,
