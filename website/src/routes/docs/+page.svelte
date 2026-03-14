@@ -301,11 +301,14 @@
         </div>
       </div>
 
-      <p class="text-sm text-zinc-500 dark:text-zinc-500">
-        Note: In exam mode, quick suggestions, snippet completions, and
-        parameter hints are intentionally disabled to prevent over-reliance on
-        autocomplete.
-      </p>
+      <div class="mt-4 p-5 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+        <h4 class="font-semibold text-amber-900 dark:text-amber-200 mb-2 text-sm flex items-center gap-2">
+          <Shield size={16} /> Admin-Controlled Editor Policies
+        </h4>
+        <p class="text-sm text-amber-800 dark:text-amber-300">
+          To maintain strict exam environments, advanced editor behaviors such as <strong>quick suggestions (autocomplete)</strong>, <strong>snippet completions</strong>, and <strong>auto-closing brackets/quotes</strong> can be dynamically enabled or disabled globally by an administrator in the admin dashboard settings. This prevents over-reliance on IntelliSense and enforces academic integrity when needed.
+        </p>
+      </div>
     </section>
 
     <hr class="border-zinc-200 dark:border-white/10" />
@@ -623,18 +626,35 @@
         Settings
       </h2>
       <p class="text-zinc-600 dark:text-zinc-400 mb-4">
-        The settings modal provides six tabs for customizing the IDE experience.
-        All settings persist to <code class="text-blue-700 dark:text-blue-300"
-          >localStorage</code
-        >
-        (prefixed with
-        <code class="text-blue-700 dark:text-blue-300">ide-</code>).
+        The settings modal provides tabs for customizing the IDE experience. User settings persist to <code class="text-blue-700 dark:text-blue-300">localStorage</code>. Administrator actions sync globally in real-time.
       </p>
 
+      <h3 class="text-lg font-semibold mb-3 text-zinc-800 dark:text-zinc-200">
+        Student & General Settings
+      </h3>
+      <div
+        class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 divide-y divide-zinc-100 dark:divide-white/5 text-sm overflow-hidden mb-6"
+      >
+        {#each [["Text Editor", "Auto-Save (500ms debounce), Hot Reload (refresh preview on save), Word Wrap toggle"], ["Appearance", "Theme: Light, Dark, or System (respects OS preference on load)"], ["Collaboration", "Show collaborator usernames toggle, username opacity slider (0-100%)"], ["Account", "View team name, list team members (student IDs), add members (max 5)"], ["Activity Log", "View event timeline, export as color-coded PDF with suspicious activity flags"], ["Security", "Change team password (requires current password verification)"]] as [tab, desc]}
+          <div class="p-4">
+            <h4 class="font-semibold text-zinc-900 dark:text-white mb-1">
+              {tab}
+            </h4>
+            <p class="text-zinc-600 dark:text-zinc-400 text-xs">{desc}</p>
+          </div>
+        {/each}
+      </div>
+
+      <h3 class="text-lg font-semibold mb-3 text-zinc-800 dark:text-zinc-200">
+        Admin Settings & Overrides
+      </h3>
+      <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-3">
+        Administrators have access to global management settings that bypass local student choices.
+      </p>
       <div
         class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 divide-y divide-zinc-100 dark:divide-white/5 text-sm overflow-hidden"
       >
-        {#each [["Text Editor", "Auto-Save (500ms debounce), Hot Reload (refresh preview on save), Word Wrap toggle"], ["Appearance", "Theme: Light, Dark, or System (respects OS preference on load)"], ["Collaboration", "Show collaborator usernames toggle, username opacity slider (0-100%)"], ["Account", "View team name, list team members (student IDs), add members (max 5)"], ["Activity Log", "View event timeline, export as color-coded PDF with suspicious activity flags"], ["Security", "Change team password (requires current password verification)"]] as [tab, desc]}
+        {#each [["Editor Restrictions", "Locally disable Monaco's built-in Quick Suggestions (Autocomplete), Snippet Completions, and auto-closing brackets."], ["Network Constraints", "Toggle and enforce Global Internet Restrictions to completely sandbox the team."], ["Log Management", "Safely clear flagged activity logs globally or manage team connection states."], ["Activity Policies", "Define strict conditions for what constitutes an external paste or blur event."]] as [tab, desc]}
           <div class="p-4">
             <h4 class="font-semibold text-zinc-900 dark:text-white mb-1">
               {tab}
@@ -676,18 +696,6 @@
             users to the dashboard and
             <code class="text-blue-700 dark:text-blue-300">team</code> users to the
             IDE.
-          </p>
-        </div>
-        <div
-          class="p-4 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5"
-        >
-          <h4 class="font-semibold text-zinc-900 dark:text-white mb-1">
-            macOS Automation Permission
-          </h4>
-          <p>
-            On macOS, Sonar requires Automation/System Events permission at
-            startup to monitor application switching. The app blocks until this
-            permission is granted, preventing unmonitored exam sessions.
           </p>
         </div>
         <div
