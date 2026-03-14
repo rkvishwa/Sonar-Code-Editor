@@ -215,7 +215,7 @@
         class="bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5 rounded-xl p-5 font-mono text-sm text-zinc-700 dark:text-zinc-300 space-y-1 mb-6 overflow-x-auto"
       >
         <p class="text-zinc-500 dark:text-zinc-500"># Clone and install</p>
-        <p>git clone https://github.com/rkvishwa/Sonar-Code-Editor.git</p>
+        <p>git clone https://github.com/your-username/Sonar-Code-Editor.git</p>
         <p>cd Sonar-Code-Editor</p>
         <p>npm install</p>
         <br />
