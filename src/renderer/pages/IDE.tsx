@@ -795,17 +795,14 @@ function IDEContent() {
         return next;
       });
 
-      // Broadcast delete to collaboration peers
+      // Broadcast delete to collaboration peers.
+      // NOTE: we intentionally do NOT clear Y.Text here — clearing it while
+      // the editor is still bound would blank the editor immediately.  The
+      // undo path (handleFileCreated) always has savedContent available, so
+      // it can seed Y.Text correctly without a pre-wipe.
       try {
         const wsRoot = workspaceRootRef.current;
         if (collabActiveRef.current && wsRoot) {
-          // Clear Y.Text for the deleted file(s) so that stale content is
-          // never returned by getFileContent if the user later undoes the
-          // delete.  Without this, setFileContent in handleFileCreated would
-          // see non-empty Y.Text and skip writing the restored savedContent.
-          if (type === "file") {
-            setFileContentRef.current(deletedPath, "", wsRoot);
-          }
           const relativePath = toRelativePath(deletedPath, wsRoot);
           broadcastFileOpRef.current({
             type: "delete",
@@ -945,16 +942,37 @@ function IDEContent() {
       }
 
       // Mark the tab as not-deleted AFTER seeding Y.Text.
-      // Only update an existing tab — if it was previously closed, leave it
-      // closed. Y.Text is already seeded so collaboration will work when the
-      // user opens the file again from the file tree.
+      // If the tab was closed before the undo, open it afresh so the editor
+      // syncs immediately — the user expects the file to reappear.
       setTabs((prev) => {
         const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
-        return prev.map((t) =>
-          t.path.replace(/\\/g, "/").toLowerCase() === fNorm
-            ? { ...t, isDeleted: false, content: restoredContent || t.content }
-            : t
+        const existingIdx = prev.findIndex(
+          (t) => t.path.replace(/\\/g, "/").toLowerCase() === fNorm
         );
+        if (existingIdx >= 0) {
+          // Tab exists (may be marked deleted) — just update it in place.
+          return prev.map((t) =>
+            t.path.replace(/\\/g, "/").toLowerCase() === fNorm
+              ? { ...t, isDeleted: false, content: restoredContent || t.content }
+              : t
+          );
+        }
+        // Tab was closed before the undo — create it fresh and make it active.
+        if (restoredContent !== undefined) {
+          const newName = fullPath.split(/[\/\\]/).pop() || "";
+          const newTab: OpenTab = {
+            path: fullPath,
+            name: newName,
+            content: restoredContent,
+            isDirty: false,
+            language: getLanguage(newName),
+            isPreviewFile: false,
+          };
+          // setActiveTabPath is a stable React setter — safe to call here.
+          setActiveTabPath(fullPath);
+          return [...prev, newTab];
+        }
+        return prev;
       });
     },
     [],
