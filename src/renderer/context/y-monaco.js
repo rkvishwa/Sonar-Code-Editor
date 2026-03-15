@@ -195,6 +195,8 @@ export class MonacoBinding {
     this.doc.off('beforeAllTransactions', this._beforeTransaction)
     if (this.awareness) {
       this.awareness.off('change', this._rerenderDecorations)
+      // Clear awareness state so stale selections don't linger for this document
+      this.awareness.setLocalStateField('selection', null)
     }
   }
 }
