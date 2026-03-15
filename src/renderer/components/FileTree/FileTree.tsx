@@ -557,7 +557,7 @@ function FileTreeNode({
     }
   }, [contextMenu]);
 
-  const isActive = node.type === "file" && node.path === activeFilePath;
+  const isActive = node.type === "file" && node.path.replace(/\\/g, "/") === (activeFilePath || "").replace(/\\/g, "/");
   const isSelected = node.type === "directory" && node.path === selectedFolder;
 
   return (
