@@ -172,7 +172,6 @@ function IDEContent() {
 
   // Refs for stable file-operation subscriber (avoids re-subscription on every render)
   const fileOpQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const remoteCreatesRef = useRef<Set<string>>(new Set()); // Prevents echo file creations from watcher
   const workspaceRootRef = useRef<string | null>(null);
   // Keep the ref in sync with state
   useEffect(() => {
@@ -910,14 +909,6 @@ function IDEContent() {
 
   const handleFileCreated = useCallback(
     async (fullPath: string, _name: string, savedContent?: string, isUndo?: boolean) => {
-      // If this file creation was explicitly triggered by a remote peer operation,
-      // skip the watcher response entirely to prevent echo broadcasting and duplicate
-      // Y.Text purges.
-      if (remoteCreatesRef.current.has(fullPath)) {
-        remoteCreatesRef.current.delete(fullPath);
-        return;
-      }
-      
       let restoredContent = "";
 
       try {
@@ -1099,8 +1090,6 @@ function IDEContent() {
           switch (op.type) {
             case "create-file": {
               try {
-                // Ignore the upcoming chokidar add event
-                remoteCreatesRef.current.add(fullPath);
                 await window.electronAPI.fs.createFile(fullPath);
                 if (op.content) {
                   await window.electronAPI.fs.writeFile(fullPath, op.content);
