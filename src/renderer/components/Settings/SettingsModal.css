@@ -141,15 +141,23 @@
 }
 
 .vscode-settings-tree li:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--list-hover-bg, rgba(255, 255, 255, 0.08));
   color: var(--text-primary);
 }
 
 .vscode-settings-tree li.active {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--list-active-bg, rgba(255, 255, 255, 0.08));
   color: var(--text-primary);
   border-left: 2px solid var(--accent);
   padding-left: 22px; /* Adjust padding for border */
+}
+
+[data-theme="light"] .vscode-settings-tree li:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .vscode-settings-tree li.active {
+  background-color: rgba(0, 0, 0, 0.08);
 }
 
 .vscode-settings-tree li.vscode-settings-divider {
@@ -416,9 +424,9 @@
 
 .color-picker-control {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 10px;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
 }
 
 .color-presets {
