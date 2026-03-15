@@ -683,7 +683,10 @@ function IDEContent() {
   }, [tabs]);
 
   const openFile = useCallback(
-    async (filePath: string, fileName: string, isPreview: boolean = true) => {
+    async (rawFilePath: string, fileName: string, isPreview: boolean = true) => {
+      // Normalize slashes to keep tab paths completely uniform across platforms
+      const filePath = rawFilePath.replace(/\\/g, "/");
+
       const existing = tabsRef.current.find((t) => t.path === filePath);
       if (existing) {
         setActiveTabPath(filePath);
@@ -867,7 +870,7 @@ function IDEContent() {
 
           if (tNorm === oNorm || tNorm.startsWith(oNorm + "/")) {
             updated = true;
-            const newFilePath = newPath + t.path.slice(oldPath.length);
+            const newFilePath = (newPath + t.path.slice(oldPath.length)).replace(/\\/g, "/");
             const newName = newFilePath.split(/[\\/]/).pop() || "";
             return { ...t, path: newFilePath, name: newName };
           }
@@ -880,7 +883,7 @@ function IDEContent() {
             const cNorm = current.replace(/\\/g, "/").toLowerCase();
             const oNorm = oldPath.replace(/\\/g, "/").toLowerCase();
             if (cNorm === oNorm || cNorm.startsWith(oNorm + "/")) {
-              return newPath + current.slice(oldPath.length);
+              return (newPath + current.slice(oldPath.length)).replace(/\\/g, "/");
             }
             return current;
           });
@@ -1012,9 +1015,10 @@ function IDEContent() {
           }
           // Tab was closed before the undo — create it fresh and make it active.
           if (restoredContent !== undefined) {
+            const normalizedFullPath = fullPath.replace(/\\/g, "/");
             const newName = fullPath.split(/[\/\\]/).pop() || "";
             const newTab: OpenTab = {
-              path: fullPath,
+              path: normalizedFullPath,
               name: newName,
               content: restoredContent,
               isDirty: false,
@@ -1022,7 +1026,7 @@ function IDEContent() {
               isPreviewFile: false,
             };
             // setActiveTabPath is a stable React setter — safe to call here.
-            setActiveTabPath(fullPath);
+            setActiveTabPath(normalizedFullPath);
             return [...prev, newTab];
           }
           return prev;
