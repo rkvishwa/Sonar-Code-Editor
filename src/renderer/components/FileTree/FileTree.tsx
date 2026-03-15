@@ -268,6 +268,7 @@ interface FileTreeNodeProps {
   onFileRenamed?: (oldPath: string, newPath: string) => void;
   onFileCreated?: (path: string, name: string, savedContent?: string, isUndo?: boolean) => void;
   onFolderCreated?: (path: string) => void;
+  refreshTrigger?: number;
 }
 
 function FileTreeNode({
@@ -287,6 +288,7 @@ function FileTreeNode({
   onFileRenamed,
   onFileCreated,
   onFolderCreated,
+  refreshTrigger,
 }: FileTreeNodeProps) {
   const [expanded, setExpanded] = useState(false);
   const [children, setChildren] = useState<FileNode[]>(node.children || []);
@@ -325,6 +327,12 @@ function FileTreeNode({
       loadChildren();
     }
   }, [isCreatingHere, expanded, loadChildren]);
+
+  useEffect(() => {
+    if (expanded && typeof refreshTrigger === 'number' && refreshTrigger > 0) {
+      loadChildren();
+    }
+  }, [refreshTrigger, expanded, loadChildren]);
 
   const toggleExpanded = async () => {
     if (node.type !== "directory") return;
@@ -683,6 +691,7 @@ function FileTreeNode({
                 onFileRenamed={onFileRenamed}
                 onFileCreated={onFileCreated}
                 onFolderCreated={onFolderCreated}
+                refreshTrigger={refreshTrigger}
               />
             ))}
           {isCreatingHere && creatingItem?.type === "file" && (
@@ -715,6 +724,7 @@ function FileTreeNode({
                 onFileRenamed={onFileRenamed}
                 onFileCreated={onFileCreated}
                 onFolderCreated={onFolderCreated}
+                refreshTrigger={refreshTrigger}
               />
             ))}
         </div>
@@ -950,6 +960,7 @@ const FileTree = React.memo(function FileTree({
               onFileRenamed={onFileRenamed}
               onFileCreated={onFileCreated}
               onFolderCreated={onFolderCreated}
+              refreshTrigger={refreshTrigger}
             />
           ))}
         {creatingItem &&
@@ -998,6 +1009,7 @@ const FileTree = React.memo(function FileTree({
               onFileRenamed={onFileRenamed}
               onFileCreated={onFileCreated}
               onFolderCreated={onFolderCreated}
+              refreshTrigger={refreshTrigger}
             />
           ))}
       </div>
