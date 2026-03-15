@@ -38,6 +38,7 @@ const createMonacoSelectionFromRelativeSelection = (editor, type, relSel, doc) =
 
 export class MonacoBinding {
   constructor (ytext, monacoModel, editors = new Set(), awareness = null) {
+    monacoModel.setEOL(0 /* LF */)
     this.doc = ytext.doc
     this.ytext = ytext
     this.monacoModel = monacoModel
