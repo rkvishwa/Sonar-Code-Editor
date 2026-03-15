@@ -580,7 +580,7 @@
           Navigation Controls
         </h4>
         <div
-          class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-zinc-600 dark:text-zinc-400"
+          class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 text-xs text-zinc-600 dark:text-zinc-400"
         >
           <div class="flex items-center gap-2">
             <ArrowLeft size={14} class="text-blue-600 dark:text-blue-400" /> Back
@@ -593,6 +593,12 @@
           </div>
           <div class="flex items-center gap-2">
             <Home size={14} class="text-blue-600 dark:text-blue-400" /> Home
+          </div>
+          <div class="flex items-center gap-2">
+            <Lock size={14} class="text-blue-600 dark:text-blue-400" /> Follow Locking
+          </div>
+          <div class="flex items-center gap-2">
+            <Terminal size={14} class="text-blue-600 dark:text-blue-400" /> Console
           </div>
         </div>
       </div>
@@ -609,10 +615,13 @@
             class="text-blue-700 dark:text-blue-300">.html</code
           > file
         </li>
+        <li>
+          Preview Tab & Sidebar Panel: view and interact with the local preview simultaneously.
+        </li>
         <li>Hot reload: refreshes preview on every file save (toggleable)</li>
         <li>
           Console capture: intercepts log, warn, error from the loaded page
-          (last 500 entries)
+          (last 500 entries), accessible via the console opening feature.
         </li>
         <li>Inspector button opens DevTools for the webview</li>
         <li>Supports: HTML, CSS, JS, images, fonts, media, PDFs</li>
