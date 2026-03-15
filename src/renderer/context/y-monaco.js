@@ -161,8 +161,9 @@ export class MonacoBinding {
       this.destroy()
     })
     if (awareness) {
+      this._cursorChangeHandlers = []
       editors.forEach(editor => {
-        editor.onDidChangeCursorSelection(() => {
+        const handler = editor.onDidChangeCursorSelection(() => {
           if (editor.getModel() === monacoModel) {
             const sel = editor.getSelection()
             if (sel === null) {
@@ -181,6 +182,7 @@ export class MonacoBinding {
             })
           }
         })
+        this._cursorChangeHandlers.push(handler)
       })
       this._awarenessChangeHandler = () => requestAnimationFrame(this._rerenderDecorations)
       awareness.on('change', this._awarenessChangeHandler)
@@ -191,6 +193,9 @@ export class MonacoBinding {
   destroy () {
     this._monacoChangeHandler.dispose()
     this._monacoDisposeHandler.dispose()
+    if (this._cursorChangeHandlers) {
+      this._cursorChangeHandlers.forEach(handler => handler.dispose())
+    }
     this.ytext.unobserve(this._ytextObserver)
     this.doc.off('beforeAllTransactions', this._beforeTransaction)
     if (this.awareness) {
@@ -198,5 +203,11 @@ export class MonacoBinding {
       // Clear awareness state so stale selections don't linger for this document
       this.awareness.setLocalStateField('selection', null)
     }
+    this.editors.forEach(editor => {
+      try {
+        const currentDecorations = this._decorations.get(editor)
+        if(currentDecorations) editor.deltaDecorations(currentDecorations, [])
+      } catch(e) {}
+    })
   }
 }
