@@ -310,8 +310,16 @@ class CollaborationManager {
               }
             });
             
-            // Also ask existing clients to resend by broadcasting an awareness query from the new client
-            // This triggers y-websocket to respond with awareness updates
+            // Trigger Sync: ask existing clients to send their whole state by sending them an empty SyncStep1 
+            // Also ask the new client to send its state.
+            const emptySyncStep1 = Buffer.from([0, 0, 0]); // messageSync (0), syncStep1 (0), stateVector length (0)
+            room.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(emptySyncStep1, { binary: true });
+              }
+            });
+
+            // Also ask existing clients to resend awareness
             const awarenessQuery = Buffer.from([3]); // Message type 3 = awareness query
             room.clients.forEach((client) => {
               if (client !== ws && client.readyState === WebSocket.OPEN) {
