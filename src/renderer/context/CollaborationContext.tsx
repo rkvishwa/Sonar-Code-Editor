@@ -735,7 +735,7 @@ export function CollaborationProvider({
               targetYText.insert(0, currentModelContent);
             } else {
               console.log(`Syncing model to collaborative content for: ${docName} (${currentYTextContent.length} chars)`);
-              model.setValue(currentYTextContent);
+              model.pushEditOperations([], [{ range: model.getFullModelRange(), text: currentYTextContent }], () => null);
             }
           }
 
