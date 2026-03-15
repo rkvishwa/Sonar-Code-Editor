@@ -145,7 +145,7 @@ export class MonacoBinding {
     {
       const ytextValue = ytext.toString()
       if (monacoModel.getValue() !== ytextValue) {
-        monacoModel.setValue(ytextValue)
+        monacoModel.pushEditOperations(null, [{ range: monacoModel.getFullModelRange(), text: ytextValue }], () => null)
       }
     }
     this._monacoChangeHandler = monacoModel.onDidChangeContent(event => {
