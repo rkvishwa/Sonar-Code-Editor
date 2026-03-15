@@ -720,7 +720,7 @@ export function CollaborationProvider({
         const fileSystem = ydocRef.current.getMap<Y.Text>("file_system");
         
         // Helper to establish the actual monaco binding to a specific ytext
-        const establishBindingToYText = (targetYText: Y.Text) => {
+        const establishBindingToYText = (targetYText: Y.Text, isNewYText: boolean) => {
           const awareness = providerRef.current!.awareness;
           const doc = ydocRef.current!;
           const model = monacoEditor.getModel()!;
@@ -728,19 +728,15 @@ export function CollaborationProvider({
           const currentYTextContent = targetYText.toString();
           const currentModelContent = model.getValue();
 
-          if (
-            currentYTextContent.length > 0 &&
-            currentYTextContent !== currentModelContent
-          ) {
-            console.log(`Syncing model to collaborative content for: ${docName} (${currentYTextContent.length} chars)`);
-            model.setValue(currentYTextContent);
-          } else if (
-            currentYTextContent.length === 0 &&
-            currentModelContent.length > 0
-          ) {
-            console.log(`Initializing collaborative document from local file: ${docName}`);
-            // Insert after pushing to Map to ensure proper clock synchronization
-            targetYText.insert(0, currentModelContent);
+          if (currentYTextContent !== currentModelContent) {
+            if (isNewYText) {
+              console.log(`Initializing collaborative document from local file: ${docName}`);
+              // Insert after pushing to Map to ensure proper clock synchronization
+              targetYText.insert(0, currentModelContent);
+            } else {
+              console.log(`Syncing model to collaborative content for: ${docName} (${currentYTextContent.length} chars)`);
+              model.setValue(currentYTextContent);
+            }
           }
 
           const newBinding = new MonacoBinding(
@@ -758,12 +754,14 @@ export function CollaborationProvider({
         };
 
         let ytext = fileSystem.get(docName);
+        let isNewYText = false;
         if (!ytext) {
           ytext = new Y.Text();
+          isNewYText = true;
           fileSystem.set(docName, ytext);
         }
 
-        let innerBindingDestroy = establishBindingToYText(ytext);
+        let innerBindingDestroy = establishBindingToYText(ytext, isNewYText);
 
         // Track the actively observed Y.Text reference so we can rebound if it changes
         let activelyBoundText = fileSystem.get(docName);
@@ -778,7 +776,7 @@ export function CollaborationProvider({
                    console.warn(`CRITICAL: Y.Map conflict resolved for ${docName}. Object replaced! Rebounding y-monaco...`);
                    if (innerBindingDestroy) innerBindingDestroy();
                    activelyBoundText = latestText;
-                   innerBindingDestroy = establishBindingToYText(latestText);
+                   innerBindingDestroy = establishBindingToYText(latestText, false);
                }
            }
         };
@@ -856,8 +854,7 @@ export function CollaborationProvider({
       if (!ytext) return null;
 
       const content = ytext.toString();
-      // Return null if the Y.Text is empty (file hasn't been shared yet)
-      return content.length > 0 ? content : null;
+      return content;
     },
     [],
   );
