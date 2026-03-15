@@ -828,7 +828,7 @@ function IDEContent() {
           // delete.  Without this, setFileContent in handleFileCreated would
           // see non-empty Y.Text and skip writing the restored savedContent.
           if (type === "file") {
-            setFileContentRef.current(deletedPath, "", wsRoot);
+            setFileContentRef.current(deletedPath, "", wsRoot, true);
           }
           const relativePath = toRelativePath(deletedPath, wsRoot);
           broadcastFileOpRef.current({
@@ -944,7 +944,7 @@ function IDEContent() {
             } catch (readErr) {
               console.warn(`Could not read file for broadcast: ${fullPath}`, readErr);
             }
-            if (restoredContent) {
+            if (typeof restoredContent === "string") {
               setFileContentRef.current(fullPath, restoredContent, wsRoot, true /* force purge */);
             }
           }
