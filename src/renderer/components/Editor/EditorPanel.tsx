@@ -706,6 +706,7 @@ const EditorPanel = React.memo(function EditorPanel({
                 key={`${tab.path}-${collaborationActive ? 'collab' : 'solo'}`}
                 height="100%"
                 language={tab.language}
+                keepCurrentModel={true}
                 // When collaboration is active, don't pass value prop - let y-monaco control content
                 // This prevents cursor jumping when multiple users edit the same line
                 {...(!collaborationActive && { value: tab.content })}
