@@ -248,6 +248,8 @@ export default function SettingsModal({
     { action: "Rename File / Folder", keys: ["F2"] },
     { action: "Delete File / Folder", keys: isMac ? ["⌘", "⌫"] : ["Del"] },
     { action: "Undo Delete", keys: [formatKey("Ctrl"), "Z"] },
+    { action: "Cut File / Folder", keys: [formatKey("Ctrl"), "X"] },
+    { action: "Paste File / Folder", keys: [formatKey("Ctrl"), "V"] },
   ];
 
   const filteredShortcuts = shortcuts.filter(
@@ -257,7 +259,9 @@ export default function SettingsModal({
       matchesSearch("Keyboard Shortcuts") ||
       matchesSearch("rename") ||
       matchesSearch("delete") ||
-      matchesSearch("undo"),
+      matchesSearch("undo") ||
+      matchesSearch("cut") ||
+      matchesSearch("paste"),
   );
 
   const showKeyboardShortcuts = !isSearching
