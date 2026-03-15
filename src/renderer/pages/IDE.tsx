@@ -923,7 +923,7 @@ function IDEContent() {
             ? collaboration.getFileContent(fullPath, wsRoot)
             : null;
 
-          if (ytextContent) {
+          if (ytextContent !== null) {
             // Y.Text already has content — but since the file was deleted,
             // the CRDT items might be out of sync with other machines or y-monaco
             // might fail to re-bind cleanly to the same old items.
@@ -1001,7 +1001,7 @@ function IDEContent() {
             // Tab exists (may be marked deleted) — just update it in place.
             return prev.map((t) =>
               t.path.replace(/\\/g, "/").toLowerCase() === fNorm
-                ? { ...t, isDeleted: false, content: restoredContent || t.content }
+                ? { ...t, isDeleted: false, content: restoredContent ?? t.content }
                 : t
             );
           }
@@ -1101,7 +1101,7 @@ function IDEContent() {
               // and invalidates cursor RelativePositions in awareness.
               if (op.content != null) {
                 const existingContent = collaboration.getFileContent(fullPath, wsRoot);
-                if (!existingContent) {
+                if (existingContent === null || existingContent !== op.content) {
                   setFileContentRef.current(fullPath, op.content, wsRoot);
                 }
               }
@@ -1112,7 +1112,7 @@ function IDEContent() {
                 const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
                 return prev.map((t) =>
                   t.path.replace(/\\/g, "/").toLowerCase() === fNorm
-                    ? { ...t, isDeleted: false, content: op.content || t.content }
+                    ? { ...t, isDeleted: false, content: op.content ?? t.content }
                     : t
                 );
               });
