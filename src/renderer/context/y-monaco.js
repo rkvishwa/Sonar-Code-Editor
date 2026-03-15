@@ -181,9 +181,9 @@ export class MonacoBinding {
             })
           }
         })
-        // Wrap rendering in requestAnimationFrame to prevent recursive deltaDecorations bugs
-        awareness.on('change', () => requestAnimationFrame(this._rerenderDecorations))
       })
+      this._awarenessChangeHandler = () => requestAnimationFrame(this._rerenderDecorations)
+      awareness.on('change', this._awarenessChangeHandler)
       this.awareness = awareness
     }
   }
@@ -194,7 +194,7 @@ export class MonacoBinding {
     this.ytext.unobserve(this._ytextObserver)
     this.doc.off('beforeAllTransactions', this._beforeTransaction)
     if (this.awareness) {
-      this.awareness.off('change', this._rerenderDecorations)
+      this.awareness.off('change', this._awarenessChangeHandler)
       // Clear awareness state so stale selections don't linger for this document
       this.awareness.setLocalStateField('selection', null)
     }
