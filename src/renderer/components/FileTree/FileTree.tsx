@@ -833,7 +833,11 @@ const FileTree = React.memo(function FileTree({
   }, [loadRoot]);
 
   useEffect(() => {
-    if (refreshTrigger) loadRoot();
+    if (typeof refreshTrigger === 'number' && refreshTrigger > 0) {
+      loadRoot();
+      // Wait for React to render, then close context menu and creating state
+      setCreatingItem(null);
+    }
   }, [refreshTrigger, loadRoot]);
 
   const handleSetCreating = (item: CreatingItem | null) => {
