@@ -17,8 +17,8 @@ const createRelativeSelection = (editor, monacoModel, type) => {
   if (sel !== null) {
     const startPos = sel.getStartPosition()
     const endPos = sel.getEndPosition()
-    const start = Y.createRelativePositionFromTypeIndex(type, monacoModel.getOffsetAt(startPos))
-    const end = Y.createRelativePositionFromTypeIndex(type, monacoModel.getOffsetAt(endPos))
+    const start = Y.createRelativePositionFromTypeIndex(type, monacoModel.getOffsetAt(startPos), -1)
+    const end = Y.createRelativePositionFromTypeIndex(type, monacoModel.getOffsetAt(endPos), -1)
     return new RelativeSelection(start, end, sel.getDirection())
   }
   return null
@@ -178,8 +178,8 @@ export class MonacoBinding {
               head = tmp
             }
             awareness.setLocalStateField('selection', {
-              anchor: Y.createRelativePositionFromTypeIndex(ytext, anchor),
-              head: Y.createRelativePositionFromTypeIndex(ytext, head)
+              anchor: Y.createRelativePositionFromTypeIndex(ytext, anchor, -1),
+              head: Y.createRelativePositionFromTypeIndex(ytext, head, -1)
             })
           }
         })
