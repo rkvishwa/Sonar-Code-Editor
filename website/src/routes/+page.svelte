@@ -204,17 +204,17 @@
             <div class="w-full sm:w-auto">
               <a
                 href="/windows/download"
-                class="shake-btn group w-full sm:w-auto px-6 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 font-semibold rounded-lg shadow-lg shadow-zinc-900/10 dark:shadow-white/10 flex items-center justify-center gap-2 text-sm transition-all hover:-translate-y-0.5 active:translate-y-0"
+                class="group relative overflow-hidden w-full sm:w-auto px-8 py-3.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-semibold rounded-lg shadow-lg shadow-zinc-900/10 dark:shadow-white/10 hover:shadow-cyan-500/25 dark:hover:shadow-cyan-400/25 border border-transparent dark:border-white/5 flex items-center justify-center gap-3 text-lg transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0"
               >
-                <div
-                  class="absolute inset-0 flex items-center justify-center pointer-events-none z-0"
-                >
-                  <div
-                    class="w-0 h-full bg-cyan-600 dark:bg-cyan-500 rounded-full group-hover:w-[150%] group-hover:scale-x-110 transition-all duration-500 ease-out"
-                  ></div>
+                <!-- Expanding Pattern Fill Background -->
+                <div class="absolute inset-0 flex items-center justify-center z-0 pointer-events-none overflow-hidden rounded-lg">
+                  <div class="w-[120%] aspect-square bg-cyan-600 dark:bg-cyan-500 rounded-full scale-0 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500 ease-out flex items-center justify-center origin-center">
+                    <div class="absolute inset-0 opacity-20 pattern-dots"></div>
+                  </div>
                 </div>
-                <div class="relative z-10 flex items-center gap-2">
-                  <Download size={15} />
+                
+                <div class="relative z-10 flex items-center gap-3 transition-all duration-300 group-hover:scale-[1.02] text-white dark:text-zinc-900 group-hover:text-white dark:group-hover:text-white">
+                  <Download size={20} class="group-hover:-translate-y-[1px] transition-transform duration-300" />
                   <span>Download for Windows</span>
                 </div>
               </a>
@@ -233,22 +233,22 @@
             </div>
           {:else}
             <div class="w-full sm:w-auto">
-              <a
-                href="/download"
-                class="group relative overflow-hidden w-full sm:w-auto px-6 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:text-white dark:hover:text-white font-semibold rounded-lg shadow-lg shadow-zinc-900/10 dark:shadow-white/10 hover:shadow-[0_0_18px_rgba(6,182,212,0.4)] flex items-center justify-center text-sm transition-all duration-300 hover:-translate-y-1 active:translate-y-0"
-              >
-                <div
-                  class="absolute inset-0 flex items-center justify-center pointer-events-none z-0"
+                <a
+                  href="/download"
+                  class="group relative overflow-hidden w-full sm:w-auto px-8 py-3.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-semibold rounded-lg shadow-lg shadow-zinc-900/10 dark:shadow-white/10 hover:shadow-cyan-500/25 dark:hover:shadow-cyan-400/25 border border-transparent dark:border-white/5 flex items-center justify-center gap-3 text-lg transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0"
                 >
-                  <div
-                    class="w-0 h-full bg-cyan-600 dark:bg-cyan-500 rounded-full group-hover:w-[150%] group-hover:scale-x-110 transition-all duration-500 ease-out"
-                  ></div>
-                </div>
-                <div class="relative z-10 flex items-center gap-2">
-                  <Download size={15} />
-                  <span>Download Sonar IDE</span>
-                </div>
-              </a>
+                  <!-- Expanding Pattern Fill Background -->
+                  <div class="absolute inset-0 flex items-center justify-center z-0 pointer-events-none overflow-hidden rounded-lg">
+                    <div class="w-[120%] aspect-square bg-cyan-600 dark:bg-cyan-500 rounded-full scale-0 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500 ease-out flex items-center justify-center origin-center">
+                      <div class="absolute inset-0 opacity-20 pattern-dots"></div>
+                    </div>
+                  </div>
+                  
+                  <div class="relative z-10 flex items-center gap-3 transition-all duration-300 group-hover:scale-[1.02] text-white dark:text-zinc-900 group-hover:text-white dark:group-hover:text-white">
+                    <Download size={20} class="group-hover:-translate-y-[1px] transition-transform duration-300" />
+                    <span>Download Sonar IDE</span>
+                  </div>
+                </a>
               <p
                 class="mt-4 text-xs text-zinc-600 dark:text-zinc-400 text-center sm:text-left"
               >
@@ -1168,5 +1168,11 @@
   }
   .animate-marquee-right-slow {
     animation: marqueeRight 75s linear infinite;
+  }
+  
+  /* --- Button Pattern Fill --- */
+  .pattern-dots {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px);
+    background-size: 10px 10px;
   }
 </style>

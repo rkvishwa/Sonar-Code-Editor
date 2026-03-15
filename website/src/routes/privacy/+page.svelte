@@ -3,7 +3,12 @@
 
 <svelte:head>
 	<title>Privacy Policy | Sonar IDE</title>
-	<meta name="description" content="Privacy Policy for Sonar Code Editor" />
+	<meta name="description" content="Privacy Policy for Sonar Code Editor. Learn how we handle data in our offline-first, locally hosted collaborative IDE." />
+	<meta property="og:title" content="Privacy Policy | Sonar IDE" />
+	<meta property="og:description" content="Privacy Policy for Sonar Code Editor. Learn how we handle data in our offline-first, locally hosted collaborative IDE." />
+	<meta property="og:image" content="/favicon.png" />
+	<meta property="og:type" content="website" />
+	<meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <section class="max-w-4xl mx-auto px-6 pt-10 pb-20 lg:pt-16 sm:pb-32">

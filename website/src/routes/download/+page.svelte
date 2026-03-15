@@ -3,7 +3,7 @@
   import Download from "lucide-svelte/icons/download";
   import Monitor from "lucide-svelte/icons/monitor";
   import ShieldAlert from "lucide-svelte/icons/shield-alert";
-  import WifiOff from "lucide-svelte/icons/wifi-off";
+  import Wifi from "lucide-svelte/icons/wifi";
   import Link2 from "lucide-svelte/icons/link-2";
   import Copy from "lucide-svelte/icons/copy";
   import Check from "lucide-svelte/icons/check";
@@ -49,6 +49,12 @@
 
 <svelte:head>
   <title>Download | Sonar IDE</title>
+  <meta name="description" content="Download Sonar IDE for Windows, macOS, and Linux. Get the official client for supervised exam environments and secure code collaboration." />
+  <meta property="og:title" content="Download | Sonar IDE" />
+  <meta property="og:description" content="Download Sonar IDE for Windows, macOS, and Linux. Get the official client for supervised exam environments and secure code collaboration." />
+  <meta property="og:image" content="/favicon.png" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <div
@@ -166,14 +172,18 @@
       {:else}
         <a
           href="/windows/download"
-          class="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center space-x-3 transition-all hover:scale-105 active:scale-95"
+          class="group relative overflow-hidden w-full sm:w-auto px-8 py-3.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-semibold rounded-xl shadow-lg shadow-zinc-900/10 dark:shadow-white/10 hover:shadow-cyan-500/25 dark:hover:shadow-cyan-400/25 border border-transparent dark:border-white/5 flex items-center justify-center gap-3 text-lg transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0"
         >
-          <Monitor size={24} />
-          <div class="text-left font-sans">
-            <div class="text-sm font-medium opacity-80 leading-none mb-1">
-              Download for
+          <!-- Expanding Pattern Fill Background -->
+          <div class="absolute inset-0 flex items-center justify-center z-0 pointer-events-none overflow-hidden rounded-xl">
+            <div class="w-[120%] aspect-square bg-cyan-600 dark:bg-cyan-500 rounded-full scale-0 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500 ease-out flex items-center justify-center origin-center">
+              <div class="absolute inset-0 opacity-20 pattern-dots"></div>
             </div>
-            <div class="text-xl leading-none">Windows</div>
+          </div>
+          
+          <div class="relative z-10 flex items-center gap-3 transition-all duration-300 group-hover:scale-[1.02] text-white dark:text-zinc-900 group-hover:text-white dark:group-hover:text-white font-semibold">
+            <Download size={20} class="group-hover:-translate-y-[1px] transition-transform duration-300" />
+            <span class="text-lg">Download for Windows</span>
           </div>
         </a>
         <p class="text-xs text-zinc-600 dark:text-zinc-400 mt-2">
@@ -193,11 +203,10 @@
         </div>
         <div>
           <h3 class="font-bold text-zinc-900 dark:text-white mb-1">
-            Admin Privileges Required
+            Monitoring Permission Required
           </h3>
           <p class="text-sm text-zinc-600 dark:text-zinc-400">
-            Sonar needs elevated access to reliably capture operating system
-            window focus telemetry.
+            Required monitoring permission to access the app.
           </p>
         </div>
       </div>
@@ -205,15 +214,14 @@
         <div
           class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0"
         >
-          <WifiOff size={20} />
+          <Wifi size={20} />
         </div>
         <div>
           <h3 class="font-bold text-zinc-900 dark:text-white mb-1">
-            Firewall Whitelisting
+            Local Network Permission
           </h3>
           <p class="text-sm text-zinc-600 dark:text-zinc-400">
-            Ensure Appwrite WebSocket connections are permitted through your
-            school's network firewall.
+            Also need local network permission to collaborate. Not mandatory if not collaborating.
           </p>
         </div>
       </div>
@@ -226,3 +234,11 @@
     > • By downloading, you agree to the Academic Data Policy.
   </p>
 </div>
+
+<style>
+  /* --- Button Pattern Fill --- */
+  .pattern-dots {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px);
+    background-size: 10px 10px;
+  }
+</style>

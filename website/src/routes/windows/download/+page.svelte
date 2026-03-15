@@ -40,6 +40,12 @@
 
 <svelte:head>
   <title>Download for Windows | Sonar IDE</title>
+  <meta name="description" content="Download Sonar IDE for Windows. Get the official client for supervised exam environments and secure code collaboration." />
+  <meta property="og:title" content="Download for Windows | Sonar IDE" />
+  <meta property="og:description" content="Download Sonar IDE for Windows. Get the official client for supervised exam environments and secure code collaboration." />
+  <meta property="og:image" content="/favicon.png" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <div

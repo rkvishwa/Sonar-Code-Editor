@@ -110,8 +110,13 @@
   <title>Documentation | Sonar IDE</title>
   <meta
     name="description"
-    content="Complete documentation for Sonar IDE — features, security model, and developer reference."
+    content="Complete documentation for Sonar IDE — features, security model, and developer reference. Learn how to set up supervised exams and collaborative workspaces."
   />
+  <meta property="og:title" content="Documentation | Sonar IDE" />
+  <meta property="og:description" content="Complete documentation for Sonar IDE — features, security model, and developer reference." />
+  <meta property="og:image" content="/favicon.png" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <div

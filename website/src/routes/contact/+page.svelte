@@ -30,8 +30,13 @@
   <title>Contact Us | Sonar IDE</title>
   <meta
     name="description"
-    content="Contact the Sonar IDE team and receive an automatic acknowledgment email after submitting the form."
+    content="Contact the Sonar IDE team for support, feature requests, or questions about secure coding environments."
   />
+  <meta property="og:title" content="Contact Us | Sonar IDE" />
+  <meta property="og:description" content="Contact the Sonar IDE team for support, feature requests, or questions about secure coding environments." />
+  <meta property="og:image" content="/favicon.png" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <div class="relative overflow-hidden px-6 pt-12 pb-20 sm:pt-16 lg:pt-20">

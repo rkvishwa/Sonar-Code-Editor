@@ -27,6 +27,18 @@
   });
 </script>
 
+<svelte:head>
+  <meta name="theme-color" content="#071018" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7fbff" media="(prefers-color-scheme: light)" />
+  <meta name="author" content="Knurdz" />
+  <meta name="keywords" content="Sonar IDE, Supervised Coding, Monitored Exams, Collaborative Code Editor, Technical Interviews, IDE, Monaco Editor, Education, Knurdz" />
+  
+  <meta property="og:site_name" content="Sonar IDE" />
+  <meta property="og:locale" content="en_US" />
+  <meta name="twitter:site" content="@knurdz" />
+  <meta name="twitter:creator" content="@knurdz" />
+</svelte:head>
+
 <div
   class="relative isolate min-h-screen flex flex-col overflow-x-clip bg-[#f7fbff] dark:bg-[#071018] text-zinc-900 dark:text-zinc-50 font-sans selection:bg-cyan-400/20 transition-colors duration-200"
 >

@@ -29,6 +29,12 @@
 
 <svelte:head>
   <title>About | Sonar IDE</title>
+  <meta name="description" content="Learn about Sonar IDE, the open-source community behind it, and our mission to provide secure, collaborative coding environments." />
+  <meta property="og:title" content="About | Sonar IDE" />
+  <meta property="og:description" content="Learn about Sonar IDE, the open-source community behind it, and our mission to provide secure, collaborative coding environments." />
+  <meta property="og:image" content="/favicon.png" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <div class="px-6 pt-10 pb-20 lg:pt-16 lg:pb-24 max-w-5xl mx-auto w-full transition-colors duration-200">
