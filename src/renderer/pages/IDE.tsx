@@ -951,7 +951,7 @@ function IDEContent() {
 
           // Write authoritative content back to disk so that non-editor
           // opens (via openFile → readFile) always see the correct content.
-          if (restoredContent) {
+          if (typeof restoredContent === "string") {
             try {
               await window.electronAPI.fs.writeFile(fullPath, restoredContent);
             } catch (writeErr) {
