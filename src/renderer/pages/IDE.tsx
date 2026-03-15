@@ -799,19 +799,33 @@ function IDEContent() {
   const handleFileDeleted = useCallback(
     (deletedPath: string, type: "file" | "directory") => {
       setTabs((prev) => {
-        const next = prev.map((t) => {
+        const next = prev.filter((t) => {
           const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
           const dNorm = deletedPath.replace(/\\/g, "/").toLowerCase();
 
           if (type === "directory") {
-            if (tNorm === dNorm || tNorm.startsWith(dNorm + "/")) {
-              return { ...t, isDeleted: true };
-            }
-          } else if (tNorm === dNorm) {
-            return { ...t, isDeleted: true };
+            return !(tNorm === dNorm || tNorm.startsWith(dNorm + "/"));
+          } else {
+            return tNorm !== dNorm;
           }
-          return t;
         });
+
+        setActiveTabPath((currentActive) => {
+          if (!currentActive) return null;
+          const cNorm = currentActive.replace(/\\/g, "/").toLowerCase();
+          const dNorm = deletedPath.replace(/\\/g, "/").toLowerCase();
+          let isActiveDeleted = false;
+          if (type === "directory") {
+             isActiveDeleted = cNorm === dNorm || cNorm.startsWith(dNorm + "/");
+          } else {
+             isActiveDeleted = cNorm === dNorm;
+          }
+          if (isActiveDeleted) {
+             return next.length > 0 ? next[next.length - 1].path : null;
+          }
+          return currentActive;
+        });
+
         return next;
       });
 
@@ -1134,21 +1148,32 @@ function IDEContent() {
               // Update tabs locally WITHOUT calling handleFileDeleted (which would
               // re-broadcast the op and create an infinite echo loop)
               setTabs((prev) => {
-                const next = prev.map((t) => {
+                const next = prev.filter((t) => {
                   const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
                   const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
                   if (op.isDirectory) {
-                    if (
-                      tNorm.startsWith(fNorm + "/") ||
-                      tNorm === fNorm
-                    ) {
-                      return { ...t, isDeleted: true };
-                    }
-                  } else if (tNorm === fNorm) {
-                    return { ...t, isDeleted: true };
+                    return !(tNorm.startsWith(fNorm + "/") || tNorm === fNorm);
+                  } else {
+                    return tNorm !== fNorm;
                   }
-                  return t;
                 });
+
+                setActiveTabPath((currentActive) => {
+                  if (!currentActive) return null;
+                  const cNorm = currentActive.replace(/\\/g, "/").toLowerCase();
+                  const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
+                  let isActiveDeleted = false;
+                  if (op.isDirectory) {
+                    isActiveDeleted = cNorm === fNorm || cNorm.startsWith(fNorm + "/");
+                  } else {
+                    isActiveDeleted = cNorm === fNorm;
+                  }
+                  if (isActiveDeleted) {
+                    return next.length > 0 ? next[next.length - 1].path : null;
+                  }
+                  return currentActive;
+                });
+
                 return next;
               });
               break;
