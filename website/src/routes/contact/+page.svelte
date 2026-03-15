@@ -279,7 +279,7 @@
                 </p>
                 <button
                   type="submit"
-                  class="inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-zinc-950 px-6 py-3 font-semibold text-white shadow-lg shadow-cyan-500/15 transition-all hover:-translate-y-0.5 hover:bg-cyan-500 dark:bg-white dark:text-[#081019] dark:hover:bg-cyan-300"
+                  class="inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-zinc-950 px-6 py-3 font-semibold text-white shadow-lg shadow-cyan-500/15 transition-all hover:-translate-y-0.5 hover:bg-cyan-500 dark:bg-white dark:text-[#081019] dark:hover:bg-cyan-300 cursor-pointer"
                 >
                   <Send size={16} />
                   <span>Send Message</span>

@@ -110,7 +110,7 @@
             href="/contact"
             class={`relative pb-1 transition-colors ${navLinkClass("/contact")}`}
           >
-            Contact
+            Contact Us
             <span
               class={`absolute left-0 -bottom-1 h-0.5 rounded-full bg-linear-to-r from-cyan-500 to-blue-500 transition-all ${isActive("/contact") ? "w-full opacity-100" : "w-0 opacity-0"}`}
             ></span>
@@ -159,7 +159,7 @@
             <a href="/" class={navLinkClass("/")}>Home</a>
             <a href="/docs" class={navLinkClass("/docs")}>Documentation</a>
             <a href="/about" class={navLinkClass("/about")}>About</a>
-            <a href="/contact" class={navLinkClass("/contact")}>Contact</a>
+            <a href="/contact" class={navLinkClass("/contact")}>Contact Us</a>
           </nav>
           <div class="flex items-center gap-3 pt-4 border-t border-cyan-400/20">
             <ThemeToggle />
