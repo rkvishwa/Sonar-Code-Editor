@@ -23,6 +23,9 @@ import {
   Shield,
   User,
   Info,
+  Save,
+  Zap,
+  AlignLeft,
 } from "lucide-react";
 import {
   getActivityLog,
@@ -461,91 +464,104 @@ export default function SettingsModal({
           {showTextEditor && (
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Text Editor</h2>
-
-              {(isSearching
-                ? matchesSearch("Auto Save") ||
-                matchesSearch("Controls auto save") ||
-                matchesSearch("Text Editor")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Editor: <span className="highlight">Auto Save</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Controls auto save of dirty editors.
+              
+              <div className="editor-settings-list">
+                {(isSearching
+                  ? matchesSearch("Auto Save") ||
+                  matchesSearch("Controls auto save") ||
+                  matchesSearch("Text Editor")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Save size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Auto Save</span>
+                          <span className="editor-setting-desc">
+                            Controls auto save of dirty editors.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action">
+                        <label className="vscode-toggle" title="Auto Save">
+                          <input
+                            type="checkbox"
+                            title="Toggle Auto Save"
+                            aria-label="Toggle Auto Save"
+                            checked={autoSave}
+                            onChange={(e) => onAutoSaveChange(e.target.checked)}
+                          />
+                          <span className="vscode-toggle-slider"></span>
+                        </label>
                       </div>
                     </div>
-                    <div className="vscode-setting-control">
-                      <label className="vscode-toggle" title="Auto Save">
-                        <input
-                          type="checkbox"
-                          title="Toggle Auto Save"
-                          aria-label="Toggle Auto Save"
-                          checked={autoSave}
-                          onChange={(e) => onAutoSaveChange(e.target.checked)}
-                        />
-                        <span className="vscode-toggle-slider"></span>
-                      </label>
-                    </div>
-                  </div>
-                )}
+                  )}
 
-              {(isSearching
-                ? matchesSearch("Hot Reload") ||
-                matchesSearch("Instantly refresh") ||
-                matchesSearch("Text Editor")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Preview: <span className="highlight">Hot Reload</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Instantly refresh the preview panel when files are saved.
+                {(isSearching
+                  ? matchesSearch("Hot Reload") ||
+                  matchesSearch("Instantly refresh") ||
+                  matchesSearch("Text Editor")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Zap size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Hot Reload</span>
+                          <span className="editor-setting-desc">
+                            Instantly refresh the preview panel when files are saved.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action">
+                        <label className="vscode-toggle" title="Hot Reload">
+                          <input
+                            type="checkbox"
+                            title="Toggle Hot Reload"
+                            aria-label="Toggle Hot Reload"
+                            checked={hotReload}
+                            onChange={(e) => onHotReloadChange(e.target.checked)}
+                          />
+                          <span className="vscode-toggle-slider"></span>
+                        </label>
                       </div>
                     </div>
-                    <div className="vscode-setting-control">
-                      <label className="vscode-checkbox-label">
-                        <input
-                          type="checkbox"
-                          className="vscode-checkbox"
-                          title="Hot Reload"
-                          checked={hotReload}
-                          onChange={(e) => onHotReloadChange(e.target.checked)}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                )}
+                  )}
 
-              {(isSearching
-                ? matchesSearch("Word Wrap") ||
-                matchesSearch("wrap long lines") ||
-                matchesSearch("Text Editor")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Editor: <span className="highlight">Word Wrap</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Wrap long lines in the editor to fit within the viewport.
+                {(isSearching
+                  ? matchesSearch("Word Wrap") ||
+                  matchesSearch("wrap long lines") ||
+                  matchesSearch("Text Editor")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <AlignLeft size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Word Wrap</span>
+                          <span className="editor-setting-desc">
+                            Wrap long lines in the editor to fit within the viewport.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action">
+                        <label className="vscode-toggle" title="Word Wrap">
+                          <input
+                            type="checkbox"
+                            title="Toggle Word Wrap"
+                            aria-label="Toggle Word Wrap"
+                            checked={wordWrap}
+                            onChange={(e) => onWordWrapChange(e.target.checked)}
+                          />
+                          <span className="vscode-toggle-slider"></span>
+                        </label>
                       </div>
                     </div>
-                    <div className="vscode-setting-control">
-                      <label className="vscode-checkbox-label">
-                        <input
-                          type="checkbox"
-                          className="vscode-checkbox"
-                          title="Word Wrap"
-                          checked={wordWrap}
-                          onChange={(e) => onWordWrapChange(e.target.checked)}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                )}
+                  )}
+              </div>
             </div>
           )}
 
