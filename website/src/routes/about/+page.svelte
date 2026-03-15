@@ -48,27 +48,27 @@
     </p>
   </div>
 
-  <section class="mb-20 relative overflow-hidden rounded-3xl bg-zinc-900 dark:bg-black text-white p-8 sm:p-12 shadow-2xl border border-zinc-800 dark:border-white/10 transition-colors duration-200">
+  <section class="mb-20 relative overflow-hidden rounded-3xl bg-zinc-100 dark:bg-black text-zinc-900 dark:text-white p-8 sm:p-12 shadow-2xl border border-zinc-200 dark:border-white/10 transition-colors duration-200">
     <div class="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-cyan-500/20 blur-3xl pointer-events-none"></div>
     <div class="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 rounded-full bg-blue-500/20 blur-3xl pointer-events-none"></div>
     
     <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
       <div class="flex-1">
-        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/10 text-cyan-300 text-xs font-semibold tracking-wider uppercase mb-4 outline outline-1 outline-white/10">
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-zinc-800/10 dark:bg-white/10 text-cyan-600 dark:text-cyan-300 text-xs font-semibold tracking-wider uppercase mb-4 outline outline-1 outline-zinc-900/10 dark:outline-white/10">
           <span>The Community</span>
         </div>
-        <h2 class="text-3xl sm:text-4xl font-extrabold mb-4">Crafted by <span class="text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-blue-400">knurdz</span></h2>
-        <p class="text-zinc-400 max-w-lg mb-6 leading-relaxed mx-auto md:mx-0">
+        <h2 class="text-3xl sm:text-4xl font-extrabold mb-4">Crafted by <span class="text-transparent bg-clip-text bg-linear-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400">knurdz</span></h2>
+        <p class="text-zinc-600 dark:text-zinc-400 max-w-lg mb-6 leading-relaxed mx-auto md:mx-0">
           Sonar IDE is proudly developed and maintained by the <strong>knurdz</strong> community. This project is completely open-source, and we welcome contributions from developers worldwide to help build the future of education and coding.
         </p>
       </div>
       
       <div class="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-        <a href="https://knurdz.org/" target="_blank" rel="noreferrer" class="flex items-center justify-center space-x-2 px-6 py-3.5 bg-white text-zinc-900 hover:bg-zinc-100 font-bold rounded-xl transition-all hover:scale-105 active:scale-95 shadow-lg shadow-white/10">
+        <a href="https://knurdz.org/" target="_blank" rel="noreferrer" class="flex items-center justify-center space-x-2 px-6 py-3.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 font-bold rounded-xl transition-all hover:scale-105 active:scale-95 shadow-lg shadow-black/10 dark:shadow-white/10">
           <Globe size={20} />
           <span>knurdz.org</span>
         </a>
-        <a href="https://github.com/knurdz" target="_blank" rel="noreferrer" class="flex items-center justify-center space-x-2 px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl outline outline-1 outline-white/20 transition-all hover:scale-105 active:scale-95">
+        <a href="https://github.com/knurdz" target="_blank" rel="noreferrer" class="flex items-center justify-center space-x-2 px-6 py-3.5 bg-zinc-200 dark:bg-white/10 hover:bg-zinc-300 dark:hover:bg-white/20 text-zinc-900 dark:text-white font-bold rounded-xl outline outline-1 outline-zinc-300 dark:outline-white/20 transition-all hover:scale-105 active:scale-95">
           <Github size={20} />
           <span>GitHub Org</span>
         </a>
