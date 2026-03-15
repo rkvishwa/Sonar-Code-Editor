@@ -120,8 +120,21 @@ export default function SettingsModal({
     if (isOpen) {
       setActiveTab("Text Editor");
       setSearchQuery("");
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordError("");
+      setPasswordSuccess("");
+      setAddMemberError("");
     }
   }, [isOpen]);
+
+  // Clear errors when switching tabs
+  useEffect(() => {
+    setPasswordError("");
+    setPasswordSuccess("");
+    setAddMemberError("");
+  }, [activeTab]);
 
   // Refresh activity log when opening the modal or switching to the Activity Log tab
   useEffect(() => {
@@ -569,81 +582,89 @@ export default function SettingsModal({
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Appearance</h2>
 
-              {(isSearching
-                ? matchesSearch("Color Theme") ||
-                matchesSearch("interface theme") ||
-                matchesSearch("Appearance")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Workbench: <span className="highlight">Color Theme</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Select your interface theme or let it match your system.
+              <div className="editor-settings-list">
+                {(isSearching
+                  ? matchesSearch("Color Theme") ||
+                  matchesSearch("interface theme") ||
+                  matchesSearch("Appearance")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Palette size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Color Theme</span>
+                          <span className="editor-setting-desc">
+                            Select your interface theme or let it match your system.
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="vscode-setting-control">
-                      <select
-                        className="vscode-select"
-                        title="Color Theme"
-                        value={theme}
-                        onChange={(e) => onThemeChange(e.target.value)}
-                      >
-                        <option value="system">System Default</option>
-                        <option value="light">Light Theme</option>
-                        <option value="dark">Dark Theme</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
-
-              {(isSearching
-                ? matchesSearch("Accent Color") ||
-                matchesSearch("custom color") ||
-                matchesSearch("Appearance")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Workbench: <span className="highlight">Accent Color</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Select a custom accent color for the interface (default is blue).
-                      </div>
-                    </div>
-                    <div className="vscode-setting-control color-picker-control">
-                      <div className="color-presets">
-                        {PRESET_COLORS.map((c) => (
-                          <button
-                            key={c.value}
-                            className={`color-preset-btn ${accentColor.toLowerCase() === c.value.toLowerCase() ? "active" : ""}`}
-                            style={{ backgroundColor: c.value }}
-                            title={c.name}
-                            onClick={() => onAccentColorChange(c.value)}
-                          />
-                        ))}
-                      </div>
-                      <div className="custom-color-wrap">
-                        <input
-                          type="color"
-                          className="vscode-color-picker"
-                          value={accentColor}
-                          onChange={(e) => onAccentColorChange(e.target.value)}
-                          title="Custom Color"
-                        />
-                        <span className="custom-color-hex">{accentColor.toUpperCase()}</span>
-                        <button 
-                          className="activity-log-btn secondary reset-color-btn"
-                          onClick={() => onAccentColorChange('#3b82f6')}
-                          disabled={accentColor.toLowerCase() === '#3b82f6'}
+                      <div className="editor-setting-action">
+                        <select
+                          className="vscode-select"
+                          title="Color Theme"
+                          value={theme}
+                          onChange={(e) => onThemeChange(e.target.value)}
                         >
-                          Reset
-                        </button>
+                          <option value="system">System Default</option>
+                          <option value="light">Light Theme</option>
+                          <option value="dark">Dark Theme</option>
+                        </select>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+
+                {(isSearching
+                  ? matchesSearch("Accent Color") ||
+                  matchesSearch("custom color") ||
+                  matchesSearch("Appearance")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Palette size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Accent Color</span>
+                          <span className="editor-setting-desc">
+                            Select a custom accent color for the interface (default is blue).
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action color-picker-control">
+                        <div className="color-presets">
+                          {PRESET_COLORS.map((c) => (
+                            <button
+                              key={c.value}
+                              className={`color-preset-btn ${accentColor.toLowerCase() === c.value.toLowerCase() ? "active" : ""}`}
+                              style={{ backgroundColor: c.value }}
+                              title={c.name}
+                              onClick={() => onAccentColorChange(c.value)}
+                            />
+                          ))}
+                        </div>
+                        <div className="custom-color-wrap">
+                          <input
+                            type="color"
+                            className="vscode-color-picker"
+                            value={accentColor}
+                            onChange={(e) => onAccentColorChange(e.target.value)}
+                            title="Custom Color"
+                          />
+                          <span className="custom-color-hex">{accentColor.toUpperCase()}</span>
+                          <button 
+                            className="activity-log-btn secondary reset-color-btn"
+                            onClick={() => onAccentColorChange('#3b82f6')}
+                            disabled={accentColor.toLowerCase() === '#3b82f6'}
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+              </div>
             </div>
           )}
 
@@ -677,78 +698,83 @@ export default function SettingsModal({
           {showCollaboration && (
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Collaboration</h2>
+              
+              <div className="editor-settings-list">
+                {(isSearching
+                  ? matchesSearch("Show Usernames") ||
+                  matchesSearch("cursor") ||
+                  matchesSearch("collaborator") ||
+                  matchesSearch("Collaboration")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Users size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Show Usernames</span>
+                          <span className="editor-setting-desc">
+                            Display collaborator usernames near their cursor in the editor.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action">
+                        <label className="vscode-toggle" title="Show Usernames">
+                          <input
+                            type="checkbox"
+                            title="Show Usernames"
+                            aria-label="Show Usernames"
+                            checked={showCollabUsernames}
+                            onChange={(e) =>
+                              onShowCollabUsernamesChange(e.target.checked)
+                            }
+                          />
+                          <span className="vscode-toggle-slider"></span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
-              {(isSearching
-                ? matchesSearch("Show Usernames") ||
-                matchesSearch("cursor") ||
-                matchesSearch("collaborator") ||
-                matchesSearch("Collaboration")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Collaboration:{" "}
-                        <span className="highlight">Show Usernames</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Display collaborator usernames near their cursor in the
-                        editor.
+                {(isSearching
+                  ? matchesSearch("Username Opacity") ||
+                  matchesSearch("opacity") ||
+                  matchesSearch("Collaboration")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Eye size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Username Opacity</span>
+                          <span className="editor-setting-desc">
+                            Control the opacity of collaborator username labels near the cursor.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action">
+                        <div className="vscode-range-control">
+                          <input
+                            type="range"
+                            className="vscode-range"
+                            title="Username Opacity"
+                            min={0}
+                            max={100}
+                            step={5}
+                            value={collabUsernameOpacity}
+                            onChange={(e) =>
+                              onCollabUsernameOpacityChange(Number(e.target.value))
+                            }
+                            disabled={!showCollabUsernames}
+                          />
+                          <span className="vscode-range-value">
+                            {collabUsernameOpacity}%
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="vscode-setting-control">
-                      <label className="vscode-checkbox-label">
-                        <input
-                          type="checkbox"
-                          className="vscode-checkbox"
-                          title="Show Usernames"
-                          checked={showCollabUsernames}
-                          onChange={(e) =>
-                            onShowCollabUsernamesChange(e.target.checked)
-                          }
-                        />
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-              {(isSearching
-                ? matchesSearch("Username Opacity") ||
-                matchesSearch("opacity") ||
-                matchesSearch("Collaboration")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Collaboration:{" "}
-                        <span className="highlight">Username Opacity</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Control the opacity of collaborator username labels near
-                        the cursor (0 = fully transparent, 100 = fully opaque).
-                      </div>
-                    </div>
-                    <div className="vscode-setting-control">
-                      <div className="vscode-range-control">
-                        <input
-                          type="range"
-                          className="vscode-range"
-                          title="Username Opacity"
-                          min={0}
-                          max={100}
-                          step={5}
-                          value={collabUsernameOpacity}
-                          onChange={(e) =>
-                            onCollabUsernameOpacityChange(Number(e.target.value))
-                          }
-                          disabled={!showCollabUsernames}
-                        />
-                        <span className="vscode-range-value">
-                          {collabUsernameOpacity}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  )}
+              </div>
             </div>
           )}
 

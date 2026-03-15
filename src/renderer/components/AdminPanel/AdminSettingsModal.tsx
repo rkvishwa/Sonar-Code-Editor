@@ -93,6 +93,18 @@ export default function AdminSettingsModal({
     }
   }, [isOpen, user]);
 
+  // Clear errors when switching tabs
+  useEffect(() => {
+    setPasswordError('');
+    setPasswordSuccess('');
+    setNameError('');
+    setNameSuccess('');
+    setFlushError('');
+    setFlushSuccess('');
+    setRestrictionError('');
+    setRestrictionSuccess('');
+  }, [activeTab]);
+
   if (!isOpen) return null;
 
   const matchesSearch = (text: string) =>
@@ -279,82 +291,90 @@ export default function AdminSettingsModal({
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Appearance</h2>
 
-              {(isSearching
-                ? matchesSearch("Color Theme") ||
-                matchesSearch("interface theme") ||
-                matchesSearch("Appearance")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Workbench: <span className="highlight">Color Theme</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Select your interface theme or let it match your system.
+              <div className="editor-settings-list">
+                {(isSearching
+                  ? matchesSearch("Color Theme") ||
+                  matchesSearch("interface theme") ||
+                  matchesSearch("Appearance")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Palette size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Color Theme</span>
+                          <span className="editor-setting-desc">
+                            Select your interface theme or let it match your system.
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="vscode-setting-control">
-                      <select
-                        className="vscode-select"
-                        value={theme}
-                        aria-label="Color Theme"
-                        title="Color Theme"
-                        onChange={(e) => onThemeChange(e.target.value)}
-                      >
-                        <option value="system">System Default</option>
-                        <option value="light">Light Theme</option>
-                        <option value="dark">Dark Theme</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
-
-              {(isSearching
-                ? matchesSearch("Accent Color") ||
-                matchesSearch("custom color") ||
-                matchesSearch("Appearance")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Workbench: <span className="highlight">Accent Color</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Select a custom accent color for the interface (default is blue).
-                      </div>
-                    </div>
-                    <div className="vscode-setting-control color-picker-control">
-                      <div className="color-presets">
-                        {PRESET_COLORS.map((c) => (
-                          <button
-                            key={c.value}
-                            className={`color-preset-btn ${accentColor.toLowerCase() === c.value.toLowerCase() ? "active" : ""}`}
-                            style={{ backgroundColor: c.value }}
-                            title={c.name}
-                            onClick={() => onAccentColorChange(c.value)}
-                          />
-                        ))}
-                      </div>
-                      <div className="custom-color-wrap">
-                        <input
-                          type="color"
-                          className="vscode-color-picker"
-                          value={accentColor}
-                          onChange={(e) => onAccentColorChange(e.target.value)}
-                          title="Custom Color"
-                        />
-                        <span className="custom-color-hex">{accentColor.toUpperCase()}</span>
-                        <button 
-                          className="activity-log-btn secondary reset-color-btn"
-                          onClick={() => onAccentColorChange('#3b82f6')}
-                          disabled={accentColor.toLowerCase() === '#3b82f6'}
+                      <div className="editor-setting-action">
+                        <select
+                          className="vscode-select"
+                          value={theme}
+                          aria-label="Color Theme"
+                          title="Color Theme"
+                          onChange={(e) => onThemeChange(e.target.value)}
                         >
-                          Reset
-                        </button>
+                          <option value="system">System Default</option>
+                          <option value="light">Light Theme</option>
+                          <option value="dark">Dark Theme</option>
+                        </select>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+
+                {(isSearching
+                  ? matchesSearch("Accent Color") ||
+                  matchesSearch("custom color") ||
+                  matchesSearch("Appearance")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Palette size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Accent Color</span>
+                          <span className="editor-setting-desc">
+                            Select a custom accent color for the interface (default is blue).
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action color-picker-control">
+                        <div className="color-presets">
+                          {PRESET_COLORS.map((c) => (
+                            <button
+                              key={c.value}
+                              className={`color-preset-btn ${accentColor.toLowerCase() === c.value.toLowerCase() ? "active" : ""}`}
+                              style={{ backgroundColor: c.value }}
+                              title={c.name}
+                              onClick={() => onAccentColorChange(c.value)}
+                            />
+                          ))}
+                        </div>
+                        <div className="custom-color-wrap">
+                          <input
+                            type="color"
+                            className="vscode-color-picker"
+                            value={accentColor}
+                            onChange={(e) => onAccentColorChange(e.target.value)}
+                            title="Custom Color"
+                          />
+                          <span className="custom-color-hex">{accentColor.toUpperCase()}</span>
+                          <button 
+                            className="activity-log-btn secondary reset-color-btn"
+                            onClick={() => onAccentColorChange('#3b82f6')}
+                            disabled={accentColor.toLowerCase() === '#3b82f6'}
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+              </div>
             </div>
           )}
 
@@ -453,38 +473,37 @@ export default function AdminSettingsModal({
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Privacy</h2>
 
-              <div className="account-card">
-                <div className="account-members-section">
-                  <div className="account-members-header">
-                    <span className="vscode-setting-title"><span className="highlight">Internet Restriction</span></span>
-                  </div>
-                  <div className="vscode-setting-description">Control internet access restrictions for all non-admin teams.</div>
-
-                  <div className="admin-password-form">
-                    <div className="vscode-setting-item" style={{ padding: 0, border: 'none' }}>
-                      <div className="vscode-setting-header">
-                        <span className="vscode-setting-title" style={{ fontSize: 13, color: '#d4d4d4' }}>Block Internet Access</span>
-                        <div className="vscode-setting-description">If enabled, non-admin teams will be restricted from using the IDE while connected to the internet.</div>
-                      </div>
-                      <div className="vscode-setting-control">
-                        <label className="vscode-checkbox-label">
-                          <input
-                            type="checkbox"
-                            className="vscode-checkbox"
-                            checked={globalRestriction}
-                            aria-label="Block Internet Access"
-                            title="Block Internet Access"
-                            onChange={(e) => handleToggleRestriction(e.target.checked)}
-                            disabled={savingRestriction}
-                          />
-                        </label>
-                      </div>
+              <div className="editor-settings-list">
+                <div className="editor-setting-row">
+                  <div className="editor-setting-info-wrap">
+                    <div className="editor-setting-icon">
+                      <Shield size={18} />
+                    </div>
+                    <div className="editor-setting-info">
+                      <span className="editor-setting-title">Block Internet Access</span>
+                      <span className="editor-setting-desc">
+                        If enabled, non-admin teams will be restricted from using the IDE while connected to the internet.
+                      </span>
                     </div>
                   </div>
-                  {restrictionError && <div className="account-error">{restrictionError}</div>}
-                  {restrictionSuccess && <div className="account-success"><CheckCircle2 size={12} /> {restrictionSuccess}</div>}
+                  <div className="editor-setting-action">
+                    <label className="vscode-toggle" title="Block Internet Access">
+                      <input
+                        type="checkbox"
+                        checked={globalRestriction}
+                        aria-label="Block Internet Access"
+                        title="Block Internet Access"
+                        onChange={(e) => handleToggleRestriction(e.target.checked)}
+                        disabled={savingRestriction}
+                      />
+                      <span className="vscode-toggle-slider"></span>
+                    </label>
+                  </div>
                 </div>
               </div>
+              
+              {restrictionError && <div className="account-error">{restrictionError}</div>}
+              {restrictionSuccess && <div className="account-success"><CheckCircle2 size={12} /> {restrictionSuccess}</div>}
             </div>
           )}
 
