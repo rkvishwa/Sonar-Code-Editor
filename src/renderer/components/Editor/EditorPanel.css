@@ -256,6 +256,13 @@ kbd {
   text-transform: uppercase;
 }
 
+[data-theme="light"] .welcome-title {
+  background: linear-gradient(to right, #000000 0%, rgba(0, 0, 0, 0) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .welcome-subtitle {
   font-size: 15px;
   color: var(--text-secondary);
