@@ -81,7 +81,7 @@ export interface WorkspaceMetadata {
 }
 
 export interface FileOperation {
-  type: "create-file" | "create-folder" | "delete" | "rename";
+  type: "create-file" | "create-folder" | "delete" | "rename" | "save-file";
   relativePath: string;
   newRelativePath?: string;
   content?: string;

@@ -766,6 +766,15 @@ function IDEContent() {
       if (hotReload) {
         window.dispatchEvent(new CustomEvent("file-saved"));
       }
+      
+      // Broadcast save operation to other peers so they save automatically too
+      if (collaboration.isActive && workspaceRootRef.current) {
+        const relPath = toRelativePath(activeTab.path, workspaceRootRef.current);
+        collaboration.broadcastFileOp({
+          type: "save-file",
+          relativePath: relPath
+        });
+      }
     } catch (err) {
       console.error("Failed to save file:", err);
     }
@@ -1217,6 +1226,28 @@ function IDEContent() {
                 }
                 return next;
               });
+              break;
+            }
+            case "save-file": {
+              try {
+                const content = collaboration.getFileContent(fullPath, wsRoot);
+                if (content !== null) {
+                  await window.electronAPI.fs.writeFile(fullPath, content);
+                  setTabs((prev) =>
+                    prev.map((t) => {
+                      const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+                      const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
+                      if (tNorm === fNorm) {
+                        return { ...t, isDirty: false, isDeleted: false, content };
+                      }
+                      return t;
+                    })
+                  );
+                  window.dispatchEvent(new CustomEvent("file-saved"));
+                }
+              } catch (saveErr) {
+                console.warn(`Remote save-file failed: ${relPath}`, saveErr);
+              }
               break;
             }
           }
