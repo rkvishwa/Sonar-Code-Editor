@@ -973,11 +973,62 @@
   gap: 6px;
 }
 
-.about-powered-link {
-  color: var(--text-primary);
-  text-decoration: none;
-  font-weight: 600;
+/* Editor Settings Redesign */
+.editor-settings-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-setting-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--divider);
+  gap: 24px;
+}
+
+.editor-setting-row:last-child {
+  border-bottom: none;
+}
+
+.editor-setting-info-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.editor-setting-icon {
+  color: var(--accent);
+  background: rgba(var(--user-accent-rgb, 59, 130, 246), 0.1);
+  padding: 10px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.editor-setting-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-setting-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.editor-setting-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.editor-setting-action {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
