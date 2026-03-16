@@ -351,17 +351,70 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
     return results;
   });
 
+  let activeFolderDialogWin: BrowserWindow | null = null;
+  let activeFolderDialogReject: ((reason?: any) => void) | null = null;
+  let activeFolderDialogResolve: ((value?: any) => void) | null = null;
+
+  ipcMain.handle(IPC_CHANNELS.FS_CANCEL_FOLDER_DIALOG, async () => {
+    if (activeFolderDialogResolve) {
+      activeFolderDialogResolve({ canceled: true, customCancel: true });
+    }
+    if (activeFolderDialogWin && !activeFolderDialogWin.isDestroyed()) {
+      activeFolderDialogWin.destroy();
+    }
+    activeFolderDialogWin = null;
+    activeFolderDialogReject = null;
+    activeFolderDialogResolve = null;
+  });
+
   ipcMain.handle(IPC_CHANNELS.FS_OPEN_FOLDER_DIALOG, async (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    const parentWin = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
     try {
       const options: Electron.OpenDialogOptions = {
         properties: ['openDirectory', 'createDirectory'],
         title: 'Open Folder',
       };
-      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-      if (result.canceled || result.filePaths.length === 0) return null;
+      
+      // Clean up previous if any
+      if (activeFolderDialogWin && !activeFolderDialogWin.isDestroyed()) {
+        activeFolderDialogWin.destroy();
+      }
+      
+      const hiddenWin = new BrowserWindow({ show: false, parent: parentWin || undefined, modal: !!parentWin });
+      activeFolderDialogWin = hiddenWin;
+      
+      const dialogPromise = dialog.showOpenDialog(hiddenWin, options);
+      
+      const p = new Promise<Electron.OpenDialogReturnValue | { canceled: boolean; customCancel: true }>((resolve, reject) => {
+        activeFolderDialogResolve = resolve;
+        activeFolderDialogReject = reject;
+        dialogPromise.then(res => {
+          if (activeFolderDialogResolve === resolve) {
+            resolve(res);
+            if (!hiddenWin.isDestroyed()) hiddenWin.destroy();
+          }
+        }).catch(e => {
+          if (activeFolderDialogReject === reject) {
+            reject(e);
+            if (!hiddenWin.isDestroyed()) hiddenWin.destroy();
+          }
+        });
+      });
+
+      const result = await p;
+      activeFolderDialogWin = null;
+      activeFolderDialogResolve = null;
+      activeFolderDialogReject = null;
+
+      if (result.canceled || !('filePaths' in result) || !result.filePaths || result.filePaths.length === 0) return null;
       return { path: result.filePaths[0], isDirectory: true };
     } catch (err) {
+      if (activeFolderDialogWin && !activeFolderDialogWin.isDestroyed()) {
+        activeFolderDialogWin.destroy();
+      }
+      activeFolderDialogWin = null;
+      activeFolderDialogResolve = null;
+      activeFolderDialogReject = null;
       throw new Error(`Failed to open folder dialog: ${(err as Error).message}`);
     }
   });

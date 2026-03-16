@@ -11,6 +11,7 @@ export const IPC_CHANNELS = {
   FS_COPY_ITEM: 'fs:copyItem',
   FS_SEARCH: 'fs:search',
   FS_OPEN_FOLDER_DIALOG: 'fs:openFolderDialog',
+  FS_CANCEL_FOLDER_DIALOG: 'fs:cancelFolderDialog',
   FS_OPEN_FILE_DIALOG: 'fs:openFileDialog',
   // Monitoring
   MONITORING_START: 'monitoring:start',
