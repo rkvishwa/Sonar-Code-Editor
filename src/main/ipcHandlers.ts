@@ -275,6 +275,13 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
       const isCaseOnlyRename =
         oldBase !== newBase && oldBase.toLowerCase() === newBase.toLowerCase();
 
+      // Prevent silent overwrite: if a different file already exists at the
+      // destination, reject the rename so the UI can inform the user.
+      // Case-only renames are exempt (same file, different casing).
+      if (!isCaseOnlyRename && normPath(oldPath) !== normPath(newPath) && fs.existsSync(newPath)) {
+        throw new Error(`A file or folder already exists at the destination: ${newBase}`);
+      }
+
       if (isCaseOnlyRename) {
         const tmpPath = oldPath + '.__rename_tmp__';
         await fsp.rename(oldPath, tmpPath);
