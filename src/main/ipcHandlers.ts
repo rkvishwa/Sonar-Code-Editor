@@ -304,22 +304,30 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
       if (!srcPath || !destPath) throw new Error('Missing path for copy');
       if (!fs.existsSync(srcPath)) throw new Error('Source path does not exist');
 
-      const destBase = path.basename(destPath);
-      const nameErr = validateName(destBase);
-      if (nameErr) throw new Error(nameErr);
-
       // Ensure target parent directory exists
       const targetDir = path.dirname(destPath);
       if (!fs.existsSync(targetDir)) {
         await fsp.mkdir(targetDir, { recursive: true });
       }
 
-      // Prevent silent overwrite: reject if destination already exists
-      if (fs.existsSync(destPath)) {
-        throw new Error(`A file or folder already exists at the destination: ${destBase}`);
+      let finalDestPath = destPath;
+      if (fs.existsSync(finalDestPath)) {
+        const ext = path.extname(finalDestPath);
+        const base = path.basename(finalDestPath, ext);
+        let counter = 1;
+        while (fs.existsSync(finalDestPath)) {
+          finalDestPath = path.join(targetDir, `${base} copy${counter > 1 ? ` ${counter}` : ''}${ext}`);
+          counter++;
+        }
       }
 
-      await fsp.cp(srcPath, destPath, { recursive: true });
+      const destBase = path.basename(finalDestPath);
+      const nameErr = validateName(destBase);
+      if (nameErr) throw new Error(nameErr);
+
+      await fsp.cp(srcPath, finalDestPath, { recursive: true });
+      
+      return finalDestPath;
     } catch (err) {
       throw new Error(`Failed to copy item: ${(err as Error).message}`);
     }
