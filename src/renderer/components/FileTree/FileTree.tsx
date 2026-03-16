@@ -1192,8 +1192,11 @@ const FileTree = React.memo(function FileTree({
   useEffect(() => {
     if (typeof refreshTrigger === 'number' && refreshTrigger > 0) {
       loadRoot();
-      // Wait for React to render, then close context menu and creating state
-      setCreatingItem(null);
+      // Only clear creatingItem when no file/folder naming is in progress.
+      // During collaboration every remote file-op (peer creates/moves/saves a file)
+      // bumps refreshTrigger. Unconditionally resetting here wipes the inline
+      // input of any peer who is simultaneously typing a new file name.
+      setCreatingItem((current) => (current ? current : null));
     }
   }, [refreshTrigger, loadRoot]);
 
