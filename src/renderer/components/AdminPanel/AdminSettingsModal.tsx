@@ -16,6 +16,7 @@ interface AdminSettingsModalProps {
   accentColor: string;
   onAccentColorChange: (val: string) => void;
   onTeamNameUpdated: (newName: string) => void;
+  isEmbedded?: boolean;
 }
 
 export default function AdminSettingsModal({
@@ -28,6 +29,7 @@ export default function AdminSettingsModal({
   accentColor,
   onAccentColorChange,
   onTeamNameUpdated,
+  isEmbedded = false,
 }: AdminSettingsModalProps) {
   const [activeTab, setActiveTab] = useState('Account');
   const [searchQuery, setSearchQuery] = useState('');
@@ -105,7 +107,7 @@ export default function AdminSettingsModal({
     setRestrictionSuccess('');
   }, [activeTab]);
 
-  if (!isOpen) return null;
+  if (!isOpen && !isEmbedded) return null;
 
   const matchesSearch = (text: string) =>
     searchQuery === '' || text.toLowerCase().includes(searchQuery.toLowerCase());
@@ -265,7 +267,7 @@ export default function AdminSettingsModal({
             >
               <Shield size={14} /> Privacy
             </li>
-            
+
             <div className="vscode-settings-divider" />
 
             <li
@@ -363,7 +365,7 @@ export default function AdminSettingsModal({
                             title="Custom Color"
                           />
                           <span className="custom-color-hex">{accentColor.toUpperCase()}</span>
-                          <button 
+                          <button
                             className="activity-log-btn secondary reset-color-btn"
                             onClick={() => onAccentColorChange('#3b82f6')}
                             disabled={accentColor.toLowerCase() === '#3b82f6'}
@@ -381,18 +383,18 @@ export default function AdminSettingsModal({
           {showAbout && (
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">About</h2>
-              
+
               <div className="account-card" style={{ padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                  <img 
-                    src={appIcon} 
-                    alt="Sonar Code Editor" 
-                    style={{ 
-                      width: 72, height: 72, 
-                      borderRadius: 16, 
+                  <img
+                    src={appIcon}
+                    alt="Sonar Code Editor"
+                    style={{
+                      width: 72, height: 72,
+                      borderRadius: 16,
                       boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
                       objectFit: 'cover'
-                    }} 
+                    }}
                   />
                   <div>
                     <h3 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Sonar Code Editor</h3>
@@ -403,12 +405,12 @@ export default function AdminSettingsModal({
                 </div>
 
                 <div style={{ height: 1, background: 'var(--divider)' }}></div>
-                
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.6 }}>
                     Sonar is a collaborative, real-time code editor built for educational institutions and development teams. It provides seamless coding experiences with integrated monitoring and activity logging.
                   </div>
-                  
+
                   <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                     <a href="https://github.com/rkvishwa/Sonar-Code-Editor" target="_blank" rel="noopener noreferrer" className="activity-log-btn secondary" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px' }}>
                       <Github size={14} />
@@ -422,13 +424,13 @@ export default function AdminSettingsModal({
                 </div>
 
                 <div style={{ height: 1, background: 'var(--divider)', marginTop: '8px' }}></div>
-                
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)' }}>
                   <div>
                     Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>MIT License</a>.
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    Powered by 
+                    Powered by
                     <a href="https://knurdz.org" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                       Knurdz <ExternalLink size={12} />
                     </a>
@@ -501,7 +503,7 @@ export default function AdminSettingsModal({
                   </div>
                 </div>
               </div>
-              
+
               {restrictionError && <div className="account-error">{restrictionError}</div>}
               {restrictionSuccess && <div className="account-success"><CheckCircle2 size={12} /> {restrictionSuccess}</div>}
             </div>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root {
   /* Black and Darkest Blue Theme */
@@ -7,25 +7,25 @@
   --bg-tertiary: #0a0a0a;
   --bg-hover: rgba(var(--user-accent-rgb, 59, 130, 246), 0.1);
   --bg-active: rgba(var(--user-accent-rgb, 59, 130, 246), 0.2);
-  
+
   --border: rgba(255, 255, 255, 0.08);
   --border-focus: rgba(var(--user-accent-rgb, 59, 130, 246), 0.4);
-  
+
   --divider: rgba(255, 255, 255, 0.08);
 
   --text-primary: #fafafa;
   --text-secondary: #a1a1aa;
   --text-muted: #52525b;
-  
+
   --accent: var(--user-accent, #3b82f6);
   --accent-hover: var(--user-accent-hover, #2563eb);
   --accent-transparent: rgba(var(--user-accent-rgb, 59, 130, 246), 0.15);
-  
+
   --success: #10b981;
   --danger: #ef4444;
   --warning: #f59e0b;
   --info: var(--user-accent, #3b82f6);
-  
+
   --online: #10b981;
   --offline: #ef4444;
   --idle: #f59e0b;
@@ -62,11 +62,11 @@
   --danger: #dc2626;
   --warning: #d97706;
   --info: var(--user-accent, #3b82f6);
-  
+
   --online: #059669;
   --offline: #dc2626;
   --idle: #d97706;
-  
+
   --grid-opacity: 0.015;
 }
 
@@ -124,7 +124,8 @@ button {
   font-size: 13px;
 }
 
-input, textarea {
+input,
+textarea {
   font-family: inherit;
   outline: none;
   /* Explicit override: on Windows Electron, body { user-select: none } can

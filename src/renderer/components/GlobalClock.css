@@ -1,0 +1,39 @@
+.global-clock-base {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 9999;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 4px 10px;
+    border-radius: 99px;
+    user-select: none;
+    pointer-events: none;
+    letter-spacing: 0.3px;
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+    width: fit-content;
+}
+
+.global-clock-absolute {
+    position: absolute;
+    top: 14px;
+    right: 24px;
+}
+
+.global-clock-inline {
+    position: relative;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.global-clock-icon {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.global-clock-time {
+    font-variant-numeric: tabular-nums;
+}

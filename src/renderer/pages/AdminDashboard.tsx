@@ -4,8 +4,10 @@ import { getAllSessions, subscribeToActivityLogs, subscribeToSessions, getAllAct
 import { Session, ActivityLog, ActivitySyncData, Team } from '../../shared/types';
 import { APP_CONFIG } from '../../shared/constants';
 import ReportModal from '../components/AdminPanel/ReportModal';
-import { Radar, Shield, Clock, Activity, LayoutGrid, List, Search, LogOut, RefreshCw, BarChart2, ShieldAlert, Monitor, Users, Zap, CheckCircle2, XCircle, Settings } from 'lucide-react';
+import { Radar, Shield, Clock, Activity, LayoutGrid, List, Search, LogOut, RefreshCw, BarChart2, ShieldAlert, Monitor, Users, Zap, CheckCircle2, XCircle, Settings, MoreVertical } from 'lucide-react';
+import { useNavigate, useLocation, Routes, Route, Navigate } from 'react-router-dom';
 import AdminSettingsModal from '../components/AdminPanel/AdminSettingsModal';
+import GlobalClock from '../components/GlobalClock';
 import './AdminDashboard.css';
 
 interface TeamStatus extends Session {
@@ -32,7 +34,19 @@ export default function AdminDashboard() {
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
-  const [showSettings, setShowSettings] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+
+  // Helper to get current sub-route
+  const currentView = useMemo(() => {
+    const path = location.pathname;
+    if (path.includes('/admin/candidates')) return 'candidates';
+    if (path.includes('/admin/settings')) return 'settings';
+    return 'analytics';
+  }, [location.pathname]);
+
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [theme, setTheme] = useState(
     () => localStorage.getItem('ide-theme') || 'system'
   );
@@ -133,7 +147,7 @@ export default function AdminDashboard() {
     const root = document.documentElement;
     root.style.setProperty("--user-accent", accentColor);
     root.style.setProperty("--user-accent-hover", accentColor);
-    
+
     let r = 59, g = 130, b = 246; // default blue
     if (accentColor.startsWith('#') && (accentColor.length === 7 || accentColor.length === 9)) {
       r = parseInt(accentColor.slice(1, 3), 16);
@@ -376,320 +390,360 @@ export default function AdminDashboard() {
 
   return (
     <div className="admin-container">
-      <div className="admin-header">
-        <div className="admin-header-left">
+      <div className={`admin-sidebar ${isSidebarExpanded ? 'expanded' : 'collapsed'}`}>
+        <div className="sidebar-top">
+          <div className="sidebar-toggle-wrap">
+            <button className="sidebar-toggle-btn" onClick={() => setIsSidebarExpanded(!isSidebarExpanded)} title="Toggle Menu">
+              <MoreVertical size={20} />
+            </button>
+          </div>
           <div className="admin-logo">
-            <span className="logo-icon-wrapper">
+            <div className="logo-icon-wrapper">
               <Radar className="logo-icon" size={20} />
-            </span>
-            <span className="logo-text">Sonar Admin</span>
+            </div>
+            <div className="logo-info">
+              <span className="logo-text">Sonar Admin</span>
+              <div className="admin-live-badge mini">
+                <span className="live-dot" />
+                <span className="badge-text">Live</span>
+              </div>
+            </div>
           </div>
-          <span className="admin-live-badge">
-            <span className="live-dot" />
-            Live System
-          </span>
         </div>
-                <div className="admin-header-right">
-          {lastUpdated && (
-            <span className="last-updated">
-              <Clock className="meta-icon" size={12} />
-              {formatTime(lastUpdated.toISOString())}
-            </span>
-          )}
-          <button className="admin-btn icon-btn" onClick={() => setShowSettings(true)} title="Admin Settings">
-            <Settings size={14} />
+
+        <div className="sidebar-nav">
+          <button className={`sidebar-item ${location.pathname === '/admin/dashboard' ? 'active' : ''}`} onClick={() => navigate('/admin/dashboard')} title="Analytics Dashboard">
+            <BarChart2 size={20} className="meta-icon" />
+            <span className="item-text">Dashboard</span>
           </button>
-          <button className="admin-btn icon-btn" onClick={loadSessions} title="Refresh Data">
-            <RefreshCw size={14} className={loading ? 'anim-spin' : ''} />
+          <button className={`sidebar-item ${location.pathname === '/admin/candidates' ? 'active' : ''}`} onClick={() => navigate('/admin/candidates')} title="Candidates Tracker">
+            <Users size={20} className="meta-icon" />
+            <span className="item-text">Candidates</span>
           </button>
-          <div className="admin-user-pill">
-            <ShieldAlert size={14} className="user-icon" />
-            {user?.teamName || 'Admin'}
+          <button className="sidebar-item" onClick={loadSessions} title="Refresh Data">
+            <RefreshCw size={20} className={loading ? 'anim-spin meta-icon' : 'meta-icon'} />
+            <span className="item-text">Refresh Data</span>
+          </button>
+          <button className={`sidebar-item ${location.pathname === '/admin/settings' ? 'active' : ''}`} onClick={() => navigate('/admin/settings')} title="Admin Settings">
+            <Settings size={20} className="meta-icon" />
+            <span className="item-text">Settings</span>
+          </button>
+        </div>
+
+        <div className="sidebar-bottom">
+          <div className="sidebar-item" title={user?.teamName || 'Admin'}>
+            <ShieldAlert size={20} className="user-icon" />
+            <span className="item-text">{user?.teamName || 'Admin'}</span>
           </div>
-          <button className="admin-btn danger" onClick={logout}>
-            <LogOut size={14} />
-            Exit
+          <button className="sidebar-item btn-danger" onClick={logout} title="Exit">
+            <LogOut size={20} />
+            <span className="item-text">Exit</span>
           </button>
         </div>
       </div>
 
-      <div className="admin-content">
-        {/* Top Analytics Row */}
-        <div className="admin-metrics-section">
-          <div className="metrics-row">
-            <div className="stat-card">
-              <div className="stat-card-header">
-                <div className="stat-icon neutral"><Users size={16} /></div>
-                <span className="stat-label">Total Teams Navigating</span>
-              </div>
-              <div className="stat-body">
-                <span className="stat-value">{teams.length}</span>
-              </div>
-              <div className="stat-bar"><div className="stat-bar-fill neutral" style={{ width: '100%', background: 'rgba(255,255,255,0.1)' }} /></div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-card-header">
-                <div className="stat-icon online"><Zap size={16} /></div>
-                <span className="stat-label">Currently Online</span>
-              </div>
-              <div className="stat-body">
-                <span className="stat-value online">{onlineCount}</span>
-              </div>
-              <div className="stat-bar"><div className="stat-bar-fill online" style={{ width: `${onlinePercent}%` }} /></div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-card-header">
-                <div className="stat-icon offline"><XCircle size={16} /></div>
-                <span className="stat-label">Offline / Disconnected</span>
-              </div>
-              <div className="stat-body">
-                <span className="stat-value offline">{offlineCount}</span>
-              </div>
-              <div className="stat-bar"><div className="stat-bar-fill offline" style={{ width: `${teams.length ? (offlineCount / teams.length) * 100 : 0}%` }} /></div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-card-header">
-                <div className="stat-icon accent"><Activity size={16} /></div>
-                <span className="stat-label">Total Events Caught</span>
-              </div>
-              <div className="stat-body">
-                <span className="stat-value accent">{globalInsights.totalLogs}</span>
-              </div>
-              <div className="stat-bar"><div className="stat-bar-fill" style={{ width: '100%', background: 'var(--accent)' }} /></div>
-            </div>
+      <div className="admin-content" style={{ display: 'flex', flexDirection: 'column' }}>
+        {currentView !== 'candidates' && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 32px 0 32px', flexShrink: 0 }}>
+            <GlobalClock mode="inline" />
           </div>
-        </div>
-
-        {/* Global Action Insights */}
-        <div className="admin-insights-row">
-          <div className="insight-card">
-            <div className="insight-card-header">
-              <div className="insight-title"><Monitor size={16} /> Top Distracting Apps Detected</div>
-              <span className="insight-stat-pill">Platform Wide</span>
-            </div>
-            {globalInsights.topApps.length > 0 ? (
-              <div className="top-apps-list">
-                {globalInsights.topApps.map(([app, count], idx) => {
-                  const isFlagged = app.toLowerCase().includes('discord') || app.toLowerCase().includes('youtube') || app.toLowerCase().includes('whatsapp');
-                  const maxCount = globalInsights.topApps[0][1];
-                  const pct = Math.round((count / maxCount) * 100);
-                  return (
-                    <div key={idx} className="top-app-item">
-                      <div className="top-app-header">
-                        <span className={`top-app-name ${isFlagged ? 'flagged' : ''}`}>{app}</span>
-                        <span className="top-app-count">{count} switches</span>
-                      </div>
-                      <div className="top-app-bar">
-                        <div className={`top-app-bar-fill ${isFlagged ? 'non-ide' : ''}`} style={{ width: `${pct}%`, background: isFlagged ? '#f59e0b' : 'rgba(255,255,255,0.2)' }} />
-                      </div>
+        )}
+        <Routes>
+          <Route path="dashboard" element={
+            <>
+              {/* Dashboard Analytics Grid */}
+              <div className="analytics-grid-layout">
+                <div className="stats-row">
+                  <div className="stat-card">
+                    <div className="stat-card-header">
+                      <div className="stat-icon neutral"><Users size={16} /></div>
+                      <span className="stat-label">Total Candidates</span>
                     </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="insight-empty">
-                <span style={{ opacity: 0.5 }}>No off-IDE app switches detected yet</span>
-              </div>
-            )}
-          </div>
-        </div>
+                    <div className="stat-body">
+                      <span className="stat-value">{teams.length}</span>
+                    </div>
+                    <div className="stat-bar"><div className="stat-bar-fill" style={{ width: '100%', background: 'rgba(var(--user-accent-rgb, 59, 130, 246), 0.3)' }} /></div>
+                  </div>
 
-        {/* Sticky Toolbar */}
-        <div className="admin-controls-bar">
-          <div className="controls-left">
-            <div className="search-wrapper">
-              <Search className="search-icon" size={16} />
-              <input
-                type="text"
-                placeholder="Search candidates..."
-                className="admin-search-input"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
+                  <div className="stat-card">
+                    <div className="stat-card-header">
+                      <div className="stat-icon online"><Zap size={16} /></div>
+                      <span className="stat-label">Active Now</span>
+                    </div>
+                    <div className="stat-body">
+                      <span className="stat-value online">{onlineCount}</span>
+                      <span className="stat-percent" style={{ color: 'var(--online)' }}>{onlinePercent}%</span>
+                    </div>
+                    <div className="stat-bar"><div className="stat-bar-fill online" style={{ width: `${onlinePercent}%` }} /></div>
+                  </div>
+
+                  <div className="stat-card">
+                    <div className="stat-card-header">
+                      <div className="stat-icon offline"><XCircle size={16} /></div>
+                      <span className="stat-label">Disconnected</span>
+                    </div>
+                    <div className="stat-body">
+                      <span className="stat-value offline">{offlineCount}</span>
+                      <span className="stat-percent" style={{ color: '#f87171' }}>{teams.length > 0 ? Math.round((offlineCount / teams.length) * 100) : 0}%</span>
+                    </div>
+                    <div className="stat-bar"><div className="stat-bar-fill offline" style={{ width: `${teams.length ? (offlineCount / teams.length) * 100 : 0}%` }} /></div>
+                  </div>
+
+                  <div className="stat-card">
+                    <div className="stat-card-header">
+                      <div className="stat-icon accent"><Activity size={16} /></div>
+                      <span className="stat-label">Events Tracked</span>
+                    </div>
+                    <div className="stat-body">
+                      <span className="stat-value accent">{globalInsights.totalLogs}</span>
+                    </div>
+                    <div className="stat-bar"><div className="stat-bar-fill" style={{ width: '100%', background: 'var(--accent)' }} /></div>
+                  </div>
+                </div>
+
+                {/* Global Action Insights */}
+                <div className="insight-card full-width">
+                  <div className="insight-card-header">
+                    <div className="insight-title"><Monitor size={16} /> Distracting Apps Detected</div>
+                    <span className="insight-stat-pill">Platform Wide</span>
+                  </div>
+                  {globalInsights.topApps.length > 0 ? (
+                    <div className="top-apps-list">
+                      {globalInsights.topApps.map(([app, count], idx) => {
+                        const isFlagged = app.toLowerCase().includes('discord') || app.toLowerCase().includes('youtube') || app.toLowerCase().includes('whatsapp');
+                        const maxCount = globalInsights.topApps[0][1];
+                        const pct = Math.round((count / maxCount) * 100);
+                        return (
+                          <div key={idx} className="top-app-item">
+                            <div className="top-app-header">
+                              <span className="top-app-rank">#{idx + 1}</span>
+                              <span className={`top-app-name ${isFlagged ? 'flagged' : ''}`}>{app}</span>
+                              <span className="top-app-count">{count} switches</span>
+                            </div>
+                            <div className="top-app-bar">
+                              <div className={`top-app-bar-fill ${isFlagged ? 'non-ide' : ''}`} style={{ width: `${pct}%`, background: isFlagged ? '#f59e0b' : 'rgba(255,255,255,0.15)' }} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="insight-empty">
+                      <Monitor size={24} style={{ opacity: 0.3 }} />
+                      <span>No app switches detected yet</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          } />
+
+          <Route path="candidates" element={
+            <>
+              {/* Sticky Toolbar */}
+              <div className="admin-controls-bar">
+                <div className="controls-left">
+                  <div className="search-wrapper">
+                    <Search className="search-icon" size={16} />
+                    <input
+                      type="text"
+                      placeholder="Search candidates..."
+                      className="admin-search-input"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                    />
+                  </div>
+                  <div className="filter-group">
+                    <button className={`filter-btn ${statusFilter === 'all' ? 'active' : ''}`} onClick={() => setStatusFilter('all')}>
+                      All <span className="filter-badge">{teams.length}</span>
+                    </button>
+                    <button className={`filter-btn ${statusFilter === 'online' ? 'active' : ''}`} onClick={() => setStatusFilter('online')}>
+                      Online <span className="filter-badge">{onlineCount}</span>
+                    </button>
+                    <button className={`filter-btn ${statusFilter === 'offline' ? 'active' : ''}`} onClick={() => setStatusFilter('offline')}>
+                      Offline <span className="filter-badge">{offlineCount}</span>
+                    </button>
+                  </div>
+                </div>
+                <div className="controls-right">
+                  <GlobalClock mode="inline" className="candidates-time" style={{ marginRight: '16px' }} />
+                  <div className="view-toggle">
+                    <button className={`view-btn ${viewMode === 'table' ? 'active' : ''}`} onClick={() => setViewMode('table')} title="List View"><List size={16} /></button>
+                    <button className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')} title="Grid View"><LayoutGrid size={16} /></button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamic Display Area */}
+              <div className="admin-content-area">
+                {loading ? (
+                  <div className="state-container">
+                    <RefreshCw className="anim-spin spinner-glow" size={28} />
+                    <span>Syncing live data...</span>
+                  </div>
+                ) : filteredTeams.length === 0 ? (
+                  <div className="state-container">
+                    <Users size={28} style={{ opacity: 0.25 }} />
+                    <span>No candidates match your filters</span>
+                  </div>
+                ) : viewMode === 'table' ? (
+                  /* Table View */
+                  <div className="glass-panel">
+                    <table className="modern-table">
+                      <thead>
+                        <tr>
+                          <th className="th-sortable" onClick={() => handleSort('teamName')}>
+                            <div className="th-content">Candidate {sortKey === 'teamName' && (sortDir === 'asc' ? '↑' : '↓')}</div>
+                          </th>
+                          <th className="th-sortable" onClick={() => handleSort('status')}>
+                            <div className="th-content">Status {sortKey === 'status' && (sortDir === 'asc' ? '↑' : '↓')}</div>
+                          </th>
+                          <th>Activity</th>
+                          <th className="th-sortable" onClick={() => handleSort('lastSeen')}>
+                            <div className="th-content">Last Seen {sortKey === 'lastSeen' && (sortDir === 'asc' ? '↑' : '↓')}</div>
+                          </th>
+                          <th className="th-actions">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTeams.map((team) => {
+                          const metrics = teamMetrics.get(team.teamId);
+                          const riskLevel = metrics && metrics.appBlurCount > 10 ? 'high' : (metrics && metrics.appBlurCount > 3 ? 'medium' : 'low');
+
+                          return (
+                            <tr key={team.teamId} className={`team-row ${team.status}`}>
+                              <td>
+                                <div className="team-identity">
+                                  <div className="team-avatar">{team.teamName.charAt(0).toUpperCase()}</div>
+                                  <div className="team-info">
+                                    <span className="team-name">{team.teamName}</span>
+                                    <span className="team-window" title={team.currentWindow || 'Idle'}>
+                                      {team.currentWindow || 'Awaiting window context'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td>
+                                <div className={`status-indicator ${team.status}`}>
+                                  <span className="pulse-disc" />
+                                  {team.status === 'online' ? 'Active' : 'Disconnected'}
+                                </div>
+                              </td>
+                              <td>
+                                {metrics ? (
+                                  <div className="metrics-cluster">
+                                    <span className={`metric-chip ${metrics.appBlurCount > 0 ? 'warn' : 'clean'}`} title="App Switches">
+                                      <Monitor size={12} /> {metrics.appBlurCount}
+                                    </span>
+                                    <span className="metric-chip neutral" title="Total Events">
+                                      <Activity size={12} /> {metrics.totalEvents}
+                                    </span>
+                                    <span className={`risk-badge ${riskLevel}`}>
+                                      {riskLevel === 'high' ? 'High Risk' : (riskLevel === 'medium' ? 'Review' : 'Secure')}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="metric-chip clean">Assimilating...</span>
+                                )}
+                              </td>
+                              <td>
+                                <div className="time-display">
+                                  <Clock size={12} />
+                                  {formatTime(team.lastSeen)}
+                                </div>
+                              </td>
+                              <td className="td-actions">
+                                <button className="action-btn" onClick={() => handleOpenReport(team)}>
+                                  <BarChart2 size={13} />
+                                  View Report
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  /* Grid View */
+                  <div className="modern-grid">
+                    {filteredTeams.map(team => {
+                      const metrics = teamMetrics.get(team.teamId);
+                      return (
+                        <div key={team.teamId} className={`grid-card ${team.status}`}>
+                          <div className="grid-card-glow" />
+                          <div className="gc-header">
+                            <div className="gc-avatar">{team.teamName.charAt(0).toUpperCase()}</div>
+                            <div className="gc-title">
+                              <h4>{team.teamName}</h4>
+                              <div className={`status-sm ${team.status}`}>
+                                <span className="dot" />
+                                {team.status}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="gc-body">
+                            <div className="gc-stat-row">
+                              <span className="gc-label">Active Window</span>
+                              <span className="gc-val truncate" title={team.currentWindow || 'N/A'}>{team.currentWindow || 'N/A'}</span>
+                            </div>
+                            <div className="gc-stat-row">
+                              <span className="gc-label">Active File</span>
+                              <span className="gc-val truncate" title={team.currentFile || 'N/A'}>{team.currentFile || 'N/A'}</span>
+                            </div>
+                            {metrics && (
+                              <div className="gc-stat-row mt-4">
+                                <span className="gc-label">Away / Focus Loss</span>
+                                <span className={`gc-val ${metrics.appBlurCount > 3 ? 'warn' : ''}`}>{metrics.appBlurCount} events</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="gc-footer">
+                            <span className="gc-time"><Clock size={12} /> {formatTime(team.lastSeen)}</span>
+                            <button className="gc-btn" onClick={() => handleOpenReport(team)}>Report</button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          } />
+
+          <Route path="settings" element={
+            <div className="settings-view-wrapper">
+              <AdminSettingsModal
+                isOpen={true}
+                isEmbedded={true}
+                onClose={() => navigate('dashboard')}
+                user={user}
+                onLogout={logout}
+                theme={theme}
+                onThemeChange={setTheme}
+                accentColor={accentColor}
+                onAccentColorChange={setAccentColor}
+                onTeamNameUpdated={(newName) => {
+                  const updated = { ...user!, teamName: newName };
+                  localStorage.setItem('sonar_session', JSON.stringify(updated));
+                  window.location.reload();
+                }}
               />
             </div>
-            <div className="filter-group">
-              <button className={`filter-btn ${statusFilter === 'all' ? 'active' : ''}`} onClick={() => setStatusFilter('all')}>
-                All <span className="filter-badge">{teams.length}</span>
-              </button>
-              <button className={`filter-btn ${statusFilter === 'online' ? 'active' : ''}`} onClick={() => setStatusFilter('online')}>
-                Online <span className="filter-badge">{onlineCount}</span>
-              </button>
-              <button className={`filter-btn ${statusFilter === 'offline' ? 'active' : ''}`} onClick={() => setStatusFilter('offline')}>
-                Offline <span className="filter-badge">{offlineCount}</span>
-              </button>
-            </div>
-          </div>
-          <div className="controls-right">
-            <div className="view-toggle">
-              <button className={`view-btn ${viewMode === 'table' ? 'active' : ''}`} onClick={() => setViewMode('table')} title="List View"><List size={16} /></button>
-              <button className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')} title="Grid View"><LayoutGrid size={16} /></button>
-            </div>
-          </div>
-        </div>
+          } />
 
-        {/* Dynamic Display Area */}
-        <div className="admin-content-area">
-          {loading ? (
-            <div className="state-container">
-              <RefreshCw className="anim-spin spinner-glow" size={32} />
-              <span>Syncing telemetry stream...</span>
-            </div>
-          ) : filteredTeams.length === 0 ? (
-            <div className="state-container">
-              <ShieldAlert size={32} style={{ opacity: 0.3 }} />
-              <span>No candidates match parameters.</span>
-            </div>
-          ) : viewMode === 'table' ? (
-            /* Table View */
-            <div className="glass-panel">
-              <table className="modern-table">
-                <thead>
-                  <tr>
-                    <th className="th-sortable" onClick={() => handleSort('teamName')}>
-                      <div className="th-content">Candidate {sortKey === 'teamName' && (sortDir === 'asc' ? '↑' : '↓')}</div>
-                    </th>
-                    <th className="th-sortable" onClick={() => handleSort('status')}>
-                      <div className="th-content">Status {sortKey === 'status' && (sortDir === 'asc' ? '↑' : '↓')}</div>
-                    </th>
-                    <th>Engagement Metrics</th>
-                    <th className="th-sortable" onClick={() => handleSort('lastSeen')}>
-                      <div className="th-content">Ping {sortKey === 'lastSeen' && (sortDir === 'asc' ? '↑' : '↓')}</div>
-                    </th>
-                    <th className="th-actions">Generate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTeams.map((team) => {
-                    const metrics = teamMetrics.get(team.teamId);
-                    const riskLevel = metrics && metrics.appBlurCount > 10 ? 'high' : (metrics && metrics.appBlurCount > 3 ? 'medium' : 'low');
-
-                    return (
-                      <tr key={team.teamId} className={`team-row ${team.status}`}>
-                        <td>
-                          <div className="team-identity">
-                            <div className="team-avatar">{team.teamName.charAt(0).toUpperCase()}</div>
-                            <div className="team-info">
-                              <span className="team-name">{team.teamName}</span>
-                              <span className="team-window" title={team.currentWindow || 'Idle'}>
-                                {team.currentWindow || 'Awaiting window context'}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div className={`status-indicator ${team.status}`}>
-                            <span className="pulse-disc" />
-                            {team.status === 'online' ? 'Active' : 'Disconnected'}
-                          </div>
-                        </td>
-                        <td>
-                          {metrics ? (
-                            <div className="metrics-cluster">
-                              <span className={`metric-chip ${metrics.appBlurCount > 0 ? 'warn' : 'clean'}`} title="App Switches">
-                                <Monitor size={12} /> {metrics.appBlurCount}
-                              </span>
-                              <span className="metric-chip neutral" title="Total Events">
-                                <Activity size={12} /> {metrics.totalEvents}
-                              </span>
-                              <span className={`risk-badge ${riskLevel}`}>
-                                {riskLevel === 'high' ? 'High Risk' : (riskLevel === 'medium' ? 'Review' : 'Secure')}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="metric-chip clean">Assimilating...</span>
-                          )}
-                        </td>
-                        <td>
-                          <div className="time-display">
-                            <Clock size={12} />
-                            {formatTime(team.lastSeen)}
-                          </div>
-                        </td>
-                        <td className="td-actions">
-                          <button className="action-btn" onClick={() => handleOpenReport(team)}>
-                            <BarChart2 size={13} />
-                            Report
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            /* Grid View */
-            <div className="modern-grid">
-              {filteredTeams.map(team => {
-                const metrics = teamMetrics.get(team.teamId);
-                return (
-                  <div key={team.teamId} className={`grid-card ${team.status}`}>
-                    <div className="grid-card-glow" />
-                    <div className="gc-header">
-                      <div className="gc-avatar">{team.teamName.charAt(0).toUpperCase()}</div>
-                      <div className="gc-title">
-                        <h4>{team.teamName}</h4>
-                        <div className={`status-sm ${team.status}`}>
-                          <span className="dot" />
-                          {team.status}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="gc-body">
-                      <div className="gc-stat-row">
-                        <span className="gc-label">Active Window</span>
-                        <span className="gc-val truncate" title={team.currentWindow || 'N/A'}>{team.currentWindow || 'N/A'}</span>
-                      </div>
-                      <div className="gc-stat-row">
-                        <span className="gc-label">Active File</span>
-                        <span className="gc-val truncate" title={team.currentFile || 'N/A'}>{team.currentFile || 'N/A'}</span>
-                      </div>
-                      {metrics && (
-                        <div className="gc-stat-row mt-4">
-                          <span className="gc-label">Away / Focus Loss</span>
-                          <span className={`gc-val ${metrics.appBlurCount > 3 ? 'warn' : ''}`}>{metrics.appBlurCount} events</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="gc-footer">
-                      <span className="gc-time"><Clock size={12} /> {formatTime(team.lastSeen)}</span>
-                      <button className="gc-btn" onClick={() => handleOpenReport(team)}>Report</button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+          <Route path="*" element={<Navigate to="dashboard" replace />} />
+        </Routes>
       </div>
 
       {showReport && selectedTeam && (
         <ReportModal
-          team={selectedTeam as unknown as (Team & { teamId: string })}
+          team={selectedTeam as any}
           onClose={() => setShowReport(false)}
         />
       )}
-
-      <AdminSettingsModal
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-        user={user}
-        onLogout={logout}
-        theme={theme}
-        onThemeChange={setTheme}
-        accentColor={accentColor}
-        onAccentColorChange={setAccentColor}
-        onTeamNameUpdated={(newName) => {
-          const updated = { ...user!, teamName: newName };
-          localStorage.setItem('sonar_session', JSON.stringify(updated));
-          window.location.reload();
-        }}
-      />
     </div>
   );
 }

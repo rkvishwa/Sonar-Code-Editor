@@ -20,6 +20,7 @@ import type { editor } from "monaco-editor";
 import { formatKey } from "../../utils/shortcut";
 import { OpenTab } from "../../pages/IDE";
 import PreviewPanel from "../Preview/PreviewPanel";
+import GlobalClock from "../../components/GlobalClock";
 import "./EditorPanel.css";
 
 interface EditorPanelProps {
@@ -46,6 +47,7 @@ interface EditorPanelProps {
   onEditorUnmount?: (filePath?: string) => void;
   wordWrap?: boolean;
   getCollaborativeContent?: (filePath: string) => string | null;
+  showClock?: boolean;
 }
 
 const CustomRadarIcon = ({ size = 24, className = "", color = "currentColor", style, maskId = "needle-mask" }: any) => {
@@ -77,7 +79,7 @@ const CustomRadarIcon = ({ size = 24, className = "", color = "currentColor", st
           <path d="m13.41 10.59 5.66-5.66" stroke="black" strokeWidth="3.5" strokeLinecap="round" fill="none" />
         </mask>
       </defs>
-      
+
       <g mask={`url(#${maskId})`}>
         <path d="M19.07 4.93A10 10 0 0 0 6.99 3.34" />
         <path d="M4 6h.01" />
@@ -86,7 +88,7 @@ const CustomRadarIcon = ({ size = 24, className = "", color = "currentColor", st
         <path d="M12 18h.01" />
         <path d="M17.99 11.66A6 6 0 0 1 15.77 16.67" />
       </g>
-      
+
       <circle cx="12" cy="12" r="2" mask={`url(#${circleMaskId})`} />
       <path d="m13.41 10.59 5.66-5.66" />
     </svg>
@@ -186,6 +188,7 @@ const EditorPanel = React.memo(function EditorPanel({
   onEditorUnmount,
   wordWrap = true,
   getCollaborativeContent,
+  showClock = false,
 }: EditorPanelProps) {
   const activeTab = tabs.find((t) => t.path === activeTabPath);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -333,8 +336,8 @@ const EditorPanel = React.memo(function EditorPanel({
   // or when the last tab is closed (activeTabPath becomes null).
   useEffect(() => {
     if (activeTabPath !== boundFileRef.current && boundFileRef.current) {
-        onEditorUnmount?.();
-        boundFileRef.current = null;
+      onEditorUnmount?.();
+      boundFileRef.current = null;
     }
   }, [activeTabPath, onEditorUnmount]);
 
@@ -505,7 +508,7 @@ const EditorPanel = React.memo(function EditorPanel({
                     <stop offset="30%" stopColor="var(--text-primary)" stopOpacity="0.15" />
                     <stop offset="100%" stopColor="var(--bg-primary)" stopOpacity="0" />
                   </linearGradient>
-                  
+
                   <linearGradient id="shineGradient" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0" stopColor="var(--text-primary)" stopOpacity="0" />
                     <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.8" />
@@ -574,7 +577,7 @@ const EditorPanel = React.memo(function EditorPanel({
                     <stop offset="30%" stopColor="var(--text-primary)" stopOpacity="0.15" />
                     <stop offset="100%" stopColor="var(--bg-primary)" stopOpacity="0" />
                   </linearGradient>
-                  
+
                   <linearGradient id="shineGradient2" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0" stopColor="var(--text-primary)" stopOpacity="0" />
                     <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.8" />
@@ -649,59 +652,65 @@ const EditorPanel = React.memo(function EditorPanel({
             <div
               key={tab.path}
               className={`tab ${tab.path === activeTabPath ? "active" : ""}${dragOverIndex === index ? " drag-over" : ""}${dragIndex === index ? " dragging" : ""}`}
-            onClick={() => onTabClick(tab.path)}
-            onDoubleClick={() => onTabDoubleClick?.(tab.path)}
-            draggable
-            onDragStart={(e) => {
-              setDragIndex(index);
-              e.dataTransfer.effectAllowed = "move";
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = "move";
-              setDragOverIndex(index);
-            }}
-            onDragLeave={() => setDragOverIndex(null)}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (dragIndex !== null && dragIndex !== index) {
-                onReorderTabs?.(dragIndex, index);
-              }
-              setDragIndex(null);
-              setDragOverIndex(null);
-            }}
-            onDragEnd={() => {
-              setDragIndex(null);
-              setDragOverIndex(null);
-            }}
-          >
-            {getTabIcon(tab)}
-            <span
-              className="tab-name"
-              style={{
-                fontStyle:
-                  tab.isPreviewFile && !tab.isDirty ? "italic" : "normal",
-                textDecoration: tab.isDeleted ? "line-through" : "none",
-                color: tab.isDeleted ? "red" : "inherit",
+              onClick={() => onTabClick(tab.path)}
+              onDoubleClick={() => onTabDoubleClick?.(tab.path)}
+              draggable
+              onDragStart={(e) => {
+                setDragIndex(index);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragOverIndex(index);
+              }}
+              onDragLeave={() => setDragOverIndex(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragIndex !== null && dragIndex !== index) {
+                  onReorderTabs?.(dragIndex, index);
+                }
+                setDragIndex(null);
+                setDragOverIndex(null);
+              }}
+              onDragEnd={() => {
+                setDragIndex(null);
+                setDragOverIndex(null);
               }}
             >
-              {displayName}
-            </span>
-            {tab.isDirty && (
-              <span className="dirty-dot" title="Unsaved changes"></span>
-            )}
-            <button
-              className="tab-close"
-              onClick={(e) => {
-                e.stopPropagation();
-                onTabClose(tab.path);
-              }}
-              title="Close"
-            >
-              <X size={14} />
-            </button>
+              {getTabIcon(tab)}
+              <span
+                className="tab-name"
+                style={{
+                  fontStyle:
+                    tab.isPreviewFile && !tab.isDirty ? "italic" : "normal",
+                  textDecoration: tab.isDeleted ? "line-through" : "none",
+                  color: tab.isDeleted ? "red" : "inherit",
+                }}
+              >
+                {displayName}
+              </span>
+              {tab.isDirty && (
+                <span className="dirty-dot" title="Unsaved changes"></span>
+              )}
+              <button
+                className="tab-close"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTabClose(tab.path);
+                }}
+                title="Close"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )
+        })}
+        {showClock && (
+          <div style={{ marginLeft: "auto", paddingRight: "16px", display: "flex", alignItems: "center" }}>
+            <GlobalClock mode="inline" />
           </div>
-        )})}
+        )}
       </div>
 
       {/* Editor, Preview, or Image */}

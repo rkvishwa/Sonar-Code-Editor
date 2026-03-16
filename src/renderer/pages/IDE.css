@@ -32,7 +32,7 @@
   background-color: var(--bg-primary);
 }
 
-.ide-body > * {
+.ide-body>* {
   flex: 1;
 }
 
@@ -60,4 +60,11 @@
 .resize-handle[data-resize-handle-active] {
   background: var(--accent);
   width: 4px;
+}
+
+.ide-clock {
+  top: 10px !important;
+  right: 12px !important;
+  z-index: 20 !important;
+  /* Above traffic light bg */
 }
