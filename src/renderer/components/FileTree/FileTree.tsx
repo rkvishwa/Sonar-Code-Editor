@@ -217,7 +217,7 @@ function InlineCreateInput({
     const relatedTarget = e.relatedTarget as Element | null;
     const wentToMonaco = relatedTarget && !!relatedTarget.closest('.monaco-editor');
     const wentToBody = relatedTarget === document.body || !relatedTarget;
-    const isEarlyBlur = Date.now() - mountedAtRef.current < 150;
+    const isEarlyBlur = Date.now() - mountedAtRef.current < 500;
 
     if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
     blurTimeoutRef.current = setTimeout(() => {
@@ -382,25 +382,7 @@ function FileTreeNode({
     return () => window.removeEventListener("clipboard-updated", handleClipboardUpdate);
   }, [node.path]);
 
-  // Fix: If the cut file is saved by the user, cancel the cut state.
-  useEffect(() => {
-    if (node.type !== "file") return;
-    const handleFileSaved = (e: Event) => {
-      const savedPath = (e as CustomEvent<{ path: string }>).detail?.path;
-      const normalizedSaved = savedPath?.replace(/\\/g, "/");
-      const normalizedNode = node.path.replace(/\\/g, "/");
-      if (
-        fileClipboard?.action === "cut" &&
-        fileClipboard?.path.replace(/\\/g, "/") === normalizedNode &&
-        normalizedSaved === normalizedNode
-      ) {
-        fileClipboard = null;
-        window.dispatchEvent(new CustomEvent("clipboard-updated"));
-      }
-    };
-    window.addEventListener("file-manually-saved", handleFileSaved);
-    return () => window.removeEventListener("file-manually-saved", handleFileSaved);
-  }, [node.path, node.type]);
+
 
   useEffect(() => {
     if (expanded && typeof refreshTrigger === 'number' && refreshTrigger > 0) {
