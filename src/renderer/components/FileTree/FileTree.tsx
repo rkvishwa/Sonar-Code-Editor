@@ -358,6 +358,26 @@ function FileTreeNode({
     return () => window.removeEventListener("clipboard-updated", handleClipboardUpdate);
   }, [node.path]);
 
+  // Fix: If the cut file is saved by the user, cancel the cut state.
+  useEffect(() => {
+    if (node.type !== "file") return;
+    const handleFileSaved = (e: Event) => {
+      const savedPath = (e as CustomEvent<{ path: string }>).detail?.path;
+      const normalizedSaved = savedPath?.replace(/\\/g, "/");
+      const normalizedNode = node.path.replace(/\\/g, "/");
+      if (
+        fileClipboard?.action === "cut" &&
+        fileClipboard?.path.replace(/\\/g, "/") === normalizedNode &&
+        normalizedSaved === normalizedNode
+      ) {
+        fileClipboard = null;
+        window.dispatchEvent(new CustomEvent("clipboard-updated"));
+      }
+    };
+    window.addEventListener("file-manually-saved", handleFileSaved);
+    return () => window.removeEventListener("file-manually-saved", handleFileSaved);
+  }, [node.path, node.type]);
+
   useEffect(() => {
     if (expanded && typeof refreshTrigger === 'number' && refreshTrigger > 0) {
       loadChildren();
@@ -515,7 +535,12 @@ function FileTreeNode({
     const fileName = fileClipboard.path.substring(Math.max(fileClipboard.path.lastIndexOf("/"), fileClipboard.path.lastIndexOf("\\")) + 1);
     const newPath = `${targetDir}/${fileName}`.replace(/\\/g, "/");
 
-    if (fileClipboard.action === "cut" && newPath === fileClipboard.path) return;
+    if (fileClipboard.action === "cut" && newPath === fileClipboard.path) {
+      // Pasting in the same location: just cancel the cut instead of moving.
+      fileClipboard = null;
+      window.dispatchEvent(new CustomEvent("clipboard-updated"));
+      return;
+    }
 
     try {
       if (fileClipboard.action === "cut") {
