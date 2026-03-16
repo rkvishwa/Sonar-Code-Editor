@@ -8,7 +8,7 @@ import {
   WorkspaceMetadata,
   FileOperation,
 } from "../context/CollaborationContext";
-import FileTree from "../components/FileTree/FileTree";
+import FileTree, { updateFileClipboardPath } from "../components/FileTree/FileTree";
 import EditorPanel from "../components/Editor/EditorPanel";
 import PreviewPanel from "../components/Preview/PreviewPanel";
 import ActivityBar from "../components/Sidebar/ActivityBar";
@@ -978,6 +978,9 @@ function IDEContent() {
         return deduped;
       });
 
+      // Update the file clipboard if it references the old path
+      updateFileClipboardPath(oldPath, newPath);
+
       // Broadcast rename to collaboration peers
       try {
         const wsRoot = workspaceRootRef.current;
@@ -1415,6 +1418,8 @@ function IDEContent() {
                 }
                 return next;
               });
+              // Update the file clipboard if it references the old path
+              updateFileClipboardPath(fullPath, actualNewPath);
               break;
             }
             case "save-file": {

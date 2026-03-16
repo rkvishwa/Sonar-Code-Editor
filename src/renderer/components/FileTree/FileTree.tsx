@@ -4,6 +4,23 @@ import { createPortal } from "react-dom";
 // Global clipboard for cut/paste operations
 export let fileClipboard: { path: string; type: "file" | "directory"; action: "cut" | "copy" } | null = null;
 
+// Update fileClipboard when a file is renamed/moved externally (e.g. by a collaboration peer).
+// This prevents the clipboard from holding a stale path after a remote move.
+export function updateFileClipboardPath(oldPath: string, newPath: string): void {
+  if (!fileClipboard) return;
+  const clipNorm = fileClipboard.path.replace(/\\/g, "/").toLowerCase();
+  const oldNorm = oldPath.replace(/\\/g, "/").toLowerCase();
+  if (clipNorm === oldNorm) {
+    fileClipboard = { ...fileClipboard, path: newPath.replace(/\\/g, "/") };
+    window.dispatchEvent(new CustomEvent("clipboard-updated"));
+  } else if (clipNorm.startsWith(oldNorm + "/")) {
+    // Clipboard file is inside a renamed directory
+    const suffix = fileClipboard.path.slice(oldPath.length);
+    fileClipboard = { ...fileClipboard, path: newPath.replace(/\\/g, "/") + suffix };
+    window.dispatchEvent(new CustomEvent("clipboard-updated"));
+  }
+}
+
 // Global undo stack for file tree operations
 export const fileUndoStack: Array<{ 
   originalPath: string; 
