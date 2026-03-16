@@ -61,3 +61,32 @@
   background: var(--accent);
   width: 4px;
 }
+
+
+.ide-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 16px 20px;
+  background: #2d1518;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 9999;
+  animation: ide-toast-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  max-width: 400px;
+  cursor: pointer;
+}
+
+.ide-toast-icon { font-size: 16px; }
+
+@keyframes ide-toast-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}

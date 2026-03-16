@@ -3,27 +3,17 @@ import { ArrowLeft, ArrowRight, RotateCw, Home, Monitor, MonitorPlay, ExternalLi
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import './PreviewPanel.css';
 
-interface ConsoleEntry {
-  id: number;
-  level: 'log' | 'warn' | 'error' | 'info' | 'debug';
-  message: string;
-  source: string;
-  line: number;
-  timestamp: number;
-}
-
 interface PreviewPanelProps {
   workspaceRoot: string | null;
   activeFilePath?: string | null;
   initialUrl?: string | null;
   onOpenInTab?: (currentUrl: string) => void;
   isFullTab?: boolean;
+  isActive?: boolean;
   onClose?: () => void;
 }
 
-let entryIdCounter = 0;
-
-export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl, onOpenInTab, isFullTab, onClose }: PreviewPanelProps) {
+export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl, onOpenInTab, isFullTab, isActive = true, onClose }: PreviewPanelProps) {
   const webviewRef = useRef<HTMLWebViewElement>(null);
   const devtoolsContainerRef = useRef<HTMLDivElement>(null);
   const [serverUrl, setServerUrl] = useState<string | null>(null);
@@ -32,9 +22,8 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
   const [isLoading, setIsLoading] = useState(false);
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
-  const [consoleLogs, setConsoleLogs] = useState<ConsoleEntry[]>([]);
   const [devtoolsOpen, setDevtoolsOpen] = useState(false);
-  const [followFile, setFollowFile] = useState(true);
+  const [followFile, setFollowFile] = useState(!isFullTab);
 
   useEffect(() => {
     if (!workspaceRoot) {
@@ -64,8 +53,18 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
     const wv = webviewRef.current;
     if (!wv) return;
 
+    let defaultUrl = serverUrl;
+    if (serverUrl && workspaceRoot && activeFilePath && activeFilePath.toLowerCase().endsWith('.html')) {
+      const normalizedRoot = workspaceRoot.replace(/\\/g, '/');
+      const normalizedFile = activeFilePath.replace(/\\/g, '/');
+      if (normalizedFile.startsWith(normalizedRoot)) {
+        const relative = normalizedFile.slice(normalizedRoot.length).replace(/^\//, '');
+        defaultUrl = serverUrl + '/' + relative;
+      }
+    }
+
     // Set initial src programmatically to avoid React VDOM re-applying it and causing reloads on every render
-    const startUrl = initialUrl || serverUrl;
+    const startUrl = initialUrl || defaultUrl;
     if (startUrl) {
       (wv as any).src = startUrl;
       setCurrentUrl(startUrl);
@@ -93,23 +92,9 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
         }
         if (e.message === '__PREVIEW_CLICK__') {
           document.dispatchEvent(new CustomEvent('close-context-menus'));
-          // Intentionally do not return here if we want right clicks to still be ignored,
-          // but we can just return so it doesn't pollute the IDE console.
           return;
         }
       }
-      const levelMap: Record<number, ConsoleEntry['level']> = {
-        0: 'debug', 1: 'log', 2: 'warn', 3: 'error',
-      };
-      const entry: ConsoleEntry = {
-        id: ++entryIdCounter,
-        level: levelMap[e.level] || 'log',
-        message: e.message,
-        source: e.sourceId || '',
-        line: e.line || 0,
-        timestamp: Date.now(),
-      };
-      setConsoleLogs((prev) => [...prev.slice(-500), entry]);
     };
 
     // Inject script into webview to notify host on copy/cut and mouse events
@@ -185,7 +170,7 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
         }
       }
     }
-  }, [activeFilePath, serverUrl, workspaceRoot, followFile]);
+  }, [activeFilePath, serverUrl, workspaceRoot, followFile, currentUrl]);
 
   const refresh = useCallback(() => {
     try { (webviewRef.current as any)?.reload(); } catch (e) {}
@@ -261,6 +246,7 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
 
   useEffect(() => {
     if (!devtoolsOpen) return;
+
     const wv = webviewRef.current as any;
     if (!wv) return;
 
@@ -282,8 +268,15 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
 
     const updateBounds = () => {
       const el = devtoolsContainerRef.current;
-      if (!el) return;
+      if (!el || !isActive) {
+        window.electronAPI.devtools.resize({ x: 0, y: -10000, width: 0, height: 0 });
+        return;
+      }
       const rect = el.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) {
+        window.electronAPI.devtools.resize({ x: 0, y: -10000, width: 0, height: 0 });
+        return;
+      }
       window.electronAPI.devtools.resize({
         x: Math.round(rect.x),
         y: Math.round(rect.y),
@@ -302,7 +295,7 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
       observer.disconnect();
       window.removeEventListener('resize', updateBounds);
     };
-  }, [devtoolsOpen]);
+  }, [devtoolsOpen, isActive]);
 
   useEffect(() => {
     const wv = webviewRef.current as any;
@@ -389,13 +382,11 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
               webpreferences="allowRunningInsecureContent=no"
             />
           </Panel>
+          {devtoolsOpen && <PanelResizeHandle className="resize-handle horizontal" />}
           {devtoolsOpen && (
-            <>
-              <PanelResizeHandle className="resize-handle horizontal" />
-              <Panel id="devtools-panel" defaultSize={40} minSize={10}>
-                <div className="devtools-container" ref={devtoolsContainerRef} style={{ width: '100%', height: '100%' }} />
-              </Panel>
-            </>
+            <Panel id="devtools-panel" defaultSize={40} minSize={10}>
+              <div className="devtools-container" ref={devtoolsContainerRef} style={{ width: '100%', height: '100%' }} />
+            </Panel>
           )}
         </PanelGroup>
       </div>
