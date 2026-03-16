@@ -11,6 +11,21 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Github,
+  Globe,
+  ExternalLink,
+  Code2,
+  FileText,
+  Palette,
+  Keyboard,
+  Share2,
+  Activity,
+  Shield,
+  User,
+  Info,
+  Save,
+  Zap,
+  AlignLeft,
 } from "lucide-react";
 import {
   getActivityLog,
@@ -18,6 +33,7 @@ import {
   clearActivityLog,
   ActivityEvent,
 } from "../../services/activityLogger";
+import appIcon from "../../assets/icon.png";
 import {
   addTeamMember,
   getTeamById,
@@ -25,7 +41,7 @@ import {
 } from "../../services/appwrite";
 import { cacheCredentials } from "../../services/localStore";
 import { Team } from "../../../shared/types";
-import { formatKey } from "../../utils/shortcut";
+import { formatKey, isMac } from "../../utils/shortcut";
 import "./SettingsModal.css";
 
 interface SettingsModalProps {
@@ -37,6 +53,8 @@ interface SettingsModalProps {
   onHotReloadChange: (val: boolean) => void;
   theme: string;
   onThemeChange: (val: string) => void;
+  accentColor: string;
+  onAccentColorChange: (val: string) => void;
   wordWrap: boolean;
   onWordWrapChange: (val: boolean) => void;
   showCollabUsernames: boolean;
@@ -57,6 +75,8 @@ export default function SettingsModal({
   onHotReloadChange,
   theme,
   onThemeChange,
+  accentColor,
+  onAccentColorChange,
   wordWrap,
   onWordWrapChange,
   showCollabUsernames,
@@ -100,8 +120,21 @@ export default function SettingsModal({
     if (isOpen) {
       setActiveTab("Text Editor");
       setSearchQuery("");
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordError("");
+      setPasswordSuccess("");
+      setAddMemberError("");
     }
   }, [isOpen]);
+
+  // Clear errors when switching tabs
+  useEffect(() => {
+    setPasswordError("");
+    setPasswordSuccess("");
+    setAddMemberError("");
+  }, [activeTab]);
 
   // Refresh activity log when opening the modal or switching to the Activity Log tab
   useEffect(() => {
@@ -169,6 +202,12 @@ export default function SettingsModal({
     matchesSearch("Password") ||
     matchesSearch("Change Password");
 
+  const showAbout = !isSearching
+    ? activeTab === "About"
+    : matchesSearch("About") ||
+    matchesSearch("Version") ||
+    matchesSearch("Knurdz");
+
   const handleChangePassword = async () => {
     setPasswordError("");
     setPasswordSuccess("");
@@ -222,13 +261,19 @@ export default function SettingsModal({
     { action: "Toggle Explorer", keys: [formatKey("Ctrl"), "B"] },
     { action: "Toggle Preview Panel", keys: [formatKey("Ctrl"), "Shift", "V"] },
     { action: "Toggle Preview Tab", keys: [formatKey("Ctrl"), "Shift", "B"] },
+    { action: "Rename File / Folder", keys: ["F2"] },
+    { action: "Delete File / Folder", keys: isMac ? ["⌘", "⌫"] : ["Del"] },
+    { action: "Undo Delete", keys: [formatKey("Ctrl"), "Z"] },
   ];
 
   const filteredShortcuts = shortcuts.filter(
     (s) =>
       matchesSearch(s.action) ||
       s.keys.some((k) => matchesSearch(k)) ||
-      matchesSearch("Keyboard Shortcuts"),
+      matchesSearch("Keyboard Shortcuts") ||
+      matchesSearch("rename") ||
+      matchesSearch("delete") ||
+      matchesSearch("undo"),
   );
 
   const showKeyboardShortcuts = !isSearching
@@ -290,11 +335,20 @@ export default function SettingsModal({
 
   const isWindows = navigator.userAgent.toLowerCase().includes("win");
 
+  const PRESET_COLORS = [
+    { name: "Blue", value: "#3b82f6" },
+    { name: "Teal", value: "#0d9488" },
+    { name: "Purple", value: "#8b5cf6" },
+    { name: "Green", value: "#10b981" },
+    { name: "Orange", value: "#f59e0b" },
+    { name: "Red", value: "#ef4444" },
+    { name: "Pink", value: "#ec4899" },
+  ];
+
   return (
     <div className="vscode-settings-overlay">
       <div
-        className="vscode-settings-header-tabs"
-        style={{ paddingLeft: isWindows ? "0px" : "75px" }}
+        className={`vscode-settings-header-tabs ${isWindows ? "is-windows" : "is-mac"}`}
       >
         <div className="vscode-settings-tab active">
           Settings
@@ -328,7 +382,7 @@ export default function SettingsModal({
               }
               onClick={() => setActiveTab("Text Editor")}
             >
-              Text Editor
+              <FileText size={14} /> Text Editor
             </li>
             <li
               className={
@@ -338,7 +392,7 @@ export default function SettingsModal({
               }
               onClick={() => setActiveTab("Appearance")}
             >
-              Appearance
+              <Palette size={14} /> Appearance
             </li>
             <li
               className={
@@ -352,8 +406,11 @@ export default function SettingsModal({
               }
               onClick={() => setActiveTab("Keyboard Shortcuts")}
             >
-              Keyboard Shortcuts
+              <Keyboard size={14} /> Keyboard Shortcuts
             </li>
+
+            <li className="vscode-settings-divider" />
+
             <li
               className={
                 (
@@ -366,7 +423,7 @@ export default function SettingsModal({
               }
               onClick={() => setActiveTab("Collaboration")}
             >
-              Collaboration
+              <Share2 size={14} /> Collaboration
             </li>
             <li
               className={
@@ -376,8 +433,11 @@ export default function SettingsModal({
               }
               onClick={() => setActiveTab("Activity Log")}
             >
-              Activity Log
+              <Activity size={14} /> Activity Log
             </li>
+
+            <li className="vscode-settings-divider" />
+
             <li
               className={
                 (isSearching ? showSecurity : activeTab === "Security")
@@ -386,7 +446,7 @@ export default function SettingsModal({
               }
               onClick={() => setActiveTab("Security")}
             >
-              Security
+              <Shield size={14} /> Security
             </li>
             <li
               className={
@@ -396,7 +456,20 @@ export default function SettingsModal({
               }
               onClick={() => setActiveTab("Account")}
             >
-              Account
+              <User size={14} /> Account
+            </li>
+
+            <li className="vscode-settings-divider" />
+
+            <li
+              className={
+                (isSearching ? showAbout : activeTab === "About")
+                  ? "active"
+                  : ""
+              }
+              onClick={() => setActiveTab("About")}
+            >
+              <Info size={14} /> About
             </li>
           </ul>
         </div>
@@ -404,89 +477,104 @@ export default function SettingsModal({
           {showTextEditor && (
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Text Editor</h2>
-
-              {(isSearching
-                ? matchesSearch("Auto Save") ||
-                matchesSearch("Controls auto save") ||
-                matchesSearch("Text Editor")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Editor: <span className="highlight">Auto Save</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Controls auto save of dirty editors.
+              
+              <div className="editor-settings-list">
+                {(isSearching
+                  ? matchesSearch("Auto Save") ||
+                  matchesSearch("Controls auto save") ||
+                  matchesSearch("Text Editor")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Save size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Auto Save</span>
+                          <span className="editor-setting-desc">
+                            Controls auto save of dirty editors.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action">
+                        <label className="vscode-toggle" title="Auto Save">
+                          <input
+                            type="checkbox"
+                            title="Toggle Auto Save"
+                            aria-label="Toggle Auto Save"
+                            checked={autoSave}
+                            onChange={(e) => onAutoSaveChange(e.target.checked)}
+                          />
+                          <span className="vscode-toggle-slider"></span>
+                        </label>
                       </div>
                     </div>
-                    <div className="vscode-setting-control">
-                      <select
-                        className="vscode-select"
-                        value={autoSave ? "on" : "off"}
-                        onChange={(e) =>
-                          onAutoSaveChange(e.target.value === "on")
-                        }
-                      >
-                        <option value="off">off</option>
-                        <option value="on">afterDelay (on)</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
+                  )}
 
-              {(isSearching
-                ? matchesSearch("Hot Reload") ||
-                matchesSearch("Instantly refresh") ||
-                matchesSearch("Text Editor")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Preview: <span className="highlight">Hot Reload</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Instantly refresh the preview panel when files are saved.
+                {(isSearching
+                  ? matchesSearch("Hot Reload") ||
+                  matchesSearch("Instantly refresh") ||
+                  matchesSearch("Text Editor")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Zap size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Hot Reload</span>
+                          <span className="editor-setting-desc">
+                            Instantly refresh the preview panel when files are saved.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action">
+                        <label className="vscode-toggle" title="Hot Reload">
+                          <input
+                            type="checkbox"
+                            title="Toggle Hot Reload"
+                            aria-label="Toggle Hot Reload"
+                            checked={hotReload}
+                            onChange={(e) => onHotReloadChange(e.target.checked)}
+                          />
+                          <span className="vscode-toggle-slider"></span>
+                        </label>
                       </div>
                     </div>
-                    <div className="vscode-setting-control">
-                      <label className="vscode-checkbox-label">
-                        <input
-                          type="checkbox"
-                          className="vscode-checkbox"
-                          checked={hotReload}
-                          onChange={(e) => onHotReloadChange(e.target.checked)}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                )}
+                  )}
 
-              {(isSearching
-                ? matchesSearch("Word Wrap") ||
-                matchesSearch("wrap long lines") ||
-                matchesSearch("Text Editor")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Editor: <span className="highlight">Word Wrap</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Wrap long lines in the editor to fit within the viewport.
+                {(isSearching
+                  ? matchesSearch("Word Wrap") ||
+                  matchesSearch("wrap long lines") ||
+                  matchesSearch("Text Editor")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <AlignLeft size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Word Wrap</span>
+                          <span className="editor-setting-desc">
+                            Wrap long lines in the editor to fit within the viewport.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action">
+                        <label className="vscode-toggle" title="Word Wrap">
+                          <input
+                            type="checkbox"
+                            title="Toggle Word Wrap"
+                            aria-label="Toggle Word Wrap"
+                            checked={wordWrap}
+                            onChange={(e) => onWordWrapChange(e.target.checked)}
+                          />
+                          <span className="vscode-toggle-slider"></span>
+                        </label>
                       </div>
                     </div>
-                    <div className="vscode-setting-control">
-                      <label className="vscode-checkbox-label">
-                        <input
-                          type="checkbox"
-                          className="vscode-checkbox"
-                          checked={wordWrap}
-                          onChange={(e) => onWordWrapChange(e.target.checked)}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                )}
+                  )}
+              </div>
             </div>
           )}
 
@@ -494,33 +582,89 @@ export default function SettingsModal({
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Appearance</h2>
 
-              {(isSearching
-                ? matchesSearch("Color Theme") ||
-                matchesSearch("interface theme") ||
-                matchesSearch("Appearance")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Workbench: <span className="highlight">Color Theme</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Select your interface theme or let it match your system.
+              <div className="editor-settings-list">
+                {(isSearching
+                  ? matchesSearch("Color Theme") ||
+                  matchesSearch("interface theme") ||
+                  matchesSearch("Appearance")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Palette size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Color Theme</span>
+                          <span className="editor-setting-desc">
+                            Select your interface theme or let it match your system.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action">
+                        <select
+                          className="vscode-select"
+                          title="Color Theme"
+                          value={theme}
+                          onChange={(e) => onThemeChange(e.target.value)}
+                        >
+                          <option value="system">System Default</option>
+                          <option value="light">Light Theme</option>
+                          <option value="dark">Dark Theme</option>
+                        </select>
                       </div>
                     </div>
-                    <div className="vscode-setting-control">
-                      <select
-                        className="vscode-select"
-                        value={theme}
-                        onChange={(e) => onThemeChange(e.target.value)}
-                      >
-                        <option value="system">System Default</option>
-                        <option value="light">Light Theme</option>
-                        <option value="dark">Dark Theme</option>
-                      </select>
+                  )}
+
+                {(isSearching
+                  ? matchesSearch("Accent Color") ||
+                  matchesSearch("custom color") ||
+                  matchesSearch("Appearance")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Palette size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Accent Color</span>
+                          <span className="editor-setting-desc">
+                            Select a custom accent color for the interface (default is blue).
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action color-picker-control">
+                        <div className="color-presets">
+                          {PRESET_COLORS.map((c) => (
+                            <button
+                              key={c.value}
+                              className={`color-preset-btn ${accentColor.toLowerCase() === c.value.toLowerCase() ? "active" : ""}`}
+                              style={{ backgroundColor: c.value }}
+                              title={c.name}
+                              onClick={() => onAccentColorChange(c.value)}
+                            />
+                          ))}
+                        </div>
+                        <div className="custom-color-wrap">
+                          <input
+                            type="color"
+                            className="vscode-color-picker"
+                            value={accentColor}
+                            onChange={(e) => onAccentColorChange(e.target.value)}
+                            title="Custom Color"
+                          />
+                          <span className="custom-color-hex">{accentColor.toUpperCase()}</span>
+                          <button 
+                            className="activity-log-btn secondary reset-color-btn"
+                            onClick={() => onAccentColorChange('#3b82f6')}
+                            disabled={accentColor.toLowerCase() === '#3b82f6'}
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+              </div>
             </div>
           )}
 
@@ -554,76 +698,83 @@ export default function SettingsModal({
           {showCollaboration && (
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Collaboration</h2>
+              
+              <div className="editor-settings-list">
+                {(isSearching
+                  ? matchesSearch("Show Usernames") ||
+                  matchesSearch("cursor") ||
+                  matchesSearch("collaborator") ||
+                  matchesSearch("Collaboration")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Users size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Show Usernames</span>
+                          <span className="editor-setting-desc">
+                            Display collaborator usernames near their cursor in the editor.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action">
+                        <label className="vscode-toggle" title="Show Usernames">
+                          <input
+                            type="checkbox"
+                            title="Show Usernames"
+                            aria-label="Show Usernames"
+                            checked={showCollabUsernames}
+                            onChange={(e) =>
+                              onShowCollabUsernamesChange(e.target.checked)
+                            }
+                          />
+                          <span className="vscode-toggle-slider"></span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
-              {(isSearching
-                ? matchesSearch("Show Usernames") ||
-                matchesSearch("cursor") ||
-                matchesSearch("collaborator") ||
-                matchesSearch("Collaboration")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Collaboration:{" "}
-                        <span className="highlight">Show Usernames</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Display collaborator usernames near their cursor in the
-                        editor.
+                {(isSearching
+                  ? matchesSearch("Username Opacity") ||
+                  matchesSearch("opacity") ||
+                  matchesSearch("Collaboration")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Eye size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Username Opacity</span>
+                          <span className="editor-setting-desc">
+                            Control the opacity of collaborator username labels near the cursor.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action">
+                        <div className="vscode-range-control">
+                          <input
+                            type="range"
+                            className="vscode-range"
+                            title="Username Opacity"
+                            min={0}
+                            max={100}
+                            step={5}
+                            value={collabUsernameOpacity}
+                            onChange={(e) =>
+                              onCollabUsernameOpacityChange(Number(e.target.value))
+                            }
+                            disabled={!showCollabUsernames}
+                          />
+                          <span className="vscode-range-value">
+                            {collabUsernameOpacity}%
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="vscode-setting-control">
-                      <label className="vscode-checkbox-label">
-                        <input
-                          type="checkbox"
-                          className="vscode-checkbox"
-                          checked={showCollabUsernames}
-                          onChange={(e) =>
-                            onShowCollabUsernamesChange(e.target.checked)
-                          }
-                        />
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-              {(isSearching
-                ? matchesSearch("Username Opacity") ||
-                matchesSearch("opacity") ||
-                matchesSearch("Collaboration")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Collaboration:{" "}
-                        <span className="highlight">Username Opacity</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Control the opacity of collaborator username labels near
-                        the cursor (0 = fully transparent, 100 = fully opaque).
-                      </div>
-                    </div>
-                    <div className="vscode-setting-control">
-                      <div className="vscode-range-control">
-                        <input
-                          type="range"
-                          className="vscode-range"
-                          min={0}
-                          max={100}
-                          step={5}
-                          value={collabUsernameOpacity}
-                          onChange={(e) =>
-                            onCollabUsernameOpacityChange(Number(e.target.value))
-                          }
-                          disabled={!showCollabUsernames}
-                        />
-                        <span className="vscode-range-value">
-                          {collabUsernameOpacity}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  )}
+              </div>
             </div>
           )}
 
@@ -631,8 +782,7 @@ export default function SettingsModal({
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Activity Log</h2>
               <div
-                className="vscode-setting-description"
-                style={{ marginBottom: 16 }}
+                className="vscode-setting-description activity-log-description"
               >
                 Your activity is tracked in the background — online/offline
                 status changes, app switching, and clipboard copies with
@@ -908,6 +1058,61 @@ export default function SettingsModal({
                     <LogOut size={14} />
                     Sign Out
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showAbout && (
+            <div className="vscode-settings-section">
+              <h2 className="vscode-settings-section-title">About</h2>
+              
+              <div className="account-card about-card">
+                <div className="about-header">
+                  <img 
+                    src={appIcon} 
+                    alt="Sonar Code Editor" 
+                    className="about-app-icon"
+                  />
+                  <div>
+                    <h3 className="about-title">Sonar Code Editor</h3>
+                    <div className="about-subtitle">
+                      <span>Version 1.0.0-beta</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="about-divider"></div>
+                
+                <div className="about-content">
+                  <div className="about-description">
+                    Sonar is a collaborative, real-time code editor built for educational institutions and development teams. It provides seamless coding experiences with integrated monitoring and activity logging.
+                  </div>
+                  
+                  <div className="about-links">
+                    <a href="https://github.com/rkvishwa/Sonar-Code-Editor" target="_blank" rel="noopener noreferrer" className="activity-log-btn secondary about-link-btn">
+                      <Github size={14} />
+                      GitHub Repository
+                    </a>
+                    <a href="https://sonar.knurdz.org" target="_blank" rel="noopener noreferrer" className="activity-log-btn secondary about-link-btn">
+                      <Globe size={14} />
+                      Official Website
+                    </a>
+                  </div>
+                </div>
+
+                <div className="about-divider spaced"></div>
+                
+                <div className="about-footer">
+                  <div>
+                    Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer" className="about-footer-link">MIT License</a>.
+                  </div>
+                  <div className="about-powered-by">
+                    Powered by 
+                    <a href="https://knurdz.org" target="_blank" rel="noopener noreferrer" className="about-powered-link">
+                      Knurdz <ExternalLink size={12} />
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>

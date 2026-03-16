@@ -147,6 +147,9 @@ function IDEContent() {
   const [theme, setTheme] = useState(
     () => localStorage.getItem("ide-theme") || "system",
   );
+  const [accentColor, setAccentColor] = useState(
+    () => localStorage.getItem("ide-accent-color") || "#3b82f6",
+  );
   const [autoSave, setAutoSave] = useState(
     () => localStorage.getItem("ide-autosave") === "true",
   );
@@ -230,6 +233,21 @@ function IDEContent() {
   useEffect(() => {
     localStorage.setItem("ide-autosave", String(autoSave));
   }, [autoSave]);
+
+  useEffect(() => {
+    localStorage.setItem("ide-accent-color", accentColor);
+    const root = document.documentElement;
+    root.style.setProperty("--user-accent", accentColor);
+    root.style.setProperty("--user-accent-hover", accentColor);
+    
+    let r = 59, g = 130, b = 246; // default blue
+    if (accentColor.startsWith('#') && (accentColor.length === 7 || accentColor.length === 9)) {
+      r = parseInt(accentColor.slice(1, 3), 16);
+      g = parseInt(accentColor.slice(3, 5), 16);
+      b = parseInt(accentColor.slice(5, 7), 16);
+    }
+    root.style.setProperty("--user-accent-rgb", `${r}, ${g}, ${b}`);
+  }, [accentColor]);
 
   useEffect(() => {
     localStorage.setItem("ide-collab-usernames", String(showCollabUsernames));
@@ -665,7 +683,10 @@ function IDEContent() {
   }, [tabs]);
 
   const openFile = useCallback(
-    async (filePath: string, fileName: string) => {
+    async (rawFilePath: string, fileName: string, isPreview: boolean = true) => {
+      // Normalize slashes to keep tab paths completely uniform across platforms
+      const filePath = rawFilePath.replace(/\\/g, "/");
+
       const existing = tabsRef.current.find((t) => t.path === filePath);
       if (existing) {
         setActiveTabPath(filePath);
@@ -682,7 +703,7 @@ function IDEContent() {
             isDirty: false,
             language: "",
             type: "image",
-            isPreviewFile: true,
+            isPreviewFile: isPreview,
           };
         } else {
           // Read from local filesystem
@@ -694,10 +715,11 @@ function IDEContent() {
             content,
             isDirty: false,
             language: getLanguage(fileName),
-            isPreviewFile: true,
+            isPreviewFile: isPreview,
           };
         }
         setTabs((prev) => {
+          if (prev.some((t) => t.path === filePath)) return prev;
           const next = prev.filter((t) => !t.isPreviewFile || t.isDirty);
           return [...next, tab];
         });
@@ -744,6 +766,15 @@ function IDEContent() {
       if (hotReload) {
         window.dispatchEvent(new CustomEvent("file-saved"));
       }
+      
+      // Broadcast save operation to other peers so they save automatically too
+      if (collaboration.isActive && workspaceRootRef.current) {
+        const relPath = toRelativePath(activeTab.path, workspaceRootRef.current);
+        collaboration.broadcastFileOp({
+          type: "save-file",
+          relativePath: relPath
+        });
+      }
     } catch (err) {
       console.error("Failed to save file:", err);
     }
@@ -779,26 +810,51 @@ function IDEContent() {
   const handleFileDeleted = useCallback(
     (deletedPath: string, type: "file" | "directory") => {
       setTabs((prev) => {
-        const next = prev.map((t) => {
+        const next = prev.filter((t) => {
           const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
           const dNorm = deletedPath.replace(/\\/g, "/").toLowerCase();
 
           if (type === "directory") {
-            if (tNorm === dNorm || tNorm.startsWith(dNorm + "/")) {
-              return { ...t, isDeleted: true };
-            }
-          } else if (tNorm === dNorm) {
-            return { ...t, isDeleted: true };
+            return !(tNorm === dNorm || tNorm.startsWith(dNorm + "/"));
+          } else {
+            return tNorm !== dNorm;
           }
-          return t;
         });
+
+        setActiveTabPath((currentActive) => {
+          if (!currentActive) return null;
+          const cNorm = currentActive.replace(/\\/g, "/").toLowerCase();
+          const dNorm = deletedPath.replace(/\\/g, "/").toLowerCase();
+          let isActiveDeleted = false;
+          if (type === "directory") {
+             isActiveDeleted = cNorm === dNorm || cNorm.startsWith(dNorm + "/");
+          } else {
+             isActiveDeleted = cNorm === dNorm;
+          }
+          if (isActiveDeleted) {
+             return next.length > 0 ? next[next.length - 1].path : null;
+          }
+          return currentActive;
+        });
+
         return next;
       });
 
-      // Broadcast delete to collaboration peers
+      // Broadcast delete to collaboration peers.
+      // NOTE: we intentionally do NOT clear Y.Text here — clearing it while
+      // the editor is still bound would blank the editor immediately.  The
+      // undo path (handleFileCreated) always has savedContent available, so
+      // it can seed Y.Text correctly without a pre-wipe.
       try {
         const wsRoot = workspaceRootRef.current;
         if (collabActiveRef.current && wsRoot) {
+          // Clear Y.Text for the deleted file(s) so that stale content is
+          // never returned by getFileContent if the user later undoes the
+          // delete.  Without this, setFileContent in handleFileCreated would
+          // see non-empty Y.Text and skip writing the restored savedContent.
+          if (type === "file") {
+            setFileContentRef.current(deletedPath, "", wsRoot, true);
+          }
           const relativePath = toRelativePath(deletedPath, wsRoot);
           broadcastFileOpRef.current({
             type: "delete",
@@ -823,7 +879,7 @@ function IDEContent() {
 
           if (tNorm === oNorm || tNorm.startsWith(oNorm + "/")) {
             updated = true;
-            const newFilePath = newPath + t.path.slice(oldPath.length);
+            const newFilePath = (newPath + t.path.slice(oldPath.length)).replace(/\\/g, "/");
             const newName = newFilePath.split(/[\\/]/).pop() || "";
             return { ...t, path: newFilePath, name: newName };
           }
@@ -836,7 +892,7 @@ function IDEContent() {
             const cNorm = current.replace(/\\/g, "/").toLowerCase();
             const oNorm = oldPath.replace(/\\/g, "/").toLowerCase();
             if (cNorm === oNorm || cNorm.startsWith(oNorm + "/")) {
-              return newPath + current.slice(oldPath.length);
+              return (newPath + current.slice(oldPath.length)).replace(/\\/g, "/");
             }
             return current;
           });
@@ -864,43 +920,55 @@ function IDEContent() {
   );
 
   const handleFileCreated = useCallback(
-    async (fullPath: string, _name: string, savedContent?: string) => {
+    async (fullPath: string, _name: string, savedContent?: string, isUndo?: boolean) => {
       let restoredContent = "";
 
       try {
         const wsRoot = workspaceRootRef.current;
         if (collabActiveRef.current && wsRoot) {
-          // Priority 1: pre-captured content from the undo stack (most reliable —
-          // captured right before the file was renamed to .trash, so it always
-          // has the correct content regardless of editor/Y.Text state).
-          if (savedContent !== undefined) {
-            restoredContent = savedContent;
-          } else {
-            // Priority 2: Y.Text content (latest collaborative state, if the
-            // file was open in any editor during this session).
-            const ytextContent = collaboration.isActive
-              ? collaboration.getFileContent(fullPath, wsRoot)
-              : null;
+          // Y.Text is NEVER wiped on delete (to preserve cursor RelativePositions),
+          // so it is the authoritative collaborative state at undo time.
+          //
+          // Priority 1: Y.Text content — preserves all Y.Text items and cursor
+          //   positions. Do NOT call setFileContent (no-op at best, destructive at
+          //   worst if disk content differs by even a line ending).
+          // Priority 2: savedContent from undo stack — used only if Y.Text is empty
+          //   (shouldn't happen, but safety net).  Seeds Y.Text via setFileContent.
+          // Priority 3: read from disk — last fallback.
 
-            if (ytextContent) {
-              restoredContent = ytextContent;
-              console.log(`Using Y.Text content for restored file: ${fullPath} (${restoredContent.length} chars)`);
-            } else {
-              // Priority 3: read from disk (the .trash rename put content back).
-              try {
-                restoredContent = await window.electronAPI.fs.readFile(fullPath);
-              } catch (readErr) {
-                console.warn(`Could not read file for broadcast: ${fullPath}`, readErr);
-              }
+          const ytextContent = collaboration.isActive
+            ? collaboration.getFileContent(fullPath, wsRoot)
+            : null;
+
+          if (ytextContent !== null) {
+            // Y.Text already has content — but since the file was deleted,
+            // the CRDT items might be out of sync with other machines or y-monaco
+            // might fail to re-bind cleanly to the same old items.
+            // Forcing a purge guarantees M1 and M2 get a completely fresh CRDT
+            // tree for this file, which guarantees perfect cursor sync.
+            restoredContent = ytextContent;
+            console.log(`Forcing Y.Text purge for restored file: ${fullPath}`);
+            setFileContentRef.current(fullPath, restoredContent, wsRoot, true /* force purge */);
+          } else if (savedContent !== undefined) {
+            // Y.Text is empty — seed it from the pre-delete disk snapshot.
+            restoredContent = savedContent;
+            console.log(`Seeding Y.Text from savedContent for restored file: ${fullPath}`);
+            setFileContentRef.current(fullPath, restoredContent, wsRoot, true /* force purge */);
+          } else {
+            // Last resort: read from disk.
+            try {
+              restoredContent = await window.electronAPI.fs.readFile(fullPath);
+            } catch (readErr) {
+              console.warn(`Could not read file for broadcast: ${fullPath}`, readErr);
+            }
+            if (typeof restoredContent === "string") {
+              setFileContentRef.current(fullPath, restoredContent, wsRoot, true /* force purge */);
             }
           }
 
-          // Ensure Y.Text is in sync with the content we're restoring.
-          setFileContentRef.current(fullPath, restoredContent, wsRoot);
-
           // Write authoritative content back to disk so that non-editor
           // opens (via openFile → readFile) always see the correct content.
-          if (restoredContent) {
+          if (typeof restoredContent === "string") {
             try {
               await window.electronAPI.fs.writeFile(fullPath, restoredContent);
             } catch (writeErr) {
@@ -938,17 +1006,41 @@ function IDEContent() {
       }
 
       // Mark the tab as not-deleted AFTER seeding Y.Text.
-      // Only update an existing tab — if it was previously closed, leave it
-      // closed. Y.Text is already seeded so collaboration will work when the
-      // user opens the file again from the file tree.
-      setTabs((prev) => {
-        const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
-        return prev.map((t) =>
-          t.path.replace(/\\/g, "/").toLowerCase() === fNorm
-            ? { ...t, isDeleted: false, content: restoredContent || t.content }
-            : t
-        );
-      });
+      // If the tab was closed before the undo, open it afresh so the editor
+      // syncs immediately — the user expects the file to reappear.
+      if (isUndo) {
+        setTabs((prev) => {
+          const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
+          const existingIdx = prev.findIndex(
+            (t) => t.path.replace(/\\/g, "/").toLowerCase() === fNorm
+          );
+          if (existingIdx >= 0) {
+            // Tab exists (may be marked deleted) — just update it in place.
+            return prev.map((t) =>
+              t.path.replace(/\\/g, "/").toLowerCase() === fNorm
+                ? { ...t, isDeleted: false, content: restoredContent ?? t.content }
+                : t
+            );
+          }
+          // Tab was closed before the undo — create it fresh and make it active.
+          if (restoredContent !== undefined) {
+            const normalizedFullPath = fullPath.replace(/\\/g, "/");
+            const newName = fullPath.split(/[\/\\]/).pop() || "";
+            const newTab: OpenTab = {
+              path: normalizedFullPath,
+              name: newName,
+              content: restoredContent,
+              isDirty: false,
+              language: getLanguage(newName),
+              isPreviewFile: false,
+            };
+            // setActiveTabPath is a stable React setter — safe to call here.
+            setActiveTabPath(normalizedFullPath);
+            return [...prev, newTab];
+          }
+          return prev;
+        });
+      }
     },
     [],
   );
@@ -1018,10 +1110,16 @@ function IDEContent() {
               } catch (createErr) {
                 console.warn(`Remote create-file failed: ${relPath}`, createErr);
               }
-              // Seed the Yjs Y.Text for the recreated file so that
-              // collaboration sync resumes immediately.
+              // Seed the Yjs Y.Text for the recreated file ONLY if Y.Text is
+              // empty.  If it already has content (which it normally will,
+              // since Y.Text is never wiped on delete), skip — otherwise the
+              // delete+insert in setFileContent destroys all Y.Text items
+              // and invalidates cursor RelativePositions in awareness.
               if (op.content != null) {
-                setFileContentRef.current(fullPath, op.content, wsRoot);
+                const existingContent = collaboration.getFileContent(fullPath, wsRoot);
+                if (existingContent === null || existingContent !== op.content) {
+                  setFileContentRef.current(fullPath, op.content, wsRoot);
+                }
               }
               // Only update existing tabs. If the tab was closed, leave it closed.
               // Y.Text is already seeded above, so collaboration will start
@@ -1030,7 +1128,7 @@ function IDEContent() {
                 const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
                 return prev.map((t) =>
                   t.path.replace(/\\/g, "/").toLowerCase() === fNorm
-                    ? { ...t, isDeleted: false, content: op.content || t.content }
+                    ? { ...t, isDeleted: false, content: op.content ?? t.content }
                     : t
                 );
               });
@@ -1052,21 +1150,32 @@ function IDEContent() {
               // Update tabs locally WITHOUT calling handleFileDeleted (which would
               // re-broadcast the op and create an infinite echo loop)
               setTabs((prev) => {
-                const next = prev.map((t) => {
+                const next = prev.filter((t) => {
                   const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
                   const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
                   if (op.isDirectory) {
-                    if (
-                      tNorm.startsWith(fNorm + "/") ||
-                      tNorm === fNorm
-                    ) {
-                      return { ...t, isDeleted: true };
-                    }
-                  } else if (tNorm === fNorm) {
-                    return { ...t, isDeleted: true };
+                    return !(tNorm.startsWith(fNorm + "/") || tNorm === fNorm);
+                  } else {
+                    return tNorm !== fNorm;
                   }
-                  return t;
                 });
+
+                setActiveTabPath((currentActive) => {
+                  if (!currentActive) return null;
+                  const cNorm = currentActive.replace(/\\/g, "/").toLowerCase();
+                  const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
+                  let isActiveDeleted = false;
+                  if (op.isDirectory) {
+                    isActiveDeleted = cNorm === fNorm || cNorm.startsWith(fNorm + "/");
+                  } else {
+                    isActiveDeleted = cNorm === fNorm;
+                  }
+                  if (isActiveDeleted) {
+                    return next.length > 0 ? next[next.length - 1].path : null;
+                  }
+                  return currentActive;
+                });
+
                 return next;
               });
               break;
@@ -1117,6 +1226,28 @@ function IDEContent() {
                 }
                 return next;
               });
+              break;
+            }
+            case "save-file": {
+              try {
+                const content = collaboration.getFileContent(fullPath, wsRoot);
+                if (content !== null) {
+                  await window.electronAPI.fs.writeFile(fullPath, content);
+                  setTabs((prev) =>
+                    prev.map((t) => {
+                      const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+                      const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
+                      if (tNorm === fNorm) {
+                        return { ...t, isDirty: false, isDeleted: false, content };
+                      }
+                      return t;
+                    })
+                  );
+                  window.dispatchEvent(new CustomEvent("file-saved"));
+                }
+              } catch (saveErr) {
+                console.warn(`Remote save-file failed: ${relPath}`, saveErr);
+              }
               break;
             }
           }
@@ -1173,7 +1304,10 @@ function IDEContent() {
         language: "",
         type: "preview",
       };
-      setTabs((prev) => [...prev, tab]);
+      setTabs((prev) => {
+        if (prev.some((t) => t.path === previewPath)) return prev;
+        return [...prev, tab];
+      });
       setActiveTabPath(previewPath);
     },
     [tabs],
@@ -1331,6 +1465,8 @@ function IDEContent() {
         onHotReloadChange={setHotReload}
         theme={theme}
         onThemeChange={setTheme}
+        accentColor={accentColor}
+        onAccentColorChange={setAccentColor}
         wordWrap={wordWrap}
         onWordWrapChange={setWordWrap}
         showCollabUsernames={showCollabUsernames}

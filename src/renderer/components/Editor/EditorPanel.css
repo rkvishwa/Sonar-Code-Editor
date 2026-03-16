@@ -10,7 +10,7 @@
 
 /* y-monaco remote cursor styles */
 .yRemoteSelection {
-  background-color: rgba(59, 130, 246, 0.3) !important;
+  background-color: rgba(var(--user-accent-rgb, 59, 130, 246), 0.3) !important;
   opacity: 0.7;
 }
 
@@ -24,7 +24,7 @@
 
 /* y-monaco cursor widget label (shows user name) */
 .yRemoteSelectionHead::after {
-  content: ' ';
+  /* Dynamic content injected via CollaborationContext */
 }
 
 /* Monaco widget cursor label styling */
@@ -236,23 +236,31 @@ kbd {
 }
 
 .welcome-logo {
-  opacity: 0.05;
-  color: var(--accent); /* Fallback */
+  color: var(--text-primary); /* Fallback */
+  opacity: 0.6;
 }
 
 /* Gradient text works fine for text */
 .welcome-title {
-  font-family: "Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", sans-serif;
-  font-size: 42px;
-  font-weight: 900;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 38px;
+  font-weight: 700;
   margin-bottom: 12px;
-  background: linear-gradient(135deg, #ffffff 50%, #000000 100%);
+  background: linear-gradient(to right, #ffffff 0%, rgba(255, 255, 255, 0) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   color: transparent;
-  opacity: 0.1;
-  letter-spacing: -0.5px;
+  opacity: 0.15;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+}
+
+[data-theme="light"] .welcome-title {
+  background: linear-gradient(to right, #000000 0%, rgba(0, 0, 0, 0) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .welcome-subtitle {

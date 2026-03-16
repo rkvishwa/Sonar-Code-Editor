@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import MonacoEditor, { type OnMount, type Monaco } from "@monaco-editor/react";
 import {
-  Radar,
   FileCode2,
   X,
   Monitor,
@@ -49,6 +48,51 @@ interface EditorPanelProps {
   getCollaborativeContent?: (filePath: string) => string | null;
 }
 
+const CustomRadarIcon = ({ size = 24, className = "", color = "currentColor", style, maskId = "needle-mask" }: any) => {
+  const circleMaskId = `${maskId}-circle`;
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={style}
+    >
+      <defs>
+        {/* Mask for the background arcs: cuts out the needle line and the center circle area */}
+        <mask id={maskId}>
+          <rect x="0" y="0" width="24" height="24" fill="white" stroke="none" />
+          <path d="m13.41 10.59 5.66-5.66" stroke="black" strokeWidth="3" strokeLinecap="round" fill="none" />
+          <circle cx="12" cy="12" r="3.2" fill="black" stroke="none" />
+        </mask>
+        {/* Mask for the center circle: cuts out the needle with extra width for a visible gap */}
+        <mask id={circleMaskId}>
+          <rect x="0" y="0" width="24" height="24" fill="white" stroke="none" />
+          <path d="m13.41 10.59 5.66-5.66" stroke="black" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+        </mask>
+      </defs>
+      
+      <g mask={`url(#${maskId})`}>
+        <path d="M19.07 4.93A10 10 0 0 0 6.99 3.34" />
+        <path d="M4 6h.01" />
+        <path d="M2.29 9.62A10 10 0 1 0 21.31 8.35" />
+        <path d="M16.24 7.76A6 6 0 1 0 8.23 16.67" />
+        <path d="M12 18h.01" />
+        <path d="M17.99 11.66A6 6 0 0 1 15.77 16.67" />
+      </g>
+      
+      <circle cx="12" cy="12" r="2" mask={`url(#${circleMaskId})`} />
+      <path d="m13.41 10.59 5.66-5.66" />
+    </svg>
+  );
+};
+
 const getEditorOptions = (wordWrap: boolean) => ({
   suggestOnTriggerCharacters: false,
   quickSuggestions: false,
@@ -83,7 +127,7 @@ const getEditorOptions = (wordWrap: boolean) => ({
 
 function getTabIcon(tab: OpenTab) {
   if (tab.type === "preview")
-    return <Monitor size={14} className="tab-icon" color="#3b82f6" />;
+    return <Monitor size={14} className="tab-icon" color="var(--accent)" />;
   if (tab.type === "image")
     return <FileImage size={14} className="tab-icon" color="#8b5cf6" />;
 
@@ -99,7 +143,7 @@ function getTabIcon(tab: OpenTab) {
     case "html":
       return <Code2 size={14} className="tab-icon" color="#ef4444" />;
     case "css":
-      return <Palette size={14} className="tab-icon" color="#3b82f6" />;
+      return <Palette size={14} className="tab-icon" color="var(--accent)" />;
     case "md":
       return <FileText size={14} className="tab-icon" color="#a1a1aa" />;
     case "png":
@@ -277,13 +321,22 @@ const EditorPanel = React.memo(function EditorPanel({
     }
   }, [collaborationActive, activeTabPath, activeTabIsDeleted, onEditorMount, editorMountTick]);
 
-  // Unbind when collaboration ends
+  // Unbind when collaboration ends, or when activeTabPath becomes null
   useEffect(() => {
     if (!collaborationActive && boundFileRef.current) {
-      onEditorUnmount?.(); // Unbinds whatever is active if no path provided
+      onEditorUnmount?.();
       boundFileRef.current = null;
     }
   }, [collaborationActive, onEditorUnmount]);
+
+  // Unbind the previous file when the active tab changes to something else,
+  // or when the last tab is closed (activeTabPath becomes null).
+  useEffect(() => {
+    if (activeTabPath !== boundFileRef.current && boundFileRef.current) {
+        onEditorUnmount?.();
+        boundFileRef.current = null;
+    }
+  }, [activeTabPath, onEditorUnmount]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -417,13 +470,26 @@ const EditorPanel = React.memo(function EditorPanel({
         <div className="welcome-screen">
           <div className="welcome-hero">
             <div className="welcome-logo-container">
-              <svg width="0" height="0">
-                <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="50%" stopColor="#ffffff" />
-                  <stop offset="100%" stopColor="#000000" />
-                </linearGradient>
+              <svg width="0" height="0" style={{ position: 'absolute' }}>
+                <defs>
+                  <linearGradient id="logoGradient" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="30%" stopColor="var(--text-primary)" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="var(--bg-primary)" stopOpacity="0" />
+                  </linearGradient>
+                  
+                  <linearGradient id="shineGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stopColor="var(--text-primary)" stopOpacity="0" />
+                    <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.8" />
+                    <stop offset="1" stopColor="var(--text-primary)" stopOpacity="0" />
+                    <animate attributeName="x1" values="-1.5; 1.5; 1.5" dur="5s" keyTimes="0; 0.3; 1" repeatCount="indefinite" />
+                    <animate attributeName="x2" values="-0.5; 2.5; 2.5" dur="5s" keyTimes="0; 0.3; 1" repeatCount="indefinite" />
+                  </linearGradient>
+                </defs>
               </svg>
-              <Radar size={160} className="welcome-logo" style={{ stroke: "url(#logoGradient)" }} />
+              <div style={{ position: 'relative' }}>
+                <CustomRadarIcon size={160} className="welcome-logo" color="url(#logoGradient)" maskId="logo-mask-1" />
+                <CustomRadarIcon size={160} className="welcome-logo" color="url(#shineGradient)" style={{ position: 'absolute', top: 0, left: 0 }} maskId="logo-mask-2" />
+              </div>
             </div>
             <h1 className="welcome-title">Sonar Code Editor</h1>
           </div>
@@ -473,13 +539,26 @@ const EditorPanel = React.memo(function EditorPanel({
         <div className="welcome-screen">
           <div className="welcome-hero">
             <div className="welcome-logo-container">
-              <svg width="0" height="0">
-                <linearGradient id="logoGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="50%" stopColor="#ffffff" />
-                  <stop offset="100%" stopColor="#000000" />
-                </linearGradient>
+              <svg width="0" height="0" style={{ position: 'absolute' }}>
+                <defs>
+                  <linearGradient id="logoGradient2" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="30%" stopColor="var(--text-primary)" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="var(--bg-primary)" stopOpacity="0" />
+                  </linearGradient>
+                  
+                  <linearGradient id="shineGradient2" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stopColor="var(--text-primary)" stopOpacity="0" />
+                    <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.8" />
+                    <stop offset="1" stopColor="var(--text-primary)" stopOpacity="0" />
+                    <animate attributeName="x1" values="-1.5; 1.5; 1.5" dur="5s" keyTimes="0; 0.3; 1" repeatCount="indefinite" />
+                    <animate attributeName="x2" values="-0.5; 2.5; 2.5" dur="5s" keyTimes="0; 0.3; 1" repeatCount="indefinite" />
+                  </linearGradient>
+                </defs>
               </svg>
-              <FileCode2 size={160} className="welcome-logo" style={{ stroke: "url(#logoGradient2)" }} />
+              <div style={{ position: 'relative' }}>
+                <FileCode2 size={160} className="welcome-logo" color="url(#logoGradient2)" />
+                <FileCode2 size={160} className="welcome-logo" color="url(#shineGradient2)" style={{ position: 'absolute', top: 0, left: 0 }} />
+              </div>
             </div>
             <h1 className="welcome-title">Folder Opened</h1>
             <p className="welcome-subtitle">
@@ -627,6 +706,7 @@ const EditorPanel = React.memo(function EditorPanel({
                 key={`${tab.path}-${collaborationActive ? 'collab' : 'solo'}`}
                 height="100%"
                 language={tab.language}
+                keepCurrentModel={true}
                 // When collaboration is active, don't pass value prop - let y-monaco control content
                 // This prevents cursor jumping when multiple users edit the same line
                 {...(!collaborationActive && { value: tab.content })}
@@ -635,7 +715,26 @@ const EditorPanel = React.memo(function EditorPanel({
                     ? (getCollaborativeContent(tab.path) ?? tab.content)
                     : tab.content
                 }
-                theme={theme === "light" ? "vs-light" : "vs-dark"}
+                beforeMount={(monaco) => {
+                  monaco.editor.defineTheme('sonar-dark', {
+                    base: 'vs-dark',
+                    inherit: true,
+                    rules: [],
+                    colors: {
+                      'editor.background': '#000000',
+                      'editor.lineHighlightBackground': '#0a0a0a',
+                    }
+                  });
+                  monaco.editor.defineTheme('sonar-light', {
+                    base: 'vs',
+                    inherit: true,
+                    rules: [],
+                    colors: {
+                      'editor.background': '#ffffff',
+                    }
+                  });
+                }}
+                theme={theme === "light" ? "sonar-light" : "sonar-dark"}
                 options={getEditorOptions(wordWrap)}
                 onMount={(mountedEditor, mountedMonaco) => {
                   editorMapRef.current.set(tab.path, mountedEditor);

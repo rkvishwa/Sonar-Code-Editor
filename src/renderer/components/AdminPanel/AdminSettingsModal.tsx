@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowLeft, X, Users, LogOut, Settings, Key, CheckCircle2, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Search, ArrowLeft, X, Users, LogOut, Settings, Key, CheckCircle2, Eye, EyeOff, Trash2, Github, Globe, ExternalLink, Code2, User, Activity, Shield, Palette, Info } from 'lucide-react';
 import { updateTeamName, updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction } from '../../services/appwrite';
+import appIcon from '../../assets/icon.png';
 import { cacheCredentials } from '../../services/localStore';
 import { Team } from '../../../shared/types';
 import '../Settings/SettingsModal.css';
@@ -12,6 +13,8 @@ interface AdminSettingsModalProps {
   onLogout: () => void;
   theme: string;
   onThemeChange: (val: string) => void;
+  accentColor: string;
+  onAccentColorChange: (val: string) => void;
   onTeamNameUpdated: (newName: string) => void;
 }
 
@@ -22,6 +25,8 @@ export default function AdminSettingsModal({
   onLogout,
   theme,
   onThemeChange,
+  accentColor,
+  onAccentColorChange,
   onTeamNameUpdated,
 }: AdminSettingsModalProps) {
   const [activeTab, setActiveTab] = useState('Account');
@@ -88,6 +93,18 @@ export default function AdminSettingsModal({
     }
   }, [isOpen, user]);
 
+  // Clear errors when switching tabs
+  useEffect(() => {
+    setPasswordError('');
+    setPasswordSuccess('');
+    setNameError('');
+    setNameSuccess('');
+    setFlushError('');
+    setFlushSuccess('');
+    setRestrictionError('');
+    setRestrictionSuccess('');
+  }, [activeTab]);
+
   if (!isOpen) return null;
 
   const matchesSearch = (text: string) =>
@@ -110,6 +127,10 @@ export default function AdminSettingsModal({
   const showAppearance = !isSearching
     ? activeTab === 'Appearance'
     : matchesSearch('Appearance') || matchesSearch('Color Theme') || matchesSearch('interface theme');
+
+  const showAbout = !isSearching
+    ? activeTab === 'About'
+    : matchesSearch('About') || matchesSearch('Version') || matchesSearch('Knurdz');
 
   const handleSaveName = async () => {
     const trimmed = newTeamName.trim();
@@ -186,6 +207,16 @@ export default function AdminSettingsModal({
 
   const isWindows = navigator.userAgent.toLowerCase().includes('win');
 
+  const PRESET_COLORS = [
+    { name: "Blue", value: "#3b82f6" },
+    { name: "Teal", value: "#0d9488" },
+    { name: "Purple", value: "#8b5cf6" },
+    { name: "Green", value: "#10b981" },
+    { name: "Orange", value: "#f59e0b" },
+    { name: "Red", value: "#ef4444" },
+    { name: "Pink", value: "#ec4899" },
+  ];
+
   return (
     <div className="vscode-settings-overlay">
       <div
@@ -220,25 +251,37 @@ export default function AdminSettingsModal({
               className={(isSearching ? showAccount : activeTab === 'Account') ? 'active' : ''}
               onClick={() => setActiveTab('Account')}
             >
-              Account
+              <User size={14} /> Account
             </li>
             <li
               className={(isSearching ? showActivityLogs : activeTab === 'Activity Logs') ? 'active' : ''}
               onClick={() => setActiveTab('Activity Logs')}
             >
-              Activity Logs
+              <Activity size={14} /> Activity Logs
             </li>
             <li
               className={(isSearching ? showPrivacy : activeTab === 'Privacy') ? 'active' : ''}
               onClick={() => setActiveTab('Privacy')}
             >
-              Privacy
+              <Shield size={14} /> Privacy
             </li>
+            
+            <div className="vscode-settings-divider" />
+
             <li
               className={(isSearching ? showAppearance : activeTab === 'Appearance') ? 'active' : ''}
               onClick={() => setActiveTab('Appearance')}
             >
-              Appearance
+              <Palette size={14} /> Appearance
+            </li>
+
+            <div className="vscode-settings-divider" />
+
+            <li
+              className={(isSearching ? showAbout : activeTab === 'About') ? 'active' : ''}
+              onClick={() => setActiveTab('About')}
+            >
+              <Info size={14} /> About
             </li>
           </ul>
         </div>
@@ -248,35 +291,150 @@ export default function AdminSettingsModal({
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Appearance</h2>
 
-              {(isSearching
-                ? matchesSearch("Color Theme") ||
-                matchesSearch("interface theme") ||
-                matchesSearch("Appearance")
-                : true) && (
-                  <div className="vscode-setting-item">
-                    <div className="vscode-setting-header">
-                      <span className="vscode-setting-title">
-                        Workbench: <span className="highlight">Color Theme</span>
-                      </span>
-                      <div className="vscode-setting-description">
-                        Select your interface theme or let it match your system.
+              <div className="editor-settings-list">
+                {(isSearching
+                  ? matchesSearch("Color Theme") ||
+                  matchesSearch("interface theme") ||
+                  matchesSearch("Appearance")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Palette size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Color Theme</span>
+                          <span className="editor-setting-desc">
+                            Select your interface theme or let it match your system.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action">
+                        <select
+                          className="vscode-select"
+                          value={theme}
+                          aria-label="Color Theme"
+                          title="Color Theme"
+                          onChange={(e) => onThemeChange(e.target.value)}
+                        >
+                          <option value="system">System Default</option>
+                          <option value="light">Light Theme</option>
+                          <option value="dark">Dark Theme</option>
+                        </select>
                       </div>
                     </div>
-                    <div className="vscode-setting-control">
-                      <select
-                        className="vscode-select"
-                        value={theme}
-                        aria-label="Color Theme"
-                        title="Color Theme"
-                        onChange={(e) => onThemeChange(e.target.value)}
-                      >
-                        <option value="system">System Default</option>
-                        <option value="light">Light Theme</option>
-                        <option value="dark">Dark Theme</option>
-                      </select>
+                  )}
+
+                {(isSearching
+                  ? matchesSearch("Accent Color") ||
+                  matchesSearch("custom color") ||
+                  matchesSearch("Appearance")
+                  : true) && (
+                    <div className="editor-setting-row">
+                      <div className="editor-setting-info-wrap">
+                        <div className="editor-setting-icon">
+                          <Palette size={18} />
+                        </div>
+                        <div className="editor-setting-info">
+                          <span className="editor-setting-title">Accent Color</span>
+                          <span className="editor-setting-desc">
+                            Select a custom accent color for the interface (default is blue).
+                          </span>
+                        </div>
+                      </div>
+                      <div className="editor-setting-action color-picker-control">
+                        <div className="color-presets">
+                          {PRESET_COLORS.map((c) => (
+                            <button
+                              key={c.value}
+                              className={`color-preset-btn ${accentColor.toLowerCase() === c.value.toLowerCase() ? "active" : ""}`}
+                              style={{ backgroundColor: c.value }}
+                              title={c.name}
+                              onClick={() => onAccentColorChange(c.value)}
+                            />
+                          ))}
+                        </div>
+                        <div className="custom-color-wrap">
+                          <input
+                            type="color"
+                            className="vscode-color-picker"
+                            value={accentColor}
+                            onChange={(e) => onAccentColorChange(e.target.value)}
+                            title="Custom Color"
+                          />
+                          <span className="custom-color-hex">{accentColor.toUpperCase()}</span>
+                          <button 
+                            className="activity-log-btn secondary reset-color-btn"
+                            onClick={() => onAccentColorChange('#3b82f6')}
+                            disabled={accentColor.toLowerCase() === '#3b82f6'}
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+              </div>
+            </div>
+          )}
+
+          {showAbout && (
+            <div className="vscode-settings-section">
+              <h2 className="vscode-settings-section-title">About</h2>
+              
+              <div className="account-card" style={{ padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <img 
+                    src={appIcon} 
+                    alt="Sonar Code Editor" 
+                    style={{ 
+                      width: 72, height: 72, 
+                      borderRadius: 16, 
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                      objectFit: 'cover'
+                    }} 
+                  />
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Sonar Code Editor</h3>
+                    <div style={{ color: 'var(--text-muted)', marginTop: 4, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>Version 1.0.0-beta</span>
                     </div>
                   </div>
-                )}
+                </div>
+
+                <div style={{ height: 1, background: 'var(--divider)' }}></div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                    Sonar is a collaborative, real-time code editor built for educational institutions and development teams. It provides seamless coding experiences with integrated monitoring and activity logging.
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                    <a href="https://github.com/rkvishwa/Sonar-Code-Editor" target="_blank" rel="noopener noreferrer" className="activity-log-btn secondary" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px' }}>
+                      <Github size={14} />
+                      GitHub Repository
+                    </a>
+                    <a href="https://sonar.knurdz.org" target="_blank" rel="noopener noreferrer" className="activity-log-btn secondary" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px' }}>
+                      <Globe size={14} />
+                      Official Website
+                    </a>
+                  </div>
+                </div>
+
+                <div style={{ height: 1, background: 'var(--divider)', marginTop: '8px' }}></div>
+                
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)' }}>
+                  <div>
+                    Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>MIT License</a>.
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    Powered by 
+                    <a href="https://knurdz.org" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      Knurdz <ExternalLink size={12} />
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -315,38 +473,37 @@ export default function AdminSettingsModal({
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">Privacy</h2>
 
-              <div className="account-card">
-                <div className="account-members-section">
-                  <div className="account-members-header">
-                    <span className="vscode-setting-title"><span className="highlight">Internet Restriction</span></span>
-                  </div>
-                  <div className="vscode-setting-description">Control internet access restrictions for all non-admin teams.</div>
-
-                  <div className="admin-password-form">
-                    <div className="vscode-setting-item" style={{ padding: 0, border: 'none' }}>
-                      <div className="vscode-setting-header">
-                        <span className="vscode-setting-title" style={{ fontSize: 13, color: '#d4d4d4' }}>Block Internet Access</span>
-                        <div className="vscode-setting-description">If enabled, non-admin teams will be restricted from using the IDE while connected to the internet.</div>
-                      </div>
-                      <div className="vscode-setting-control">
-                        <label className="vscode-checkbox-label">
-                          <input
-                            type="checkbox"
-                            className="vscode-checkbox"
-                            checked={globalRestriction}
-                            aria-label="Block Internet Access"
-                            title="Block Internet Access"
-                            onChange={(e) => handleToggleRestriction(e.target.checked)}
-                            disabled={savingRestriction}
-                          />
-                        </label>
-                      </div>
+              <div className="editor-settings-list">
+                <div className="editor-setting-row">
+                  <div className="editor-setting-info-wrap">
+                    <div className="editor-setting-icon">
+                      <Shield size={18} />
+                    </div>
+                    <div className="editor-setting-info">
+                      <span className="editor-setting-title">Block Internet Access</span>
+                      <span className="editor-setting-desc">
+                        If enabled, non-admin teams will be restricted from using the IDE while connected to the internet.
+                      </span>
                     </div>
                   </div>
-                  {restrictionError && <div className="account-error">{restrictionError}</div>}
-                  {restrictionSuccess && <div className="account-success"><CheckCircle2 size={12} /> {restrictionSuccess}</div>}
+                  <div className="editor-setting-action">
+                    <label className="vscode-toggle" title="Block Internet Access">
+                      <input
+                        type="checkbox"
+                        checked={globalRestriction}
+                        aria-label="Block Internet Access"
+                        title="Block Internet Access"
+                        onChange={(e) => handleToggleRestriction(e.target.checked)}
+                        disabled={savingRestriction}
+                      />
+                      <span className="vscode-toggle-slider"></span>
+                    </label>
+                  </div>
                 </div>
               </div>
+              
+              {restrictionError && <div className="account-error">{restrictionError}</div>}
+              {restrictionSuccess && <div className="account-success"><CheckCircle2 size={12} /> {restrictionSuccess}</div>}
             </div>
           )}
 
