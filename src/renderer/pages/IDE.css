@@ -76,15 +76,50 @@
   font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
+  justify-content: space-between;
   z-index: 9999;
   animation: ide-toast-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
   max-width: 400px;
-  cursor: pointer;
+  font-family: system-ui, -apple-system, sans-serif;
 }
 
-.ide-toast-icon { font-size: 16px; }
+.ide-toast-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ide-toast-icon { 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f87171; 
+}
+
+.ide-toast-message {
+  line-height: 1.4;
+}
+
+.ide-toast-close {
+  background: transparent;
+  border: none;
+  color: rgba(252, 165, 165, 0.6);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+}
+
+.ide-toast-close:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
 
 @keyframes ide-toast-slide-up {
   from { opacity: 0; transform: translateY(20px); }
