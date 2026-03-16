@@ -163,7 +163,7 @@ function IDEContent() {
     () => localStorage.getItem("ide-accent-color") || "#3b82f6",
   );
   const [autoSave, setAutoSave] = useState(
-    () => localStorage.getItem("ide-autosave") === "true",
+    () => localStorage.getItem("ide-autosave") !== "false",
   );
   const [hotReload, setHotReload] = useState(
     () => localStorage.getItem("ide-hotreload") !== "false",
