@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { ArrowLeft, ArrowRight, RotateCw, Home, Monitor, MonitorPlay, ExternalLink, X, Lock, Unlock } from 'lucide-react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
+import GlobalClock from '../GlobalClock';
 import './PreviewPanel.css';
 
 interface ConsoleEntry {
@@ -132,7 +133,7 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
             console.log('__PREVIEW_CLICK__');
           }, true);
         }
-      `).catch(() => {});
+      `).catch(() => { });
     };
     const onDomReady = () => injectCopyListener();
 
@@ -155,7 +156,7 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
 
   useEffect(() => {
     const handleFileSaved = () => {
-      try { (webviewRef.current as any)?.reload(); } catch (e) {}
+      try { (webviewRef.current as any)?.reload(); } catch (e) { }
     };
     window.addEventListener('file-saved', handleFileSaved as EventListener);
     return () => {
@@ -180,7 +181,7 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
           try {
             (webviewRef.current as any).loadURL(targetUrl);
           } catch (e) {
-            try { (webviewRef.current as any).src = targetUrl; } catch (e2) {}
+            try { (webviewRef.current as any).src = targetUrl; } catch (e2) { }
           }
         }
       }
@@ -188,15 +189,15 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
   }, [activeFilePath, serverUrl, workspaceRoot, followFile]);
 
   const refresh = useCallback(() => {
-    try { (webviewRef.current as any)?.reload(); } catch (e) {}
+    try { (webviewRef.current as any)?.reload(); } catch (e) { }
   }, []);
 
   const goBack = useCallback(() => {
-    try { (webviewRef.current as any)?.goBack(); } catch (e) {}
+    try { (webviewRef.current as any)?.goBack(); } catch (e) { }
   }, []);
 
   const goForward = useCallback(() => {
-    try { (webviewRef.current as any)?.goForward(); } catch (e) {}
+    try { (webviewRef.current as any)?.goForward(); } catch (e) { }
   }, []);
 
   const navigateHome = useCallback(() => {
@@ -204,7 +205,7 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
       try {
         (webviewRef.current as any).loadURL(serverUrl);
       } catch (e) {
-        try { (webviewRef.current as any).src = serverUrl; } catch (e2) {}
+        try { (webviewRef.current as any).src = serverUrl; } catch (e2) { }
       }
     }
   }, [serverUrl]);
@@ -246,7 +247,7 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
     try {
       (webviewRef.current as any).loadURL(targetUrl);
     } catch (e) {
-      try { (webviewRef.current as any).src = targetUrl; } catch (e2) {}
+      try { (webviewRef.current as any).src = targetUrl; } catch (e2) { }
     }
   }, [inputUrl, serverUrl]);
 
@@ -372,6 +373,11 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
         <button className={`preview-btn preview-btn-hide-small ${devtoolsOpen ? 'active' : ''}`} onClick={openInspector} title="Toggle Inspector">
           <Monitor size={16} />
         </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', paddingLeft: '12px', paddingRight: '12px' }}>
+          <GlobalClock mode="inline" />
+        </div>
+
         {!isFullTab && onClose && (
           <button className="preview-btn" onClick={onClose} title="Close Preview Panel" style={{ flexShrink: 0 }}>
             <X size={16} />

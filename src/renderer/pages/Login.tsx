@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Eye, EyeOff, Radar, Sun, Moon } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import GlobalClock from "../components/GlobalClock";
 import "./Login.css";
 
 type Tab = "login" | "register";
@@ -165,6 +166,7 @@ export default function Login() {
 
   return (
     <div className="login-layout">
+      <GlobalClock className="login-clock" />
       <button
         className="theme-toggle-btn"
         onClick={toggleTheme}

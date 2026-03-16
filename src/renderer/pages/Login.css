@@ -2,7 +2,7 @@
   display: flex;
   width: 100vw;
   height: 100vh;
-  
+
   /* Preserve original cyan-blue theme for login page */
   --bg-primary: #071018;
   --bg-secondary: #040a16;
@@ -55,9 +55,12 @@
 .login-hero::before {
   content: "";
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background-size: 60px 60px;
-  background-image: 
+  background-image:
     linear-gradient(to right, var(--text-primary) 1px, transparent 1px),
     linear-gradient(to bottom, var(--text-primary) 1px, transparent 1px);
   opacity: var(--grid-opacity);
@@ -79,8 +82,15 @@
 }
 
 @keyframes hero-fade {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .hero-icon {
@@ -89,6 +99,7 @@
   display: inline-block;
   background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -165,6 +176,7 @@
     display: inline-block;
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 }
@@ -451,10 +463,18 @@
     opacity: 0;
     transform: translateX(30px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+.login-clock {
+  top: 24px !important;
+  right: 80px !important;
+  /* Move left of theme toggle */
+  background: rgba(255, 255, 255, 0.05) !important;
 }
 
 .theme-toggle-btn {

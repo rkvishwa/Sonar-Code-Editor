@@ -17,6 +17,7 @@ import CollaborationModal from "../components/Collaboration/CollaborationModal";
 import { useMonitoring } from "../hooks/useMonitoring";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { useActivityLogger } from "../hooks/useActivityLogger";
+import GlobalClock from "../components/GlobalClock";
 import "./IDE.css";
 
 export interface OpenTab {
@@ -244,7 +245,7 @@ function IDEContent() {
     const root = document.documentElement;
     root.style.setProperty("--user-accent", accentColor);
     root.style.setProperty("--user-accent-hover", accentColor);
-    
+
     let r = 59, g = 130, b = 246; // default blue
     if (accentColor.startsWith('#') && (accentColor.length === 7 || accentColor.length === 9)) {
       r = parseInt(accentColor.slice(1, 3), 16);
@@ -779,7 +780,7 @@ function IDEContent() {
       if (hotReload) {
         window.dispatchEvent(new CustomEvent("file-saved"));
       }
-      
+
       // Broadcast save operation to other peers so they save automatically too
       if (collaboration.isActive && workspaceRootRef.current) {
         const relPath = toRelativePath(activeTab.path, workspaceRootRef.current);
@@ -840,12 +841,12 @@ function IDEContent() {
           const dNorm = deletedPath.replace(/\\/g, "/").toLowerCase();
           let isActiveDeleted = false;
           if (type === "directory") {
-             isActiveDeleted = cNorm === dNorm || cNorm.startsWith(dNorm + "/");
+            isActiveDeleted = cNorm === dNorm || cNorm.startsWith(dNorm + "/");
           } else {
-             isActiveDeleted = cNorm === dNorm;
+            isActiveDeleted = cNorm === dNorm;
           }
           if (isActiveDeleted) {
-             return next.length > 0 ? next[next.length - 1].path : null;
+            return next.length > 0 ? next[next.length - 1].path : null;
           }
           return currentActive;
         });
@@ -955,7 +956,7 @@ function IDEContent() {
         if (collabActiveRef.current && wsRoot) {
           // Move the CRDT instance FIRST so local peers keep their history
           renameFileRef.current(oldPath, newPath, wsRoot);
-          
+
           const relOld = toRelativePath(oldPath, wsRoot);
           const relNew = toRelativePath(newPath, wsRoot);
           broadcastFileOpRef.current({
@@ -1599,6 +1600,7 @@ function IDEContent() {
               onEditorUnmount={collaboration.unbindEditor}
               wordWrap={wordWrap}
               getCollaborativeContent={getCollaborativeContent}
+              showClock={!showPreview}
             />
           </Panel>
           {showPreview && (

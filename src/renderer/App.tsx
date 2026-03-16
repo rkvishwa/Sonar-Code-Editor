@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import IDE from './pages/IDE';
 import AdminDashboard from './pages/AdminDashboard';
+import GlobalClock from './components/GlobalClock';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 
 // ── Permission gate ──────────────────────────────────────────────────────────
@@ -151,7 +152,7 @@ function InternetRestrictedBlock() {
       </h2>
       <p style={{ maxWidth: '480px', lineHeight: '1.6', margin: 0, color: '#a0a0a0' }}>
         Your admin has restricted IDE usage while connected to the internet.
-        <br/><br/>
+        <br /><br />
         Please disconnect from the internet or disable your network adapter to continue using Sonar Code Editor.
       </p>
     </div>
@@ -173,7 +174,7 @@ function AppRoutes() {
   if (!user) return <Login />;
   if (user.role === 'admin') return (
     <Routes>
-      <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/admin/*" element={<AdminDashboard />} />
       <Route path="*" element={<Navigate to="/admin" />} />
     </Routes>
   );
