@@ -123,7 +123,7 @@ export interface ElectronAPI {
     createFile: (path: string) => Promise<void>;
     createFolder: (path: string) => Promise<void>;
     deleteItem: (path: string) => Promise<void>;
-    renameItem: (oldPath: string, newPath: string) => Promise<void>;
+    renameItem: (oldPath: string, newPath: string) => Promise<string>;
     copyItem: (oldPath: string, newPath: string) => Promise<string>;
     search: (dirPath: string, query: string) => Promise<SearchResult[]>;
     openFolderDialog: () => Promise<{ path: string; isDirectory: boolean } | null>;
