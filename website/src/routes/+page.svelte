@@ -287,64 +287,64 @@
             class="flex-1 flex flex-row gap-4 animate-marquee-right-fast w-max"
           >
             <img
-              src="/gallery/1.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              src="/gallery/1.png"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/2.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
-              src="/gallery/1.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
-              alt=""
-            />
-            <img
-              src="/gallery/2.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
-              alt=""
-            />
-            <img
-              src="/gallery/1.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              src="/gallery/1.png"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/2.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
+              alt=""
+            />
+            <img
+              src="/gallery/1.png"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
+              alt=""
+            />
+            <img
+              src="/gallery/2.jpg"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <!-- Duplicated for seamless loop -->
             <img
-              src="/gallery/1.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              src="/gallery/1.png"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/2.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
-              src="/gallery/1.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
-              alt=""
-            />
-            <img
-              src="/gallery/2.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
-              alt=""
-            />
-            <img
-              src="/gallery/1.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              src="/gallery/1.png"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/2.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
+              alt=""
+            />
+            <img
+              src="/gallery/1.png"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
+              alt=""
+            />
+            <img
+              src="/gallery/2.jpg"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
           </div>
@@ -354,63 +354,63 @@
           >
             <img
               src="/gallery/3.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/4.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/3.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/4.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/3.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/4.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <!-- Duplicated for seamless loop -->
             <img
               src="/gallery/3.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/4.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/3.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/4.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/3.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/4.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
           </div>
@@ -425,63 +425,63 @@
           >
             <img
               src="/gallery/5.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/6.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/5.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/6.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/5.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/6.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <!-- Duplicated for seamless loop -->
             <img
               src="/gallery/5.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/6.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/5.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/6.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/5.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/6.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
           </div>
@@ -491,63 +491,63 @@
           >
             <img
               src="/gallery/7.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
-              src="/gallery/5.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
-              alt=""
-            />
-            <img
-              src="/gallery/7.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
-              alt=""
-            />
-            <img
-              src="/gallery/5.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              src="/gallery/8.jpg"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/7.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
-              src="/gallery/5.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              src="/gallery/8.jpg"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
+              alt=""
+            />
+            <img
+              src="/gallery/7.jpg"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
+              alt=""
+            />
+            <img
+              src="/gallery/8.jpg"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <!-- Duplicated for seamless loop -->
             <img
               src="/gallery/7.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
-              src="/gallery/5.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
-              alt=""
-            />
-            <img
-              src="/gallery/7.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
-              alt=""
-            />
-            <img
-              src="/gallery/5.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              src="/gallery/8.jpg"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
               src="/gallery/7.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
             <img
-              src="/gallery/5.jpg"
-              class="h-57.5 w-auto aspect-video rounded-xl object-cover border border-zinc-200 dark:border-white/5 opacity-80 shadow-2xl shrink-0"
+              src="/gallery/8.jpg"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
+              alt=""
+            />
+            <img
+              src="/gallery/7.jpg"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
+              alt=""
+            />
+            <img
+              src="/gallery/8.jpg"
+              class="h-57.5 w-auto  rounded-xl object-contain  opacity-80 shadow-2xl shrink-0"
               alt=""
             />
           </div>
@@ -1176,3 +1176,4 @@
     background-size: 10px 10px;
   }
 </style>
+
