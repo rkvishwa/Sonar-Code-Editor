@@ -464,6 +464,19 @@ const EditorPanel = React.memo(function EditorPanel({
     });
   };
 
+  // Count tab names to detect duplicates — must be before early returns
+  // to satisfy React's Rules of Hooks (hooks must always be called in
+  // the same order on every render).
+  const nameCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const tab of tabs) {
+      if (tab.type !== "preview") {
+        counts[tab.name] = (counts[tab.name] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [tabs]);
+
   if (!workspaceRoot) {
     return (
       <div className="editor-panel empty">
@@ -607,10 +620,19 @@ const EditorPanel = React.memo(function EditorPanel({
     <div className="editor-panel">
       {/* Tab Bar */}
       <div className="tab-bar">
-        {tabs.map((tab, index) => (
-          <div
-            key={tab.path}
-            className={`tab ${tab.path === activeTabPath ? "active" : ""}${dragOverIndex === index ? " drag-over" : ""}${dragIndex === index ? " dragging" : ""}`}
+        {tabs.map((tab, index) => {
+          let displayName = tab.name;
+          if (tab.type !== "preview" && nameCounts[tab.name] > 1) {
+            const parts = tab.path.split(/[/\\]/);
+            if (parts.length > 1) {
+              displayName = `${tab.name} — ${parts[parts.length - 2]}`;
+            }
+          }
+
+          return (
+            <div
+              key={tab.path}
+              className={`tab ${tab.path === activeTabPath ? "active" : ""}${dragOverIndex === index ? " drag-over" : ""}${dragIndex === index ? " dragging" : ""}`}
             onClick={() => onTabClick(tab.path)}
             onDoubleClick={() => onTabDoubleClick?.(tab.path)}
             draggable
@@ -647,7 +669,7 @@ const EditorPanel = React.memo(function EditorPanel({
                 color: tab.isDeleted ? "red" : "inherit",
               }}
             >
-              {tab.name}
+              {displayName}
             </span>
             {tab.isDirty && (
               <span className="dirty-dot" title="Unsaved changes"></span>
@@ -663,7 +685,7 @@ const EditorPanel = React.memo(function EditorPanel({
               <X size={14} />
             </button>
           </div>
-        ))}
+        )})}
       </div>
 
       {/* Editor, Preview, or Image */}

@@ -261,6 +261,8 @@ export default function SettingsModal({
     { action: "Toggle Explorer", keys: [formatKey("Ctrl"), "B"] },
     { action: "Toggle Preview Panel", keys: [formatKey("Ctrl"), "Shift", "V"] },
     { action: "Toggle Preview Tab", keys: [formatKey("Ctrl"), "Shift", "B"] },
+    { action: "Cut File / Folder", keys: [formatKey("Ctrl"), "X"] },
+    { action: "Paste File / Folder", keys: [formatKey("Ctrl"), "V"] },
     { action: "Rename File / Folder", keys: ["F2"] },
     { action: "Delete File / Folder", keys: isMac ? ["⌘", "⌫"] : ["Del"] },
     { action: "Undo Delete", keys: [formatKey("Ctrl"), "Z"] },
@@ -273,6 +275,8 @@ export default function SettingsModal({
       matchesSearch("Keyboard Shortcuts") ||
       matchesSearch("rename") ||
       matchesSearch("delete") ||
+      matchesSearch("cut") ||
+      matchesSearch("paste") ||
       matchesSearch("undo"),
   );
 
