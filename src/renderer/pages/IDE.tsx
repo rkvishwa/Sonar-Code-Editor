@@ -936,7 +936,17 @@ function IDEContent() {
             return current;
           });
         }
-        return next;
+
+        // Final dedup pass: ensure no two tabs share the same normalized path.
+        // Race conditions in rename/copy can transiently produce duplicates.
+        const seenPaths = new Set<string>();
+        const deduped = next.filter((t) => {
+          const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+          if (seenPaths.has(tNorm)) return false;
+          seenPaths.add(tNorm);
+          return true;
+        });
+        return deduped;
       });
 
       // Broadcast rename to collaboration peers

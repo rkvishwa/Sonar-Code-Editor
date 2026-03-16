@@ -477,6 +477,22 @@ const EditorPanel = React.memo(function EditorPanel({
     return counts;
   }, [tabs]);
 
+  // Deduplicate tabs by path to prevent React duplicate key errors.
+  // Race conditions in rename/copy operations can transiently produce
+  // two tab entries with the same normalized path.
+  const dedupedTabs = React.useMemo(() => {
+    const seen = new Set<string>();
+    const result: OpenTab[] = [];
+    for (const tab of tabs) {
+      const normPath = tab.path.replace(/\\/g, "/").toLowerCase();
+      if (!seen.has(normPath)) {
+        seen.add(normPath);
+        result.push(tab);
+      }
+    }
+    return result;
+  }, [tabs]);
+
   if (!workspaceRoot) {
     return (
       <div className="editor-panel empty">
@@ -620,7 +636,7 @@ const EditorPanel = React.memo(function EditorPanel({
     <div className="editor-panel">
       {/* Tab Bar */}
       <div className="tab-bar">
-        {tabs.map((tab, index) => {
+        {dedupedTabs.map((tab, index) => {
           let displayName = tab.name;
           if (tab.type !== "preview" && nameCounts[tab.name] > 1) {
             const parts = tab.path.split(/[/\\]/);
@@ -689,7 +705,7 @@ const EditorPanel = React.memo(function EditorPanel({
       </div>
 
       {/* Editor, Preview, or Image */}
-      {tabs.map((tab) => {
+      {dedupedTabs.map((tab) => {
         const isActive = activeTab?.path === tab.path;
         return (
           <div
