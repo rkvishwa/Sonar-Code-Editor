@@ -56,13 +56,17 @@ import { FileNode } from "../../../shared/types";
 import { fileTreeInputCallbacks } from "../../fileTreeKeyShield";
 import "./FileTree.css";
 
-// Track global mouse interaction to distinguish programmatic focus steals from user clicks
+// Track global mouse interaction to distinguish programmatic focus steals from user clicks.
+// IMPORTANT: We reset isUserClicking with setTimeout(0) instead of on "mouseup" so the
+// flag stays true through the entire click → React render → focus cycle.
+// On macOS the synthetic onClick fires AFTER mouseup, so resetting on mouseup would make
+// the flag false by the time the InlineCreateInput mounts and immediately blurs to Monaco.
 let isUserClicking = false;
 if (typeof window !== "undefined") {
   window.addEventListener("mousedown", () => { isUserClicking = true; }, true);
-  window.addEventListener("mouseup", () => { isUserClicking = false; }, true);
+  window.addEventListener("mouseup", () => { setTimeout(() => { isUserClicking = false; }, 0); }, true);
   window.addEventListener("keydown", () => { isUserClicking = true; }, true);
-  window.addEventListener("keyup", () => { isUserClicking = false; }, true);
+  window.addEventListener("keyup", () => { setTimeout(() => { isUserClicking = false; }, 0); }, true);
 }
 const isWindows = navigator.userAgent.toLowerCase().includes("win");
 const INDENT_PX = isWindows ? 16 : 28;
@@ -319,7 +323,7 @@ function FileTreeNode({
 
   const isCreatingHere =
     creatingItem &&
-    creatingItem.parentPath === node.path &&
+    creatingItem.parentPath.replace(/\\/g, "/") === node.path.replace(/\\/g, "/") &&
     node.type === "directory";
 
   const loadChildren = useCallback(async () => {
@@ -421,8 +425,8 @@ function FileTreeNode({
     closeContextMenu();
     const dirPath =
       node.type === "directory"
-        ? node.path
-        : node.path.split(/[\\/]/).slice(0, -1).join("/");
+        ? node.path.replace(/\\/g, "/")
+        : node.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/");
     onSetCreating({ type: "file", parentPath: dirPath });
   };
 
@@ -430,8 +434,8 @@ function FileTreeNode({
     closeContextMenu();
     const dirPath =
       node.type === "directory"
-        ? node.path
-        : node.path.split(/[\\/]/).slice(0, -1).join("/");
+        ? node.path.replace(/\\/g, "/")
+        : node.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/");
     onSetCreating({ type: "folder", parentPath: dirPath });
   };
 
@@ -1131,9 +1135,15 @@ const FileTree = React.memo(function FileTree({
 
   useEffect(() => {
     if (!newFileTrigger || !workspaceRoot) return;
+    // Normalize to forward slashes so Windows backslash paths match correctly
+    // when compared against workspaceRoot in the InlineCreateInput render conditions.
     const pPath = selectedNode
-      ? (selectedNode.type === "directory" ? selectedNode.path : selectedNode.path.split(/[/\\]/).slice(0, -1).join("/"))
-      : workspaceRoot;
+      ? (
+          selectedNode.type === "directory"
+            ? selectedNode.path.replace(/\\/g, "/")
+            : selectedNode.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/")
+        )
+      : workspaceRoot.replace(/\\/g, "/");
     setCreatingItem({
       type: "file",
       parentPath: pPath,
@@ -1192,8 +1202,11 @@ const FileTree = React.memo(function FileTree({
   useEffect(() => {
     if (typeof refreshTrigger === 'number' && refreshTrigger > 0) {
       loadRoot();
-      // Wait for React to render, then close context menu and creating state
-      setCreatingItem(null);
+      // Only clear creatingItem if the user is NOT in the middle of naming a new file/folder.
+      // During collaboration, refreshTrigger fires on every remote file-op (e.g. peer saves
+      // a file, triggers onFileMoved → fileTreeRefreshKey++) which previously wiped the
+      // inline input before it could even be painted, making "New File" silently fail.
+      setCreatingItem((current) => (current ? current : null));
     }
   }, [refreshTrigger, loadRoot]);
 
@@ -1360,7 +1373,16 @@ const FileTree = React.memo(function FileTree({
             title="New File"
             onClick={(e) => {
               e.stopPropagation();
-              const pPath = selectedNode ? (selectedNode.type === "directory" ? selectedNode.path : selectedNode.path.split(/[/\\]/).slice(0, -1).join("/")) : workspaceRoot;
+              // Normalize to forward slashes so the parentPath always matches
+              // workspaceRoot in the InlineCreateInput render condition (Cause 4/5 fix).
+              const normRoot = workspaceRoot.replace(/\\/g, "/");
+              const pPath = selectedNode
+                ? (
+                    selectedNode.type === "directory"
+                      ? selectedNode.path.replace(/\\/g, "/")
+                      : selectedNode.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/")
+                  )
+                : normRoot;
               setCreatingItem({
                 type: "file",
                 parentPath: pPath,
@@ -1374,7 +1396,14 @@ const FileTree = React.memo(function FileTree({
             title="New Folder"
             onClick={(e) => {
               e.stopPropagation();
-              const pPath = selectedNode ? (selectedNode.type === "directory" ? selectedNode.path : selectedNode.path.split(/[/\\]/).slice(0, -1).join("/")) : workspaceRoot;
+              const normRoot = workspaceRoot.replace(/\\/g, "/");
+              const pPath = selectedNode
+                ? (
+                    selectedNode.type === "directory"
+                      ? selectedNode.path.replace(/\\/g, "/")
+                      : selectedNode.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/")
+                  )
+                : normRoot;
               setCreatingItem({
                 type: "folder",
                 parentPath: pPath,
@@ -1387,7 +1416,7 @@ const FileTree = React.memo(function FileTree({
       </div>
       <div className="tree-content">
         {creatingItem &&
-          creatingItem.parentPath === workspaceRoot &&
+          creatingItem.parentPath.replace(/\\/g, "/") === workspaceRoot.replace(/\\/g, "/") &&
           creatingItem.type === "folder" && (
             <InlineCreateInput
               type={creatingItem.type}
@@ -1437,7 +1466,7 @@ const FileTree = React.memo(function FileTree({
             />
           ))}
         {creatingItem &&
-          creatingItem.parentPath === workspaceRoot &&
+          creatingItem.parentPath.replace(/\\/g, "/") === workspaceRoot.replace(/\\/g, "/") &&
           creatingItem.type === "file" && (
             <InlineCreateInput
               type={creatingItem.type}
