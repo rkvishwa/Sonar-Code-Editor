@@ -267,7 +267,7 @@ interface FileTreeNodeProps {
   selectedNode: { path: string; type: "file" | "directory" } | null;
   onSelectNode: (node: { path: string; type: "file" | "directory" } | null) => void;
   onFileOpened: (path: string, name: string, isPreview?: boolean) => void;
-  onFileDeleted: (path: string, type: "file" | "directory") => void;
+  onFileDeleted: (path: string, type: "file" | "directory", skipBroadcast?: boolean) => void;
   onFileRenamed?: (oldPath: string, newPath: string) => void;
   onFileCreated?: (path: string, name: string, savedContent?: string, isUndo?: boolean) => void;
   onFolderCreated?: (path: string) => void;
@@ -521,7 +521,8 @@ function FileTreeNode({
       if (fileClipboard.action === "cut") {
         // Close the file in the editor BEFORE moving to avoid errors if the
         // destination already exists and gets its content overwritten or merged
-        onFileDeleted?.(fileClipboard.path, fileClipboard.type);
+        // Pass skipBroadcast=true so this local-only tab close doesn't delete the file for other peers!
+        onFileDeleted?.(fileClipboard.path, fileClipboard.type, true);
         
         // Perform disk rename FIRST, then update tabs on success
         let finalPath = newPath;
@@ -611,7 +612,8 @@ function FileTreeNode({
       if (newPath === source.path) return;
 
       // Close the file in the editor BEFORE moving
-      onFileDeleted?.(source.path, source.type);
+      // Pass skipBroadcast=true so this local-only tab close doesn't delete the file for other peers!
+      onFileDeleted?.(source.path, source.type, true);
 
       // Perform disk rename FIRST to avoid CRDT merge issues on collision
       let finalPath: string;
@@ -674,7 +676,8 @@ function FileTreeNode({
       if (newPath === source.path) return;
 
       // Close the file in the editor BEFORE moving
-      onFileDeleted?.(source.path, source.type);
+      // Pass skipBroadcast=true so this local-only tab close doesn't delete the file for other peers!
+      onFileDeleted?.(source.path, source.type, true);
 
       // Perform disk rename FIRST to avoid CRDT merge issues on collision
       let finalPath: string;

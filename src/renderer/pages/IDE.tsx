@@ -821,7 +821,7 @@ function IDEContent() {
   );
 
   const handleFileDeleted = useCallback(
-    (deletedPath: string, type: "file" | "directory") => {
+    (deletedPath: string, type: "file" | "directory", skipBroadcast?: boolean) => {
       setTabs((prev) => {
         const next = prev.filter((t) => {
           const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
@@ -860,7 +860,7 @@ function IDEContent() {
       // it can seed Y.Text correctly without a pre-wipe.
       try {
         const wsRoot = workspaceRootRef.current;
-        if (collabActiveRef.current && wsRoot) {
+        if (collabActiveRef.current && wsRoot && !skipBroadcast) {
           // Clear Y.Text for the deleted file(s) so that stale content is
           // never returned by getFileContent if the user later undoes the
           // delete.  Without this, setFileContent in handleFileCreated would
