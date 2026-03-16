@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowLeft, X, Users, LogOut, Settings, Key, CheckCircle2, Eye, EyeOff, Trash2, Github, Globe, ExternalLink, Code2, User, Activity, Shield, Palette, Info } from 'lucide-react';
-import { updateTeamName, updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction } from '../../services/appwrite';
+import { Search, ArrowLeft, X, Users, LogOut, Settings, Key, CheckCircle2, Eye, EyeOff, Trash2, Github, Globe, ExternalLink, Code2, User, Activity, Shield, Palette, Info, FolderX } from 'lucide-react';
+import { updateTeamName, updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction, getGlobalWorkspaceRestriction, setGlobalWorkspaceRestriction } from '../../services/appwrite';
 import appIcon from '../../assets/icon.png';
 import { cacheCredentials } from '../../services/localStore';
 import { Team } from '../../../shared/types';
@@ -29,7 +29,7 @@ export default function AdminSettingsModal({
   onAccentColorChange,
   onTeamNameUpdated,
 }: AdminSettingsModalProps) {
-  const [activeTab, setActiveTab] = useState('Account');
+  const [activeTab, setActiveTab] = useState('Appearance');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Team name state
@@ -58,6 +58,8 @@ export default function AdminSettingsModal({
   // Restriction state
   const [globalRestriction, setGlobalRestriction] = useState(false);
   const [savingRestriction, setSavingRestriction] = useState(false);
+  const [workspaceBlockState, setWorkspaceBlockState] = useState(false);
+  const [savingWorkspaceRestriction, setSavingWorkspaceRestriction] = useState(false);
   const [restrictionError, setRestrictionError] = useState('');
   const [restrictionSuccess, setRestrictionSuccess] = useState('');
 
@@ -71,7 +73,7 @@ export default function AdminSettingsModal({
 
   useEffect(() => {
     if (isOpen) {
-      setActiveTab('Account');
+      setActiveTab('Appearance');
       setSearchQuery('');
       setNewTeamName(user?.teamName || '');
       setEditingName(false);
@@ -85,10 +87,12 @@ export default function AdminSettingsModal({
       setFlushError('');
       setFlushSuccess('');
       setGlobalRestriction(false);
+      setWorkspaceBlockState(false);
       setRestrictionError('');
       setRestrictionSuccess('');
       if (user?.role === 'admin') {
         getGlobalInternetRestriction().then(setGlobalRestriction).catch(console.error);
+        getGlobalWorkspaceRestriction().then(setWorkspaceBlockState).catch(console.error);
       }
     }
   }, [isOpen, user]);
@@ -205,6 +209,23 @@ export default function AdminSettingsModal({
     setSavingRestriction(false);
   };
 
+  const handleToggleWorkspaceRestriction = async (checked: boolean) => {
+    setSavingWorkspaceRestriction(true);
+    setRestrictionError('');
+    setRestrictionSuccess('');
+    // Calling the API function explicitly
+    const result = await setGlobalWorkspaceRestriction(checked);
+    if (result.success) {
+      setWorkspaceBlockState(checked);
+      setRestrictionSuccess(checked ? 'Non-empty workspace blocking enabled' : 'Non-empty workspace blocking disabled');
+      setTimeout(() => setRestrictionSuccess(''), 3000);
+    } else {
+      setRestrictionError(result.error || 'Failed to update workspace restriction');
+    }
+    setSavingWorkspaceRestriction(false);
+  };
+
+
   const isWindows = navigator.userAgent.toLowerCase().includes('win');
 
   const PRESET_COLORS = [
@@ -248,34 +269,37 @@ export default function AdminSettingsModal({
         <div className="vscode-settings-sidebar">
           <ul className="vscode-settings-tree">
             <li
-              className={(isSearching ? showAccount : activeTab === 'Account') ? 'active' : ''}
-              onClick={() => setActiveTab('Account')}
-            >
-              <User size={14} /> Account
-            </li>
-            <li
-              className={(isSearching ? showActivityLogs : activeTab === 'Activity Logs') ? 'active' : ''}
-              onClick={() => setActiveTab('Activity Logs')}
-            >
-              <Activity size={14} /> Activity Logs
-            </li>
-            <li
-              className={(isSearching ? showPrivacy : activeTab === 'Privacy') ? 'active' : ''}
-              onClick={() => setActiveTab('Privacy')}
-            >
-              <Shield size={14} /> Privacy
-            </li>
-            
-            <div className="vscode-settings-divider" />
-
-            <li
               className={(isSearching ? showAppearance : activeTab === 'Appearance') ? 'active' : ''}
               onClick={() => setActiveTab('Appearance')}
             >
               <Palette size={14} /> Appearance
             </li>
 
-            <div className="vscode-settings-divider" />
+            <li className="vscode-settings-divider" />
+
+            <li
+              className={(isSearching ? showActivityLogs : activeTab === 'Activity Logs') ? 'active' : ''}
+              onClick={() => setActiveTab('Activity Logs')}
+            >
+              <Activity size={14} /> Activity Logs
+            </li>
+
+            <li className="vscode-settings-divider" />
+
+            <li
+              className={(isSearching ? showPrivacy : activeTab === 'Privacy') ? 'active' : ''}
+              onClick={() => setActiveTab('Privacy')}
+            >
+              <Shield size={14} /> Privacy
+            </li>
+            <li
+              className={(isSearching ? showAccount : activeTab === 'Account') ? 'active' : ''}
+              onClick={() => setActiveTab('Account')}
+            >
+              <User size={14} /> Account
+            </li>
+
+            <li className="vscode-settings-divider" />
 
             <li
               className={(isSearching ? showAbout : activeTab === 'About') ? 'active' : ''}
@@ -495,6 +519,33 @@ export default function AdminSettingsModal({
                         title="Block Internet Access"
                         onChange={(e) => handleToggleRestriction(e.target.checked)}
                         disabled={savingRestriction}
+                      />
+                      <span className="vscode-toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="editor-setting-row" style={{ marginTop: 12 }}>
+                  <div className="editor-setting-info-wrap">
+                    <div className="editor-setting-icon">
+                      <FolderX size={18} />
+                    </div>
+                    <div className="editor-setting-info">
+                      <span className="editor-setting-title">Block Non-Empty Workspaces</span>
+                      <span className="editor-setting-desc">
+                        If enabled, non-admin teams will only be allowed to open empty folders. Selecting a folder with existing files will be blocked.
+                      </span>
+                    </div>
+                  </div>
+                  <div className="editor-setting-action">
+                    <label className="vscode-toggle" title="Block Non-Empty Workspaces">
+                      <input
+                        type="checkbox"
+                        checked={workspaceBlockState}
+                        aria-label="Block Non-Empty Workspaces"
+                        title="Block Non-Empty Workspaces"
+                        onChange={(e) => handleToggleWorkspaceRestriction(e.target.checked)}
+                        disabled={savingWorkspaceRestriction}
                       />
                       <span className="vscode-toggle-slider"></span>
                     </label>

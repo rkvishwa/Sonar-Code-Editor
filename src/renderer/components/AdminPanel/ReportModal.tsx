@@ -144,6 +144,13 @@ function computeRiskScore(data: ReportData, events: Array<{ type: string; timest
     flags.push(`External paste detected: ${extPasteCount} time${extPasteCount > 1 ? 's' : ''}`);
   }
 
+  // Non-empty workspace
+  const nonEmptyWorkspaceCount = events.filter(e => e.type === 'workspace_opened' && e.details && e.details.includes('non-empty workspace')).length;
+  if (nonEmptyWorkspaceCount > 0) {
+    score += 20;
+    flags.push(`Opened non-empty local workspace on file system`);
+  }
+
   // Non-IDE apps
   const nonIdeApps = data.appUsage.filter((a) => a.appName !== 'Sonar Code Editor');
   if (nonIdeApps.length > 0) {
@@ -188,11 +195,12 @@ function formatEventType(type: string, details?: string): string {
     }
     case 'clipboard_copy': return 'Clipboard Copy';
     case 'clipboard_paste_external': return 'External Copy';
+    case 'workspace_opened': return 'Workspace Opened';
     default: return type;
   }
 }
 
-type TabKey = 'summary' | 'insights' | 'risk' | 'activityLog';
+type TabKey = 'summary' | 'insights' | 'risk' | 'activityLog' | 'workspace';
 
 interface Insight {
   icon: string;
@@ -341,12 +349,18 @@ function computeInsights(
     'app_blur': { label: 'Switched Away', icon: '\u26A0', severity: (n) => n > 10 ? 'bad' : n > 0 ? 'warn' : 'good' },
     'clipboard_copy': { label: 'Clipboard Copy', icon: '\u{1F4C4}', severity: (n) => n > 10 ? 'warn' : 'good' },
     'clipboard_paste_external': { label: 'External Paste', icon: '\u{1F4E5}', severity: (n) => n > 3 ? 'bad' : n > 0 ? 'warn' : 'good' },
+    'workspace_opened': { label: 'Workspace Opened', icon: '\u{1F4C1}', severity: () => 'good' }, // dynamic severity handled below
   };
 
   const eventBreakdown: Array<{ type: string; label: string; count: number; severity: 'good' | 'warn' | 'bad'; icon: string }> = [];
   for (const [type, cfg] of Object.entries(eventTypeConfig)) {
     const count = counts[type] || 0;
-    eventBreakdown.push({ type, label: cfg.label, count, severity: cfg.severity(count), icon: cfg.icon });
+    let severity = cfg.severity(count);
+    if (type === 'workspace_opened' && count > 0) {
+      const hasNonEmpty = events.some(e => e.type === 'workspace_opened' && e.details && e.details.includes('non-empty workspace'));
+      if (hasNonEmpty) severity = 'bad';
+    }
+    eventBreakdown.push({ type, label: cfg.label, count, severity, icon: cfg.icon });
   }
   // Add any unknown types from events
   for (const [type, count] of Object.entries(counts)) {
@@ -420,6 +434,7 @@ export default function ReportModal({ team, onClose }: ReportModalProps) {
     { key: 'insights', label: 'Insights', icon: '\u{1F4A1}' },
     { key: 'risk', label: 'Risk', icon: '\u26A0' },
     { key: 'activityLog', label: 'Activity Log', icon: '\u{1F4CB}' },
+    { key: 'workspace', label: 'Workspace', icon: '\u{1F4C1}' },
   ];
 
   return (
@@ -726,6 +741,73 @@ export default function ReportModal({ team, onClose }: ReportModalProps) {
                 </div>
               )}
 
+              {/* Workspace Tab */}
+              {activeTab === 'workspace' && (
+                <div className="workspace-section">
+                  <div className="activity-log-description">
+                    Initial workspace data collected when the user opened their project folder.
+                  </div>
+                  {(() => {
+                    const wsEvents = activityEvents.filter(e => e.type === 'workspace_opened');
+                    if (wsEvents.length === 0) {
+                      return <div className="modal-empty">No workspace events synced for this user.</div>;
+                    }
+
+                    return wsEvents.map((evt, idx) => {
+                      const isNonEmpty = evt.details?.includes('non-empty workspace');
+                      const titleMatch = evt.details?.match(/^Opened [^:]+:\s*([^\s|]+)/);
+                      const folderName = titleMatch ? titleMatch[1] : 'Unknown folder';
+                      
+                      let fileList: string[] = [];
+                      const filesMatch = evt.details?.match(/Files:\s*(.+)$/);
+                      if (filesMatch) {
+                        fileList = filesMatch[1].split(',').map(s => s.trim());
+                      }
+
+                      return (
+                        <div key={idx} className={`workspace-log-card ${isNonEmpty ? 'non-empty' : 'empty'}`}>
+                          <div className="workspace-log-header">
+                            <div className="workspace-log-title">
+                              {isNonEmpty ? '\u26A0 Non-Empty Workspace' : '\u2705 Empty Workspace'}
+                            </div>
+                            <div className="workspace-log-time">
+                              {new Date(evt.timestamp).toLocaleString()}
+                            </div>
+                          </div>
+                          
+                          <div className="workspace-log-folder">
+                            <strong>Folder:</strong> {folderName}
+                          </div>
+                          
+                          {isNonEmpty && fileList.length > 0 && (
+                            <div className="workspace-files-container">
+                              <div className="workspace-files-title">Files & Folders ({fileList.length}):</div>
+                              <ul className="workspace-files-list">
+                                {fileList.map((fileEntry, fIdx) => {
+                                  // Example: "src (User)"
+                                  const nameMatch = fileEntry.match(/^(.*)\s\((.*?)\)$/);
+                                  const name = nameMatch ? nameMatch[1] : fileEntry;
+                                  const creator = nameMatch ? nameMatch[2] : 'Unknown';
+                                  
+                                  return (
+                                    <li key={fIdx}>
+                                      <span className="file-name">{name}</span>
+                                      <span className={`file-creator ${creator === 'User' ? 'user' : 'pkg'}`}>
+                                        {creator}
+                                      </span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
+
               {/* Activity Log Tab */}
               {activeTab === 'activityLog' && (
                 <div className="activity-log-section">
@@ -748,10 +830,10 @@ export default function ReportModal({ team, onClose }: ReportModalProps) {
                             <span className="activity-log-time">
                               {new Date(event.timestamp).toLocaleTimeString()}
                             </span>
-                            <span className={`activity-log-type activity-log-type--${event.type}`}>
+                            <span className={`activity-log-type activity-log-type--${event.type} ${(event.type === 'workspace_opened' && event.details?.includes('non-empty workspace')) ? 'bad' : ''}`}>
                               {formatEventType(event.type, event.details)}
                             </span>
-                            <span className="activity-log-details" title={event.details || ''}>
+                            <span className={`activity-log-details ${(event.type === 'workspace_opened' && event.details?.includes('non-empty workspace')) ? 'bad' : ''}`} title={event.details || ''}>
                               {event.details
                                 ? event.details.length > 60
                                   ? event.details.substring(0, 60) + '\u2026'

@@ -36,7 +36,7 @@ export function useMonitoring(user: Team | null, isOnline: boolean, currentFile:
             payload.activityEvents = localEvents.map(e => ({
               type: e.type,
               timestamp: e.timestamp,
-              ...(e.details ? { details: e.details.substring(0, 80) } : {}),
+              ...((e.details) ? { details: e.type === 'workspace_opened' ? e.details : e.details.substring(0, 80) } : {}),
             }));
           }
         } catch (err) {

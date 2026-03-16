@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export interface ActivityEvent {
-  type: 'status_online' | 'status_offline' | 'app_focus' | 'app_blur' | 'clipboard_copy' | 'clipboard_paste_external';
+  type: 'status_online' | 'status_offline' | 'app_focus' | 'app_blur' | 'clipboard_copy' | 'clipboard_paste_external' | 'workspace_opened';
   timestamp: string;
   details?: string;
 }
@@ -55,6 +55,8 @@ function formatEventType(type: ActivityEvent['type'], details?: string): string 
     }
     case 'clipboard_copy': return 'Clipboard Copy';
     case 'clipboard_paste_external': return 'External Paste';
+    case 'workspace_opened': return 'Workspace Opened';
+    default: return 'System Event';
   }
 }
 
@@ -243,6 +245,10 @@ export function generateActivityLogPDF(teamName: string): void {
   if (bursts > 3) { risk += 15; flags.push(`${bursts} rapid clipboard bursts`); }
   else if (bursts > 0) { risk += 5; flags.push(`${bursts} rapid clipboard burst(s)`); }
   if (extPasteCount > 0) { risk += Math.min(20, extPasteCount * 8); flags.push(`${extPasteCount} external paste(s) into IDE`); }
+
+  const nonEmptyWorkspaceCount = sorted.filter(e => e.type === 'workspace_opened' && e.details && e.details.includes('non-empty workspace')).length;
+  if (nonEmptyWorkspaceCount > 0) { risk += 20; flags.push(`${nonEmptyWorkspaceCount} non-empty workspace folder(s) opened`); }
+
   if (onCount > 0) { risk += 25; flags.push(`Connected to Internet ${onCount} time(s)`); }
   if (longestAbsence > 120000) { risk += 15; flags.push(`Longest absence: ${fmtDur(longestAbsence)} in "${longestAbsenceApp}"`); }
   else if (longestAbsence > 60000) { risk += 8; flags.push(`Longest absence: ${fmtDur(longestAbsence)}`); }
@@ -448,6 +454,12 @@ export function generateActivityLogPDF(teamName: string): void {
         else if (v.startsWith('Switched To')) data.cell.styles.textColor = C.orange;
         else if (v === 'Clipboard Copy') data.cell.styles.textColor = C.purple;
         else if (v === 'External Paste') data.cell.styles.textColor = C.red;
+        else if (v === 'Workspace Opened') {
+          const detailsContent = (data.row.raw as unknown as string[])[2];
+          if (detailsContent && detailsContent.includes('non-empty workspace')) {
+            data.cell.styles.textColor = C.red;
+          }
+        }
       }
     },
     margin: { left: margin, right: margin },

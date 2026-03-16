@@ -274,9 +274,19 @@ export async function upsertActivityLog(payload: HeartbeatPayload): Promise<void
     sync.lastStatusAt = payload.timestamp;
     sync.heartbeatCount++;
 
-    // Sync activity events from client localStorage
+    // Merge activity events from client localStorage (deduplicate by timestamp+type)
     if (payload.activityEvents && payload.activityEvents.length > 0) {
-      sync.activityEvents = payload.activityEvents;
+      const existing = sync.activityEvents || [];
+      const existingKeys = new Set(existing.map(e => `${e.timestamp}|${e.type}`));
+      for (const evt of payload.activityEvents) {
+        const key = `${evt.timestamp}|${evt.type}`;
+        if (!existingKeys.has(key)) {
+          existing.push(evt);
+          existingKeys.add(key);
+        }
+      }
+      // Keep last 200 events to stay within Appwrite field limits
+      sync.activityEvents = existing.length > 200 ? existing.slice(-200) : existing;
     }
 
     // Keep offlinePeriods compact (last 20)
@@ -498,6 +508,43 @@ export async function setGlobalInternetRestriction(blocked: boolean): Promise<{ 
   }
 }
 
+export async function getGlobalWorkspaceRestriction(): Promise<boolean> {
+  try {
+    const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
+      Query.equal('settingType', 'blockNonEmptyWorkspace'),
+      Query.limit(1),
+    ]);
+    if (res.documents.length > 0) {
+      return res.documents[0].settingValue === 'true';
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export async function setGlobalWorkspaceRestriction(blocked: boolean): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
+      Query.equal('settingType', 'blockNonEmptyWorkspace'),
+      Query.limit(1),
+    ]);
+    if (res.documents.length > 0) {
+      await databases.updateDocument(DB_ID, COL_SETTINGS, res.documents[0].$id, {
+        settingValue: String(blocked),
+      });
+    } else {
+      await databases.createDocument(DB_ID, COL_SETTINGS, ID.unique(), {
+        settingType: 'blockNonEmptyWorkspace',
+        settingValue: String(blocked),
+      });
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to update workspace restriction' };
+  }
+}
+
 export async function flushAllActivityLogs(): Promise<{ success: boolean; error?: string }> {
   try {
     let hasMore = true;
@@ -599,14 +646,16 @@ export function subscribeToSessions(callback: (session: Session) => void): () =>
   return unsub;
 }
 
-export function subscribeToSettings(callback: (blocked: boolean) => void): () => void {
+export function subscribeToSettings(callback: (type: string, value: boolean) => void): () => void {
   const unsub = client.subscribe(
     `databases.${DB_ID}.collections.${COL_SETTINGS}.documents`,
     (response: RealtimeResponseEvent<any>) => {
       if (response.events.some((e) => e.includes('update') || e.includes('create'))) {
         const payload = response.payload;
         if (payload.settingType === 'blockInternetAccess') {
-          callback(payload.settingValue === 'true');
+          callback('blockInternetAccess', payload.settingValue === 'true');
+        } else if (payload.settingType === 'blockNonEmptyWorkspace') {
+          callback('blockNonEmptyWorkspace', payload.settingValue === 'true');
         }
       }
     }

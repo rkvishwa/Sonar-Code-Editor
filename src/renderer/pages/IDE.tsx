@@ -17,6 +17,7 @@ import CollaborationModal from "../components/Collaboration/CollaborationModal";
 import { useMonitoring } from "../hooks/useMonitoring";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { useActivityLogger } from "../hooks/useActivityLogger";
+import { addActivityEvent } from "../services/activityLogger";
 import "./IDE.css";
 
 export interface OpenTab {
@@ -136,12 +137,14 @@ export default function IDE() {
 }
 
 function IDEContent() {
-  const { user, logout } = useAuth();
+  const authContext = useAuth();
+  const { user, logout, internetBlocked, blockNonEmptyWorkspace } = authContext; // Extract from context
   const isOnline = useNetworkStatus();
   const collaboration = useCollaboration();
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [activeTabPath, setActiveTabPath] = useState<string | null>(null);
+  const [lastActiveFilePath, setLastActiveFilePath] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(true);
   const [showExplorer, setShowExplorer] = useState(true);
   const [theme, setTheme] = useState(
@@ -169,13 +172,60 @@ function IDEContent() {
   const [isCollaborationOpen, setIsCollaborationOpen] = useState(false);
   const [newFileTrigger, setNewFileTrigger] = useState(0);
   const [fileTreeRefreshKey, setFileTreeRefreshKey] = useState(0);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Refs for stable file-operation subscriber (avoids re-subscription on every render)
   const fileOpQueueRef = useRef<Promise<void>>(Promise.resolve());
   const workspaceRootRef = useRef<string | null>(null);
   // Keep the ref in sync with state
+  const blockNonEmptyWorkspaceRef = useRef(blockNonEmptyWorkspace);
+  useEffect(() => {
+    blockNonEmptyWorkspaceRef.current = blockNonEmptyWorkspace;
+  }, [blockNonEmptyWorkspace]);
+
+  // Auto-dismiss toast after 6 seconds
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => setToastMessage(null), 6000);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
+
+  useEffect(() => {
+    if (activeTabPath && activeTabPath !== "__preview__") {
+      setLastActiveFilePath(activeTabPath);
+    }
+  }, [activeTabPath]);
+
   useEffect(() => {
     workspaceRootRef.current = workspaceRoot;
+    
+    if (workspaceRoot) {
+      const logMetadata = async () => {
+        try {
+          const metadata = await window.electronAPI.fs.getWorkspaceMetadata(workspaceRoot);
+
+          let details = '';
+          if (metadata.isEmpty) {
+            details = `Opened empty workspace: ${metadata.folderName}`;
+          } else {
+            const fileListStr = metadata.files.map(f => {
+              const creator = f.type === 'npm_package' ? 'Package Manager' : 'User';
+              return `${f.name} (${creator})`;
+            }).join(', ');
+            details = `Opened non-empty workspace: ${metadata.folderName} | Files: ${fileListStr}`;
+          }
+            
+          addActivityEvent({
+            type: 'workspace_opened',
+            timestamp: new Date().toISOString(),
+            details,
+          });
+        } catch (err) {
+          console.error("Failed to log workspace metadata:", err);
+        }
+      };
+      logMetadata();
+    }
   }, [workspaceRoot]);
 
   // Stable refs for collaboration values so that file-tree callbacks don't
@@ -1269,11 +1319,24 @@ function IDEContent() {
   const openFolder = useCallback(async () => {
     const result = await window.electronAPI.fs.openFolderDialog();
     if (result) {
+      if (blockNonEmptyWorkspaceRef.current && user?.role !== 'admin') {
+        try {
+          const metadata = await window.electronAPI.fs.getWorkspaceMetadata(result.path);
+          if (!metadata.isEmpty) {
+            setToastMessage("You cannot open non-empty folders. Please select an empty folder to begin your work.");
+            return; // Do not set workspace root
+          }
+        } catch (err) {
+          console.error("Failed to check workspace format:", err);
+          return;
+        }
+      }
+
       setTabs([]);
       setActiveTabPath(null);
       setWorkspaceRoot(normalizePath(result.path));
     }
-  }, []);
+  }, [user?.role]);
 
   const [previewInitialUrl, setPreviewInitialUrl] = useState<string | null>(
     null,
@@ -1288,14 +1351,19 @@ function IDEContent() {
   const openPreviewInTab = useCallback(
     (urlFromPanel?: string) => {
       const previewPath = "__preview__";
+      const existing = tabs.find((t) => t.path === previewPath);
+
       if (urlFromPanel) {
         setPreviewInitialUrl(urlFromPanel);
+      } else if (!existing) {
+        setPreviewInitialUrl(null);
       }
-      const existing = tabs.find((t) => t.path === previewPath);
+
       if (existing) {
         setActiveTabPath(previewPath);
         return;
       }
+
       const tab: OpenTab = {
         path: previewPath,
         name: "Preview",
@@ -1390,7 +1458,7 @@ function IDEContent() {
                   workspaceRoot={workspaceRoot}
                   onOpenFolder={openFolder}
                   onFileClick={openFile}
-                  activeFilePath={activeTabPath}
+                  activeFilePath={activeTabPath === "__preview__" ? lastActiveFilePath : activeTabPath}
                   autoSave={autoSave}
                   onAutoSaveChange={setAutoSave}
                   onFileOpened={openFile}
@@ -1430,7 +1498,7 @@ function IDEContent() {
               workspaceRoot={workspaceRoot}
               onOpenFolder={openFolder}
               theme={theme}
-              activeFilePath={activeTabPath}
+              activeFilePath={activeTabPath === "__preview__" ? lastActiveFilePath : activeTabPath}
               previewInitialUrl={previewInitialUrl}
               collaborationActive={collaboration.isActive}
               onEditorMount={collaboration.bindEditor}
@@ -1446,10 +1514,9 @@ function IDEContent() {
                 <PreviewPanel
                   key={workspaceRoot || 'empty'}
                   workspaceRoot={workspaceRoot}
-                  activeFilePath={activeTabPath}
+                  activeFilePath={activeTabPath === "__preview__" ? lastActiveFilePath : activeTabPath}
                   onOpenInTab={openPreviewInTab}
                   onClose={() => setShowPreview(false)}
-                  initialUrl={previewInitialUrl}
                 />
               </Panel>
             </>
@@ -1481,6 +1548,29 @@ function IDEContent() {
         isOpen={isCollaborationOpen}
         onClose={() => setIsCollaborationOpen(false)}
       />
+      {toastMessage && (
+        <div className="ide-toast-overlay">
+          <div className="ide-toast ide-toast--error">
+            <div className="ide-toast-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            </div>
+            <div className="ide-toast-content">
+              <span className="ide-toast-title">Exam Policy Violation</span>
+              <span className="ide-toast-desc">{toastMessage}</span>
+            </div>
+            <button className="ide-toast-close" onClick={() => setToastMessage(null)}>
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

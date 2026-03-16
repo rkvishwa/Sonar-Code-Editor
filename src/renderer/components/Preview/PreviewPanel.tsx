@@ -34,7 +34,13 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
   const [canGoForward, setCanGoForward] = useState(false);
   const [consoleLogs, setConsoleLogs] = useState<ConsoleEntry[]>([]);
   const [devtoolsOpen, setDevtoolsOpen] = useState(false);
-  const [followFile, setFollowFile] = useState(true);
+  const [followFile, setFollowFile] = useState(() => !(isFullTab && !!initialUrl));
+
+  useEffect(() => {
+    if (isFullTab && initialUrl) {
+      setFollowFile(false);
+    }
+  }, [isFullTab, initialUrl]);
 
   useEffect(() => {
     if (!workspaceRoot) {

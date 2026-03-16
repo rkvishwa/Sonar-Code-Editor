@@ -6,6 +6,20 @@ export interface FileNode {
   extension?: string;
 }
 
+export interface WorkspaceFileInfo {
+  name: string;
+  path: string; // relative to workspace root
+  size: number;
+  mtime: number; // timestamp
+  type: 'user' | 'npm_package' | 'unknown';
+}
+
+export interface WorkspaceMetadataResult {
+  isEmpty: boolean;
+  folderName: string;
+  files: WorkspaceFileInfo[];
+}
+
 export interface Team {
   $id?: string;
   teamName: string;
@@ -127,6 +141,7 @@ export interface ElectronAPI {
     search: (dirPath: string, query: string) => Promise<SearchResult[]>;
     openFolderDialog: () => Promise<{ path: string; isDirectory: boolean } | null>;
     openFileDialog: () => Promise<{ path: string; isDirectory: boolean; parentPath: string; name: string } | null>;
+    getWorkspaceMetadata: (path: string) => Promise<WorkspaceMetadataResult>;
   };
   server: {
     start: (rootDir: string) => Promise<number>;

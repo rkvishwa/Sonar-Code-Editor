@@ -536,7 +536,7 @@ const EditorPanel = React.memo(function EditorPanel({
   if (tabs.length === 0) {
     return (
       <div className="editor-panel empty">
-        <div className="welcome-screen">
+        <div className="welcome-screen folder-opened">
           <div className="welcome-hero">
             <div className="welcome-logo-container">
               <svg width="0" height="0" style={{ position: 'absolute' }}>
@@ -561,12 +561,12 @@ const EditorPanel = React.memo(function EditorPanel({
               </div>
             </div>
             <h1 className="welcome-title">Folder Opened</h1>
-            <p className="welcome-subtitle">
-              Select a file from the explorer to begin
-            </p>
           </div>
+          <p className="welcome-subtitle" style={{ transform: 'translateY(50px)' }}>
+            Select a file from the explorer to begin
+          </p>
 
-          <div className="welcome-shortcuts">
+          <div className="welcome-shortcuts" style={{ transform: 'translateY(50px)', marginTop: '40px' }}>
             <div className="shortcut">
               <span>Save File</span>{" "}
               <div className="kbd-wrap">

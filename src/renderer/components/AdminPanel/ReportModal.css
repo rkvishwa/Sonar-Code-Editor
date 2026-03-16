@@ -894,6 +894,143 @@
 .activity-log-row:last-child { border-bottom: none; }
 .activity-log-row:hover      { background: var(--bg-hover); }
 
+.activity-log-details.bad {
+  color: var(--danger);
+}
+
+/* ---- Workspace Tab ---- */
+.workspace-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 8px; /* For scrollbar breathing room */
+}
+
+.workspace-log-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.2s;
+}
+
+.workspace-log-card.non-empty {
+  border-left: 4px solid var(--danger);
+  background: rgba(var(--danger-rgb, 239, 68, 68), 0.05); /* Slight tint for danger */
+}
+
+.workspace-log-card.empty {
+  border-left: 4px solid var(--success);
+}
+
+.workspace-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--divider);
+  padding-bottom: 8px;
+}
+
+.workspace-log-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.workspace-log-card.non-empty .workspace-log-title {
+  color: var(--danger);
+}
+
+.workspace-log-card.empty .workspace-log-title {
+  color: var(--success);
+}
+
+.workspace-log-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.workspace-log-folder {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.workspace-log-folder strong {
+  color: var(--text-muted);
+}
+
+.workspace-files-container {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 12px;
+}
+
+.workspace-files-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.workspace-files-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.workspace-files-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 6px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.file-name {
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
+}
+
+.file-creator {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.file-creator.user {
+  background: rgba(var(--accent-rgb, 59, 130, 246), 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb, 59, 130, 246), 0.3);
+}
+
+.file-creator.pkg {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc; /* purple */
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
 .activity-log-time {
   color: var(--text-muted);
   font-size: 11px;

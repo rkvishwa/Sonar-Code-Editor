@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
 import { execSync } from 'child_process';
-import { IpcMain, Dialog, webContents, BrowserView, BrowserWindow, clipboard, shell } from 'electron';
-import { FileNode } from '../shared/types';
+import { IpcMain, Dialog, dialog, webContents, BrowserView, BrowserWindow, clipboard, shell } from 'electron';
+import { FileNode, WorkspaceMetadataResult, WorkspaceFileInfo } from '../shared/types';
 import { IPC_CHANNELS } from '../shared/constants';
 import { startStaticServer, stopStaticServer, getServerUrl } from './staticServer';
 
@@ -330,6 +330,85 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
     }
   });
 
+  ipcMain.handle(IPC_CHANNELS.FS_GET_WORKSPACE_METADATA, async (_event, dirPath: string): Promise<WorkspaceMetadataResult> => {
+    if (!dirPath) throw new Error("Path is required");
+    const result: WorkspaceMetadataResult = {
+      isEmpty: true,
+      folderName: path.basename(dirPath),
+      files: [],
+    };
+    
+    if (!fs.existsSync(dirPath)) return result;
+
+    const traverse = async (currentPath: string, relPath: string) => {
+      let entries;
+      try {
+        entries = await fsp.readdir(currentPath, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      
+      for (const entry of entries) {
+        if (entry.name.startsWith('.git')) continue;
+        const fullPath = path.join(currentPath, entry.name);
+        const entryRelPath = relPath ? `${relPath}/${entry.name}` : entry.name;
+        
+        let fileType: WorkspaceFileInfo['type'] = 'user';
+        if (entry.name === 'node_modules' || entry.name === '.next' || entry.name === 'dist' || entry.name === 'build' || entry.name === 'package-lock.json' || entry.name === 'yarn.lock' || entry.name === 'pnpm-lock.yaml') {
+          fileType = 'npm_package';
+        }
+
+        if (entry.isDirectory()) {
+          result.isEmpty = false;
+          
+          if (fileType === 'npm_package') {
+            // Track the package manager folder itself without traversing deep into it
+            try {
+              const stat = await fsp.stat(fullPath);
+              result.files.push({
+                name: entry.name,
+                path: entryRelPath,
+                size: stat.size,
+                mtime: stat.mtimeMs,
+                type: fileType,
+              });
+            } catch {}
+          } else {
+             // Track normal user folders
+            try {
+              const stat = await fsp.stat(fullPath);
+              result.files.push({
+                name: entry.name,
+                path: entryRelPath,
+                size: stat.size,
+                mtime: stat.mtimeMs,
+                type: fileType,
+              });
+            } catch {}
+          }
+        } else {
+          try {
+            const stat = await fsp.stat(fullPath);
+            result.isEmpty = false;
+            
+            result.files.push({
+              name: entry.name,
+              path: entryRelPath,
+              size: stat.size,
+              mtime: stat.mtimeMs,
+              type: fileType,
+            });
+          } catch {
+            // ignore stat error
+          }
+        }
+      }
+    };
+    
+    await traverse(dirPath, '');
+    return result;
+  });
+
   // Static server handlers
   ipcMain.handle(IPC_CHANNELS.SERVER_START, async (_event, rootDir: string) => {
     const port = await startStaticServer(rootDir);
@@ -493,5 +572,18 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
         'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation'
       );
     }
+  });
+
+  // Dialogs
+  ipcMain.on(IPC_CHANNELS.DIALOG_SHOW_ERROR, (_event, message: string) => {
+    dialog.showErrorBox('Error', message);
+  });
+
+  ipcMain.on(IPC_CHANNELS.DIALOG_SHOW_INFO, (_event, message: string) => {
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Information',
+      message: message,
+    });
   });
 }

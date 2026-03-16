@@ -220,6 +220,10 @@ kbd {
   padding: 40px;
 }
 
+.welcome-screen.folder-opened {
+  transform: translateY(-50px);
+}
+
 .welcome-hero {
   text-align: center;
   margin-bottom: 40px;
@@ -258,6 +262,21 @@ kbd {
 
 [data-theme="light"] .welcome-title {
   background: linear-gradient(to right, #000000 0%, rgba(0, 0, 0, 0) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.welcome-screen.folder-opened .welcome-title {
+  opacity: 0.25;
+  background: linear-gradient(to right, #ffffff 0%, rgba(255, 255, 255, 0.2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+[data-theme="light"] .welcome-screen.folder-opened .welcome-title {
+  background: linear-gradient(to right, #000000 0%, rgba(0, 0, 0, 0.2) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

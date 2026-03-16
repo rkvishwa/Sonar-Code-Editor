@@ -286,6 +286,7 @@ export default function SettingsModal({
     matchesSearch("Download") ||
     matchesSearch("clipboard") ||
     matchesSearch("online") ||
+    matchesSearch("workspace") ||
     matchesSearch("offline");
 
   const formatEventType = (
@@ -315,6 +316,10 @@ export default function SettingsModal({
         return "Clipboard Copy";
       case "clipboard_paste_external":
         return "External Copy";
+      case "workspace_opened":
+        return "Workspace Opened";
+      default:
+        return String(type);
     }
   };
 
@@ -833,7 +838,7 @@ export default function SettingsModal({
                             {new Date(event.timestamp).toLocaleTimeString()}
                           </span>
                           <span
-                            className={`activity-log-type activity-log-type--${event.type}`}
+                            className={`activity-log-type activity-log-type--${event.type} ${event.type === 'workspace_opened' && event.details?.toLowerCase().includes('non-empty workspace') ? 'activity-log-type--danger' : ''}`}
                           >
                             {formatEventType(event.type, event.details)}
                           </span>

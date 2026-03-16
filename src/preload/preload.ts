@@ -15,6 +15,7 @@ const api: ElectronAPI = {
     search: (dirPath, query) => ipcRenderer.invoke(IPC_CHANNELS.FS_SEARCH, dirPath, query),
     openFolderDialog: () => ipcRenderer.invoke(IPC_CHANNELS.FS_OPEN_FOLDER_DIALOG),
     openFileDialog: () => ipcRenderer.invoke(IPC_CHANNELS.FS_OPEN_FILE_DIALOG),
+    getWorkspaceMetadata: (path) => ipcRenderer.invoke(IPC_CHANNELS.FS_GET_WORKSPACE_METADATA, path),
   },
   server: {
     start: (rootDir: string) => ipcRenderer.invoke(IPC_CHANNELS.SERVER_START, rootDir),

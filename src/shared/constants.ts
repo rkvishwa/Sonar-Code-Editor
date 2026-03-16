@@ -11,6 +11,7 @@ export const IPC_CHANNELS = {
   FS_SEARCH: 'fs:search',
   FS_OPEN_FOLDER_DIALOG: 'fs:openFolderDialog',
   FS_OPEN_FILE_DIALOG: 'fs:openFileDialog',
+  FS_GET_WORKSPACE_METADATA: 'fs:getWorkspaceMetadata',
   // Monitoring
   MONITORING_START: 'monitoring:start',
   MONITORING_STOP: 'monitoring:stop',
