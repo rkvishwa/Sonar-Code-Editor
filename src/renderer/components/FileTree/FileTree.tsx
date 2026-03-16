@@ -4,6 +4,23 @@ import { createPortal } from "react-dom";
 // Global clipboard for cut/paste operations
 export let fileClipboard: { path: string; type: "file" | "directory"; action: "cut" | "copy" } | null = null;
 
+// Update fileClipboard when a file is renamed/moved externally (e.g. by a collaboration peer).
+// This prevents the clipboard from holding a stale path after a remote move.
+export function updateFileClipboardPath(oldPath: string, newPath: string): void {
+  if (!fileClipboard) return;
+  const clipNorm = fileClipboard.path.replace(/\\/g, "/").toLowerCase();
+  const oldNorm = oldPath.replace(/\\/g, "/").toLowerCase();
+  if (clipNorm === oldNorm) {
+    fileClipboard = { ...fileClipboard, path: newPath.replace(/\\/g, "/") };
+    window.dispatchEvent(new CustomEvent("clipboard-updated"));
+  } else if (clipNorm.startsWith(oldNorm + "/")) {
+    // Clipboard file is inside a renamed directory
+    const suffix = fileClipboard.path.slice(oldPath.length);
+    fileClipboard = { ...fileClipboard, path: newPath.replace(/\\/g, "/") + suffix };
+    window.dispatchEvent(new CustomEvent("clipboard-updated"));
+  }
+}
+
 // Global undo stack for file tree operations
 export const fileUndoStack: Array<{ 
   originalPath: string; 
@@ -56,13 +73,17 @@ import { FileNode } from "../../../shared/types";
 import { fileTreeInputCallbacks } from "../../fileTreeKeyShield";
 import "./FileTree.css";
 
-// Track global mouse interaction to distinguish programmatic focus steals from user clicks
+// Track global mouse interaction to distinguish programmatic focus steals from user clicks.
+// IMPORTANT: We reset isUserClicking with setTimeout(0) instead of on "mouseup" so the
+// flag stays true through the entire click → React render → focus cycle.
+// On macOS the synthetic onClick fires AFTER mouseup, so resetting on mouseup would make
+// the flag false by the time the InlineCreateInput mounts and immediately blurs to Monaco.
 let isUserClicking = false;
 if (typeof window !== "undefined") {
   window.addEventListener("mousedown", () => { isUserClicking = true; }, true);
-  window.addEventListener("mouseup", () => { isUserClicking = false; }, true);
+  window.addEventListener("mouseup", () => { setTimeout(() => { isUserClicking = false; }, 0); }, true);
   window.addEventListener("keydown", () => { isUserClicking = true; }, true);
-  window.addEventListener("keyup", () => { isUserClicking = false; }, true);
+  window.addEventListener("keyup", () => { setTimeout(() => { isUserClicking = false; }, 0); }, true);
 }
 const isWindows = navigator.userAgent.toLowerCase().includes("win");
 const INDENT_PX = isWindows ? 16 : 28;
@@ -128,6 +149,7 @@ function InlineCreateInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const submittedRef = useRef(false);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedAtRef = useRef(Date.now());
   // Keep latest callbacks in refs so the debounced blur always calls the
   // current versions (parent re-renders may swap identities).
   const onSubmitRef = useRef(onSubmit);
@@ -195,13 +217,17 @@ function InlineCreateInput({
     const relatedTarget = e.relatedTarget as Element | null;
     const wentToMonaco = relatedTarget && !!relatedTarget.closest('.monaco-editor');
     const wentToBody = relatedTarget === document.body || !relatedTarget;
+    const isEarlyBlur = Date.now() - mountedAtRef.current < 500;
 
     if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
     blurTimeoutRef.current = setTimeout(() => {
       if (document.activeElement === inputRef.current) return;
       
-      if (!userClickedAway && (wentToMonaco || wentToBody)) {
-        // This was a programmatic focus steal (e.g., y-monaco merging edits).
+      // If we are in the early mount window (Cause 1 fix), always treat a blur
+      // as a programmatic steal (even if isUserClicking is true). This prevents
+      // the mousedown/mouseup that opened the input from being misinterpreted
+      // as the user clicking away from the newly-focused input.
+      if (isEarlyBlur || (!userClickedAway && (wentToMonaco || wentToBody))) {
         // Safely put focus back without aggressive capture loops that crash React.
         inputRef.current?.focus();
         return; 
@@ -319,7 +345,7 @@ function FileTreeNode({
 
   const isCreatingHere =
     creatingItem &&
-    creatingItem.parentPath === node.path &&
+    creatingItem.parentPath.replace(/\\/g, "/") === node.path.replace(/\\/g, "/") &&
     node.type === "directory";
 
   const loadChildren = useCallback(async () => {
@@ -357,6 +383,8 @@ function FileTreeNode({
     window.addEventListener("clipboard-updated", handleClipboardUpdate);
     return () => window.removeEventListener("clipboard-updated", handleClipboardUpdate);
   }, [node.path]);
+
+
 
   useEffect(() => {
     if (expanded && typeof refreshTrigger === 'number' && refreshTrigger > 0) {
@@ -401,18 +429,18 @@ function FileTreeNode({
     closeContextMenu();
     const dirPath =
       node.type === "directory"
-        ? node.path
-        : node.path.split(/[\\/]/).slice(0, -1).join("/");
-    onSetCreating({ type: "file", parentPath: dirPath });
+        ? node.path.replace(/\\/g, "/")
+        : node.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/");
+    setTimeout(() => onSetCreating({ type: "file", parentPath: dirPath }), 0);
   };
 
   const handleNewFolder = () => {
     closeContextMenu();
     const dirPath =
       node.type === "directory"
-        ? node.path
-        : node.path.split(/[\\/]/).slice(0, -1).join("/");
-    onSetCreating({ type: "folder", parentPath: dirPath });
+        ? node.path.replace(/\\/g, "/")
+        : node.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/");
+    setTimeout(() => onSetCreating({ type: "folder", parentPath: dirPath }), 0);
   };
 
   const handleInlineCreate = async (name: string) => {
@@ -515,7 +543,12 @@ function FileTreeNode({
     const fileName = fileClipboard.path.substring(Math.max(fileClipboard.path.lastIndexOf("/"), fileClipboard.path.lastIndexOf("\\")) + 1);
     const newPath = `${targetDir}/${fileName}`.replace(/\\/g, "/");
 
-    if (fileClipboard.action === "cut" && newPath === fileClipboard.path) return;
+    if (fileClipboard.action === "cut" && newPath === fileClipboard.path) {
+      // Pasting in the same location: just cancel the cut instead of moving.
+      fileClipboard = null;
+      window.dispatchEvent(new CustomEvent("clipboard-updated"));
+      return;
+    }
 
     try {
       if (fileClipboard.action === "cut") {
@@ -1104,15 +1137,32 @@ const FileTree = React.memo(function FileTree({
     }
   }, [activeFilePath]);
 
+  // Sync selectedNode with workspaceRoot if it becomes null while a workspace is open.
+  // This ensures that the header action buttons always have a valid basePath to work
+  // from, even before the user has manually interacted with the tree (Cause for "freeing" bug).
+  useEffect(() => {
+    if (workspaceRoot && !selectedNode) {
+      setSelectedNode({ path: workspaceRoot, type: "directory" });
+    }
+  }, [workspaceRoot, selectedNode]);
+
   useEffect(() => {
     if (!newFileTrigger || !workspaceRoot) return;
+    // Normalize to forward slashes so Windows backslash paths match correctly
+    // when compared against workspaceRoot in the InlineCreateInput render conditions.
     const pPath = selectedNode
-      ? (selectedNode.type === "directory" ? selectedNode.path : selectedNode.path.split(/[/\\]/).slice(0, -1).join("/"))
-      : workspaceRoot;
-    setCreatingItem({
-      type: "file",
-      parentPath: pPath,
-    });
+      ? (
+          selectedNode.type === "directory"
+            ? selectedNode.path.replace(/\\/g, "/")
+            : selectedNode.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/")
+        )
+      : workspaceRoot.replace(/\\/g, "/");
+    setTimeout(() => {
+      setCreatingItem({
+        type: "file",
+        parentPath: pPath,
+      });
+    }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newFileTrigger]);
 
@@ -1167,8 +1217,7 @@ const FileTree = React.memo(function FileTree({
   useEffect(() => {
     if (typeof refreshTrigger === 'number' && refreshTrigger > 0) {
       loadRoot();
-      // Wait for React to render, then close context menu and creating state
-      setCreatingItem(null);
+      setCreatingItem((current) => (current ? current : null));
     }
   }, [refreshTrigger, loadRoot]);
 
@@ -1183,7 +1232,11 @@ const FileTree = React.memo(function FileTree({
     const fileName = fileClipboard.path.substring(Math.max(fileClipboard.path.lastIndexOf("/"), fileClipboard.path.lastIndexOf("\\")) + 1);
     const newPath = `${workspaceRoot.replace(/\\/g, "/")}/${fileName}`;
 
-    if (fileClipboard.action === "cut" && newPath === fileClipboard.path) return;
+    if (fileClipboard.action === "cut" && newPath === fileClipboard.path) {
+      fileClipboard = null;
+      window.dispatchEvent(new CustomEvent("clipboard-updated"));
+      return;
+    }
 
     try {
       if (fileClipboard.action === "cut") {
@@ -1335,11 +1388,22 @@ const FileTree = React.memo(function FileTree({
             title="New File"
             onClick={(e) => {
               e.stopPropagation();
-              const pPath = selectedNode ? (selectedNode.type === "directory" ? selectedNode.path : selectedNode.path.split(/[/\\]/).slice(0, -1).join("/")) : workspaceRoot;
-              setCreatingItem({
-                type: "file",
-                parentPath: pPath,
-              });
+              // Normalize to forward slashes so the parentPath always matches
+              // workspaceRoot in the InlineCreateInput render condition (Cause 4/5 fix).
+              const normRoot = workspaceRoot.replace(/\\/g, "/");
+              const pPath = selectedNode
+                ? (
+                    selectedNode.type === "directory"
+                      ? selectedNode.path.replace(/\\/g, "/")
+                      : selectedNode.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/")
+                  )
+                : normRoot;
+              setTimeout(() => {
+                setCreatingItem({
+                  type: "file",
+                  parentPath: workspaceRoot,
+                });
+              }, 0);
             }}
           >
             <FilePlus2 size={18} />
@@ -1349,11 +1413,20 @@ const FileTree = React.memo(function FileTree({
             title="New Folder"
             onClick={(e) => {
               e.stopPropagation();
-              const pPath = selectedNode ? (selectedNode.type === "directory" ? selectedNode.path : selectedNode.path.split(/[/\\]/).slice(0, -1).join("/")) : workspaceRoot;
-              setCreatingItem({
-                type: "folder",
-                parentPath: pPath,
-              });
+              const normRoot = workspaceRoot.replace(/\\/g, "/");
+              const pPath = selectedNode
+                ? (
+                    selectedNode.type === "directory"
+                      ? selectedNode.path.replace(/\\/g, "/")
+                      : selectedNode.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/")
+                  )
+                : normRoot;
+              setTimeout(() => {
+                setCreatingItem({
+                  type: "folder",
+                  parentPath: workspaceRoot,
+                });
+              }, 0);
             }}
           >
             <FolderPlus size={18} />
@@ -1362,7 +1435,7 @@ const FileTree = React.memo(function FileTree({
       </div>
       <div className="tree-content">
         {creatingItem &&
-          creatingItem.parentPath === workspaceRoot &&
+          creatingItem.parentPath.replace(/\\/g, "/") === workspaceRoot.replace(/\\/g, "/") &&
           creatingItem.type === "folder" && (
             <InlineCreateInput
               type={creatingItem.type}
@@ -1412,7 +1485,7 @@ const FileTree = React.memo(function FileTree({
             />
           ))}
         {creatingItem &&
-          creatingItem.parentPath === workspaceRoot &&
+          creatingItem.parentPath.replace(/\\/g, "/") === workspaceRoot.replace(/\\/g, "/") &&
           creatingItem.type === "file" && (
             <InlineCreateInput
               type={creatingItem.type}
@@ -1473,7 +1546,7 @@ const FileTree = React.memo(function FileTree({
             <div
               className="context-menu-item"
               onClick={() => {
-                setCreatingItem({ type: "file", parentPath: workspaceRoot });
+                setTimeout(() => setCreatingItem({ type: "file", parentPath: workspaceRoot }), 0);
                 setContextMenu(null);
               }}
             >
@@ -1482,7 +1555,7 @@ const FileTree = React.memo(function FileTree({
             <div
               className="context-menu-item"
               onClick={() => {
-                setCreatingItem({ type: "folder", parentPath: workspaceRoot });
+                setTimeout(() => setCreatingItem({ type: "folder", parentPath: workspaceRoot }), 0);
                 setContextMenu(null);
               }}
             >

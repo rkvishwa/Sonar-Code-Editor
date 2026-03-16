@@ -8,7 +8,7 @@ import {
   WorkspaceMetadata,
   FileOperation,
 } from "../context/CollaborationContext";
-import FileTree from "../components/FileTree/FileTree";
+import FileTree, { updateFileClipboardPath } from "../components/FileTree/FileTree";
 import EditorPanel from "../components/Editor/EditorPanel";
 import PreviewPanel from "../components/Preview/PreviewPanel";
 import ActivityBar from "../components/Sidebar/ActivityBar";
@@ -374,6 +374,8 @@ function IDEContent() {
   const isSyncingRef = useRef(false);
   // Track the last synced folder name so we only prompt once per workspace.
   const lastSyncedFolderRef = useRef<string | null>(null);
+  // Track the workspace name currently being prompted
+  const promptedWorkspaceNameRef = useRef<string | null>(null);
 
   // Listen for shared workspace metadata from collaboration (for clients joining)
   useEffect(() => {
@@ -383,13 +385,29 @@ function IDEContent() {
     // Reset guards when the effect re-runs (e.g. new session)
     isSyncingRef.current = false;
     lastSyncedFolderRef.current = null;
+    promptedWorkspaceNameRef.current = null;
 
     const unsubMetadata = collaboration.onWorkspaceMetadataChange(
       async (metadata: WorkspaceMetadata | null) => {
         if (!metadata) return;
 
-        // Prevent opening the folder dialog multiple times
+        // Prevent opening the folder dialog multiple times for the same workspace
+        if (isSyncingRef.current) {
+          if (promptedWorkspaceNameRef.current !== metadata.folderName) {
+            console.log("Workspace changed during prompt. Canceling previous dialog.");
+            if (window.electronAPI.fs.cancelFolderDialog) {
+               await window.electronAPI.fs.cancelFolderDialog();
+            }
+            // Yield to event loop to let the old dialog's promise resolve and clear isSyncingRef
+            await new Promise(resolve => setTimeout(resolve, 50));
+          } else {
+            return;
+          }
+        }
+        
+        // If we are still syncing after cancellation, abort (shouldn't happen with the delay)
         if (isSyncingRef.current) return;
+
         if (lastSyncedFolderRef.current === metadata.folderName) {
           // Already synced this workspace — just re-sync files silently
         }
@@ -507,6 +525,7 @@ function IDEContent() {
           // Acquire the syncing lock so no other callback opens another dialog
           if (isSyncingRef.current) return;
           isSyncingRef.current = true;
+          promptedWorkspaceNameRef.current = metadata.folderName;
 
           let selectedFolder;
           try {
@@ -517,8 +536,12 @@ function IDEContent() {
               `Failed to open folder dialog: ${dialogErr.message || dialogErr}`
             );
             isSyncingRef.current = false;
+            promptedWorkspaceNameRef.current = null;
             return;
           }
+
+          // Clear prompted workspace once dialog is handled
+          promptedWorkspaceNameRef.current = null;
 
           if (!selectedFolder) {
             console.log("User cancelled workspace download");
@@ -949,6 +972,9 @@ function IDEContent() {
         return deduped;
       });
 
+      // Update the file clipboard if it references the old path
+      updateFileClipboardPath(oldPath, newPath);
+
       // Broadcast rename to collaboration peers
       try {
         const wsRoot = workspaceRootRef.current;
@@ -1183,6 +1209,10 @@ function IDEContent() {
     [],
   );
 
+  const handleFileMoved = useCallback(() => {
+    setFileTreeRefreshKey((k) => k + 1);
+  }, []);
+
   // Subscribe to file operations from collaboration peers.
   // Uses a STABLE subscription (deps: isActive + onFileOperation) to avoid
   // constant unsubscribe/resubscribe on every render, which could create
@@ -1386,6 +1416,8 @@ function IDEContent() {
                 }
                 return next;
               });
+              // Update the file clipboard if it references the old path
+              updateFileClipboardPath(fullPath, actualNewPath);
               break;
             }
             case "save-file": {
@@ -1560,7 +1592,7 @@ function IDEContent() {
                   onFileCreated={handleFileCreated}
                   onFolderCreated={handleFolderCreated}
                   onFileCopied={handleFileCopied}
-                  onFileMoved={() => setFileTreeRefreshKey((k) => k + 1)}
+                  onFileMoved={handleFileMoved}
                   refreshTrigger={fileTreeRefreshKey}
                 />
               </Panel>
