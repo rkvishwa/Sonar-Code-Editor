@@ -65,7 +65,7 @@
 
 .ide-toast {
   position: fixed;
-  bottom: 24px;
+  top: 24px;
   right: 24px;
   padding: 16px 20px;
   background: #2d1518;
@@ -79,7 +79,7 @@
   gap: 16px;
   justify-content: space-between;
   z-index: 9999;
-  animation: ide-toast-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: ide-toast-slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
   max-width: 400px;
   font-family: system-ui, -apple-system, sans-serif;
@@ -121,7 +121,7 @@
   color: #fca5a5;
 }
 
-@keyframes ide-toast-slide-up {
-  from { opacity: 0; transform: translateY(20px); }
+@keyframes ide-toast-slide-down {
+  from { opacity: 0; transform: translateY(-20px); }
   to { opacity: 1; transform: translateY(0); }
 }
