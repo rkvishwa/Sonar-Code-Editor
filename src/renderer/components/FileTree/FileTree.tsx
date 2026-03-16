@@ -519,6 +519,10 @@ function FileTreeNode({
 
     try {
       if (fileClipboard.action === "cut") {
+        // Close the file in the editor BEFORE moving to avoid errors if the
+        // destination already exists and gets its content overwritten or merged
+        onFileDeleted?.(fileClipboard.path, fileClipboard.type);
+        
         // Perform disk rename FIRST, then update tabs on success
         let finalPath = newPath;
         try {
@@ -606,6 +610,9 @@ function FileTreeNode({
 
       if (newPath === source.path) return;
 
+      // Close the file in the editor BEFORE moving
+      onFileDeleted?.(source.path, source.type);
+
       // Perform disk rename FIRST to avoid CRDT merge issues on collision
       let finalPath: string;
       try {
@@ -665,6 +672,9 @@ function FileTreeNode({
       const newPath = `${node.path}/${fileName}`.replace(/\\/g, "/");
 
       if (newPath === source.path) return;
+
+      // Close the file in the editor BEFORE moving
+      onFileDeleted?.(source.path, source.type);
 
       // Perform disk rename FIRST to avoid CRDT merge issues on collision
       let finalPath: string;
@@ -1174,6 +1184,10 @@ const FileTree = React.memo(function FileTree({
 
     try {
       if (fileClipboard.action === "cut") {
+        // Close the file in the editor BEFORE moving to avoid errors if the
+        // destination already exists and gets its content overwritten or merged
+        onFileDeleted?.(fileClipboard.path, fileClipboard.type);
+
         // Perform disk rename FIRST, then update tabs on success
         let finalPath = newPath;
         try {
@@ -1227,6 +1241,10 @@ const FileTree = React.memo(function FileTree({
       const newPath = `${workspaceRoot.replace(/\\/g, "/")}/${fileName}`;
 
       if (newPath === source.path) return;
+
+      // Close the file in the editor BEFORE moving to avoid errors if the
+      // destination already exists and gets its content overwritten or merged
+      onFileDeleted?.(source.path, source.type);
 
       // Perform disk rename FIRST to avoid CRDT merge issues on collision
       let finalPath: string;
