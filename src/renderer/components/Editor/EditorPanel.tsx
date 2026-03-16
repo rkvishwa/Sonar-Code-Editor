@@ -35,6 +35,7 @@ interface EditorPanelProps {
   onOpenFolder?: () => void;
   theme?: string;
   activeFilePath?: string | null;
+  lastActiveFilePath?: string | null;
   previewInitialUrl?: string | null;
   // Collaboration props
   collaborationActive?: boolean;
@@ -180,6 +181,7 @@ const EditorPanel = React.memo(function EditorPanel({
   onOpenFolder,
   theme = "dark",
   activeFilePath,
+  lastActiveFilePath,
   previewInitialUrl,
   collaborationActive = false,
   onEditorMount,
@@ -721,9 +723,10 @@ const EditorPanel = React.memo(function EditorPanel({
               <PreviewPanel
                 key={workspaceRoot || 'empty'}
                 workspaceRoot={workspaceRoot}
-                activeFilePath={activeFilePath}
+                activeFilePath={lastActiveFilePath || activeFilePath}
                 initialUrl={previewInitialUrl}
                 isFullTab
+                isActive={isActive}
               />
             ) : tab.type === "image" ? (
               <img
