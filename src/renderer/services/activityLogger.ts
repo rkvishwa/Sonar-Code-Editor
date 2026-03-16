@@ -235,11 +235,13 @@ export function generateActivityLogPDF(teamName: string): void {
 
   // Non-empty Workspaces
   let nonEmptyWorkspaces = 0;
+  let initialWorkspaceStats: any = null;
   for (const e of sorted) {
     if (e.type === 'workspace_opened' && e.details) {
       try {
         const stats = JSON.parse(e.details);
         if (stats.totalFiles > 0 || stats.totalFolders > 0) nonEmptyWorkspaces++;
+        if (!initialWorkspaceStats) initialWorkspaceStats = stats;
       } catch {}
     }
   }
@@ -435,6 +437,82 @@ export function generateActivityLogPDF(teamName: string): void {
       margin: { left: margin, right: margin },
     });
     y = getTableY() + 10;
+  }
+
+  // ========== INITIAL WORKSPACE TREE ==========
+  if (initialWorkspaceStats && initialWorkspaceStats.authors) {
+    y = ensureSpace(y, 20);
+    y = drawSection(y, 'Initial Workspace Tree');
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(50, 50, 50);
+
+    let allPaths: string[] = [];
+    if (initialWorkspaceStats.authors.user?.files) {
+      allPaths.push(...initialWorkspaceStats.authors.user.files);
+    }
+    let isTruncated = false;
+    if (allPaths.length > 150) {
+      allPaths = allPaths.slice(0, 150);
+      isTruncated = true;
+    }
+
+    if (allPaths.length === 0) {
+      y = ensureSpace(y, 8);
+      doc.text('(Empty Workspace or no user files found)', margin, y);
+      y += 8;
+    } else {
+      const buildTreeText = (paths: string[]): string[] => {
+        const root = { name: 'workspace', children: {} as any, isFile: false };
+        for (const p of paths) {
+          const parts = p.split(/[/\\]/).filter(Boolean);
+          if (parts.length === 0) continue;
+          let current = root;
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            if (!current.children[part]) {
+              current.children[part] = { name: part, children: {}, isFile: i === parts.length - 1 };
+            }
+            current = current.children[part];
+          }
+        }
+        let actualRoot = root;
+        while (Object.keys(actualRoot.children).length === 1) {
+          const key = Object.keys(actualRoot.children)[0];
+          if (actualRoot.children[key].isFile) break;
+          actualRoot = actualRoot.children[key];
+        }
+        const lines: string[] = [];
+        lines.push(actualRoot.name + '/');
+        const traverse = (node: any, prefix: string) => {
+          const keys = Object.keys(node.children).sort();
+          for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const child = node.children[key];
+            const isLast = i === keys.length - 1;
+            const connector = isLast ? '`-- ' : '|-- ';
+            lines.push(`${prefix}${connector}${child.name}${child.isFile ? '' : '/'}`);
+            if (!child.isFile) {
+              traverse(child, prefix + (isLast ? '    ' : '|   '));
+            }
+          }
+        };
+        traverse(actualRoot, '');
+        return lines;
+      };
+
+      const treeLines = buildTreeText(allPaths);
+      if (isTruncated) treeLines.push('... (tree truncated for size) ...');
+
+      for (const line of treeLines) {
+        y = ensureSpace(y, 4);
+        doc.text(line, margin, y);
+        y += 4;
+      }
+    }
+    
+    doc.setFont('helvetica', 'normal');
+    y += 6;
   }
 
   // ========== COMPLETE TIMELINE ==========
