@@ -1304,19 +1304,23 @@ function IDEContent() {
                 recentlyMovedPaths.current.add(oldNorm);
                 setTimeout(() => recentlyMovedPaths.current.delete(oldNorm), 2000);
               }
-              
-              // Move the CRDT document to the new path before renaming on disk
-              if (wsRoot) {
-                renameFileRef.current(fullPath, newFullPath, wsRoot);
-              }
 
+              // Perform disk rename FIRST to get the actual final path
+              // (may differ if auto-renamed due to collision)
+              let actualNewPath = newFullPath;
               try {
-                await window.electronAPI.fs.renameItem(fullPath, newFullPath);
+                const result = await window.electronAPI.fs.renameItem(fullPath, newFullPath);
+                if (result) actualNewPath = result.replace(/\\/g, "/");
               } catch (renameErr) {
                 console.warn(
                   `Remote rename failed (${relPath} → ${newRelPath}):`,
                   renameErr,
                 );
+              }
+
+              // Move the CRDT document AFTER disk rename succeeded, using actual path
+              if (wsRoot) {
+                renameFileRef.current(fullPath, actualNewPath, wsRoot);
               }
               // Update tabs locally WITHOUT calling handleFileRenamed (which would
               // re-broadcast the op and create an infinite echo loop)
@@ -1328,7 +1332,7 @@ function IDEContent() {
                 for (const t of prev) {
                   const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
                   if (tNorm === fNorm || tNorm.startsWith(fNorm + "/")) {
-                    const destPath = (newFullPath + t.path.slice(fullPath.length)).replace(/\\/g, "/").toLowerCase();
+                    const destPath = (actualNewPath + t.path.slice(fullPath.length)).replace(/\\/g, "/").toLowerCase();
                     destinationPaths.add(destPath);
                   }
                 }
@@ -1350,7 +1354,7 @@ function IDEContent() {
                     ) {
                       updated = true;
                       const newFilePath =
-                        newFullPath + t.path.slice(fullPath.length);
+                        actualNewPath + t.path.slice(fullPath.length);
                       const newName =
                         newFilePath.split(/[\\/]/).pop() || "";
                       return { ...t, path: newFilePath, name: newName };
@@ -1365,7 +1369,7 @@ function IDEContent() {
                       cNorm === fNorm ||
                       cNorm.startsWith(fNorm + "/")
                     ) {
-                      return newFullPath + current.slice(fullPath.length);
+                      return actualNewPath + current.slice(fullPath.length);
                     }
                     return current;
                   });
