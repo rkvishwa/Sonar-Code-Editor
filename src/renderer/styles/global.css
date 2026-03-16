@@ -1,73 +1,95 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Black and Darkest Blue Theme */
-  --bg-primary: #000000;
-  --bg-secondary: #0a0a0a;
-  --bg-tertiary: #0a0a0a;
-  --bg-hover: rgba(var(--user-accent-rgb, 59, 130, 246), 0.1);
-  --bg-active: rgba(var(--user-accent-rgb, 59, 130, 246), 0.2);
+  /* Mixpanel-inspired Premium Dark Theme */
+  --bg-primary: #0a0b10;
+  --bg-secondary: #12141c;
+  --bg-tertiary: #191b26;
+
+  --bg-hover: rgba(var(--user-accent-rgb, 99, 102, 241), 0.12);
+  --bg-active: rgba(var(--user-accent-rgb, 99, 102, 241), 0.2);
 
   --border: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(var(--user-accent-rgb, 59, 130, 246), 0.4);
+  --border-light: rgba(255, 255, 255, 0.04);
+  --border-focus: rgba(var(--user-accent-rgb, 99, 102, 241), 0.5);
 
   --divider: rgba(255, 255, 255, 0.08);
 
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-muted: #52525b;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
 
-  --accent: var(--user-accent, #3b82f6);
-  --accent-hover: var(--user-accent-hover, #2563eb);
-  --accent-transparent: rgba(var(--user-accent-rgb, 59, 130, 246), 0.15);
+  --accent: var(--user-accent, #6366f1);
+  --accent-hover: var(--user-accent-hover, #4f46e5);
+  --accent-transparent: rgba(var(--user-accent-rgb, 99, 102, 241), 0.15);
 
   --success: #10b981;
   --danger: #ef4444;
   --warning: #f59e0b;
-  --info: var(--user-accent, #3b82f6);
+  --info: var(--accent);
 
   --online: #10b981;
   --offline: #ef4444;
   --idle: #f59e0b;
 
-  --grid-opacity: 0.008;
+  --grid-opacity: 0.012;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 15px rgba(var(--user-accent-rgb, 99, 102, 241), 0.3);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 [data-theme="light"] {
+  /* Mixpanel-inspired Premium Light Theme */
   --bg-primary: #ffffff;
-  --bg-secondary: #f4f7fc;
-  --bg-tertiary: #edf2f9;
-  --bg-hover: rgba(var(--user-accent-rgb, 59, 130, 246), 0.1);
-  --bg-active: rgba(var(--user-accent-rgb, 59, 130, 246), 0.2);
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
 
-  --border: rgba(0, 0, 0, 0.08);
-  --border-focus: rgba(var(--user-accent-rgb, 59, 130, 246), 0.4);
+  --bg-hover: rgba(var(--user-accent-rgb, 79, 70, 229), 0.08);
+  --bg-active: rgba(var(--user-accent-rgb, 79, 70, 229), 0.15);
 
-  --divider: rgba(0, 0, 0, 0.08);
+  --border: rgba(15, 23, 42, 0.08);
+  --border-light: rgba(15, 23, 42, 0.04);
+  --border-focus: rgba(var(--user-accent-rgb, 79, 70, 229), 0.4);
 
-  --text-primary: #18181b;
-  --text-secondary: #3f3f46;
-  --text-muted: #52525b;
+  --divider: rgba(15, 23, 42, 0.08);
 
-  --accent: var(--user-accent, #3b82f6);
-  --accent-hover: var(--user-accent-hover, #2563eb);
-  --accent-transparent: rgba(var(--user-accent-rgb, 59, 130, 246), 0.15);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
 
-  --menu-bg: #f4f7fc;
-  --menu-border: rgba(0, 0, 0, 0.08);
-  --menu-hover: rgba(var(--user-accent-rgb, 59, 130, 246), 0.15);
-  --menu-text: #18181b;
+  --accent: var(--user-accent, #4f46e5);
+  --accent-hover: var(--user-accent-hover, #4338ca);
+  --accent-transparent: rgba(var(--user-accent-rgb, 79, 70, 229), 0.1);
+
+  --menu-bg: #ffffff;
+  --menu-border: rgba(15, 23, 42, 0.08);
+  --menu-hover: rgba(var(--user-accent-rgb, 79, 70, 229), 0.08);
+  --menu-text: #0f172a;
 
   --success: #059669;
   --danger: #dc2626;
   --warning: #d97706;
-  --info: var(--user-accent, #3b82f6);
+  --info: var(--accent);
 
   --online: #059669;
   --offline: #dc2626;
   --idle: #d97706;
 
-  --grid-opacity: 0.015;
+  --grid-opacity: 0.025;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 15px rgba(var(--user-accent-rgb, 79, 70, 229), 0.15);
 }
 
 * {

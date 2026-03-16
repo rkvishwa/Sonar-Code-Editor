@@ -392,52 +392,57 @@ export default function AdminDashboard() {
     <div className="admin-container">
       <div className={`admin-sidebar ${isSidebarExpanded ? 'expanded' : 'collapsed'}`}>
         <div className="sidebar-top">
-          <div className="sidebar-toggle-wrap">
-            <button className="sidebar-toggle-btn" onClick={() => setIsSidebarExpanded(!isSidebarExpanded)} title="Toggle Menu">
-              <MoreVertical size={20} />
-            </button>
-          </div>
-          <div className="admin-logo">
-            <div className="logo-icon-wrapper">
-              <Radar className="logo-icon" size={20} />
-            </div>
-            <div className="logo-info">
-              <span className="logo-text">Sonar Admin</span>
-              <div className="admin-live-badge mini">
-                <span className="live-dot" />
-                <span className="badge-text">Live</span>
+          <div className="sidebar-brand">
+            <div className="admin-logo">
+              <div className="logo-icon-wrapper">
+                <Radar className="logo-icon" size={24} />
+              </div>
+              <div className="logo-info">
+                <span className="logo-text">Sonar</span>
+                <div className="admin-live-badge mini">
+                  <span className="live-dot" />
+                  <span className="badge-text">Live</span>
+                </div>
               </div>
             </div>
+            <button className="sidebar-toggle-btn" onClick={() => setIsSidebarExpanded(!isSidebarExpanded)} title="Toggle Menu">
+              <MoreVertical size={16} />
+            </button>
           </div>
         </div>
 
         <div className="sidebar-nav">
-          <button className={`sidebar-item ${location.pathname === '/admin/dashboard' ? 'active' : ''}`} onClick={() => navigate('/admin/dashboard')} title="Analytics Dashboard">
-            <BarChart2 size={20} className="meta-icon" />
-            <span className="item-text">Dashboard</span>
+          <button className={`sidebar-item ${currentView === 'analytics' ? 'active' : ''}`} onClick={() => navigate('/admin/dashboard')} title="Analytics">
+            <BarChart2 size={18} className="nav-icon" />
+            <span className="item-text">Analytics</span>
           </button>
-          <button className={`sidebar-item ${location.pathname === '/admin/candidates' ? 'active' : ''}`} onClick={() => navigate('/admin/candidates')} title="Candidates Tracker">
-            <Users size={20} className="meta-icon" />
+          <button className={`sidebar-item ${currentView === 'candidates' ? 'active' : ''}`} onClick={() => navigate('/admin/candidates')} title="Candidates">
+            <Users size={18} className="nav-icon" />
             <span className="item-text">Candidates</span>
           </button>
           <button className="sidebar-item" onClick={loadSessions} title="Refresh Data">
-            <RefreshCw size={20} className={loading ? 'anim-spin meta-icon' : 'meta-icon'} />
+            <RefreshCw size={18} className={`nav-icon ${loading ? 'anim-spin' : ''}`} />
             <span className="item-text">Refresh Data</span>
           </button>
-          <button className={`sidebar-item ${location.pathname === '/admin/settings' ? 'active' : ''}`} onClick={() => navigate('/admin/settings')} title="Admin Settings">
-            <Settings size={20} className="meta-icon" />
+          <button className={`sidebar-item ${currentView === 'settings' ? 'active' : ''}`} onClick={() => navigate('/admin/settings')} title="Settings">
+            <Settings size={18} className="nav-icon" />
             <span className="item-text">Settings</span>
           </button>
         </div>
 
         <div className="sidebar-bottom">
-          <div className="sidebar-item" title={user?.teamName || 'Admin'}>
-            <ShieldAlert size={20} className="user-icon" />
-            <span className="item-text">{user?.teamName || 'Admin'}</span>
+          <div className="sidebar-user-card" title={user?.teamName || 'Admin'}>
+            <div className="user-avatar">
+              <ShieldAlert size={16} className="user-icon" />
+            </div>
+            <div className="user-details">
+              <span className="user-name">{user?.teamName || 'Admin'}</span>
+              <span className="user-role">Administrator</span>
+            </div>
           </div>
-          <button className="sidebar-item btn-danger" onClick={logout} title="Exit">
-            <LogOut size={20} />
-            <span className="item-text">Exit</span>
+          <button className="sidebar-item btn-danger" onClick={logout} title="Sign Out">
+            <LogOut size={18} className="nav-icon" />
+            <span className="item-text">Sign Out</span>
           </button>
         </div>
       </div>
@@ -456,48 +461,48 @@ export default function AdminDashboard() {
                 <div className="stats-row">
                   <div className="stat-card">
                     <div className="stat-card-header">
-                      <div className="stat-icon neutral"><Users size={16} /></div>
+                      <div className="stat-icon neutral"><Users size={18} /></div>
                       <span className="stat-label">Total Candidates</span>
                     </div>
                     <div className="stat-body">
                       <span className="stat-value">{teams.length}</span>
                     </div>
-                    <div className="stat-bar"><div className="stat-bar-fill" style={{ width: '100%', background: 'rgba(var(--user-accent-rgb, 59, 130, 246), 0.3)' }} /></div>
+                    <div className="stat-bar"><div className="stat-bar-fill neutral" style={{ width: '100%' }} /></div>
                   </div>
 
                   <div className="stat-card">
                     <div className="stat-card-header">
-                      <div className="stat-icon online"><Zap size={16} /></div>
+                      <div className="stat-icon online"><Zap size={18} /></div>
                       <span className="stat-label">Active Now</span>
                     </div>
                     <div className="stat-body">
-                      <span className="stat-value online">{onlineCount}</span>
-                      <span className="stat-percent" style={{ color: 'var(--online)' }}>{onlinePercent}%</span>
+                      <span className="stat-value">{onlineCount}</span>
+                      <span className="stat-percent online">{onlinePercent}%</span>
                     </div>
                     <div className="stat-bar"><div className="stat-bar-fill online" style={{ width: `${onlinePercent}%` }} /></div>
                   </div>
 
                   <div className="stat-card">
                     <div className="stat-card-header">
-                      <div className="stat-icon offline"><XCircle size={16} /></div>
+                      <div className="stat-icon offline"><XCircle size={18} /></div>
                       <span className="stat-label">Disconnected</span>
                     </div>
                     <div className="stat-body">
-                      <span className="stat-value offline">{offlineCount}</span>
-                      <span className="stat-percent" style={{ color: '#f87171' }}>{teams.length > 0 ? Math.round((offlineCount / teams.length) * 100) : 0}%</span>
+                      <span className="stat-value">{offlineCount}</span>
+                      <span className="stat-percent offline">{teams.length > 0 ? Math.round((offlineCount / teams.length) * 100) : 0}%</span>
                     </div>
                     <div className="stat-bar"><div className="stat-bar-fill offline" style={{ width: `${teams.length ? (offlineCount / teams.length) * 100 : 0}%` }} /></div>
                   </div>
 
                   <div className="stat-card">
                     <div className="stat-card-header">
-                      <div className="stat-icon accent"><Activity size={16} /></div>
+                      <div className="stat-icon accent"><Activity size={18} /></div>
                       <span className="stat-label">Events Tracked</span>
                     </div>
                     <div className="stat-body">
-                      <span className="stat-value accent">{globalInsights.totalLogs}</span>
+                      <span className="stat-value">{globalInsights.totalLogs}</span>
                     </div>
-                    <div className="stat-bar"><div className="stat-bar-fill" style={{ width: '100%', background: 'var(--accent)' }} /></div>
+                    <div className="stat-bar"><div className="stat-bar-fill accent" style={{ width: '100%' }} /></div>
                   </div>
                 </div>
 
@@ -598,11 +603,11 @@ export default function AdminDashboard() {
                           <th className="th-sortable" onClick={() => handleSort('status')}>
                             <div className="th-content">Status {sortKey === 'status' && (sortDir === 'asc' ? '↑' : '↓')}</div>
                           </th>
-                          <th>Activity</th>
+                          <th>Activity Insights</th>
                           <th className="th-sortable" onClick={() => handleSort('lastSeen')}>
                             <div className="th-content">Last Seen {sortKey === 'lastSeen' && (sortDir === 'asc' ? '↑' : '↓')}</div>
                           </th>
-                          <th className="th-actions">Actions</th>
+                          <th className="th-actions">Manage</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -611,10 +616,12 @@ export default function AdminDashboard() {
                           const riskLevel = metrics && metrics.appBlurCount > 10 ? 'high' : (metrics && metrics.appBlurCount > 3 ? 'medium' : 'low');
 
                           return (
-                            <tr key={team.teamId} className={`team-row ${team.status}`}>
+                            <tr key={team.teamId} className="team-row">
                               <td>
                                 <div className="team-identity">
-                                  <div className="team-avatar">{team.teamName.charAt(0).toUpperCase()}</div>
+                                  <div className={`team-avatar ${team.status}`}>
+                                    {team.teamName.charAt(0).toUpperCase()}
+                                  </div>
                                   <div className="team-info">
                                     <span className="team-name">{team.teamName}</span>
                                     <span className="team-window" title={team.currentWindow || 'Idle'}>
@@ -624,23 +631,25 @@ export default function AdminDashboard() {
                                 </div>
                               </td>
                               <td>
-                                <div className={`status-indicator ${team.status}`}>
-                                  <span className="pulse-disc" />
-                                  {team.status === 'online' ? 'Active' : 'Disconnected'}
+                                <div className={`status-chip ${team.status}`}>
+                                  <span className="status-dot"></span>
+                                  {team.status === 'online' ? 'Active' : 'Offline'}
                                 </div>
                               </td>
                               <td>
                                 {metrics ? (
                                   <div className="metrics-cluster">
-                                    <span className={`metric-chip ${metrics.appBlurCount > 0 ? 'warn' : 'clean'}`} title="App Switches">
-                                      <Monitor size={12} /> {metrics.appBlurCount}
-                                    </span>
-                                    <span className="metric-chip neutral" title="Total Events">
-                                      <Activity size={12} /> {metrics.totalEvents}
-                                    </span>
-                                    <span className={`risk-badge ${riskLevel}`}>
+                                    <div className="metric-pill" title="Total Events">
+                                      <Activity size={12} className="meta-icon" />
+                                      <span>{metrics.totalEvents}</span>
+                                    </div>
+                                    <div className={`metric-pill ${metrics.appBlurCount > 0 ? 'warn' : 'clean'}`} title="App Switches">
+                                      <Monitor size={12} className="meta-icon" />
+                                      <span>{metrics.appBlurCount}</span>
+                                    </div>
+                                    <div className={`risk-badge ${riskLevel}`}>
                                       {riskLevel === 'high' ? 'High Risk' : (riskLevel === 'medium' ? 'Review' : 'Secure')}
-                                    </span>
+                                    </div>
                                   </div>
                                 ) : (
                                   <span className="metric-chip clean">Assimilating...</span>

@@ -190,12 +190,11 @@ export default function Login() {
       <div className="login-hero">
         <div className="hero-content">
           <div className="hero-icon">
-            <Radar size={120} className="radar-icon" />
+            <Radar size={80} className="radar-icon" />
           </div>
           <h1>Sonar Code Editor</h1>
           <p>
-            The secure, monitored environment for coding exams and team
-            assessments.
+            The secure, monitored environment for real-time coding assessments.
           </p>
         </div>
         <div className="hero-decoration"></div>
@@ -205,7 +204,7 @@ export default function Login() {
         <div className="login-panel-inner">
           <div className="login-header">
             <div className="login-logo-mobile">
-              <Radar size={32} className="radar-icon" />
+              <Radar size={36} className="radar-icon" />
             </div>
             <h2>{tab === "login" ? "Welcome back" : "Create an account"}</h2>
             <p>
@@ -215,162 +214,166 @@ export default function Login() {
             </p>
           </div>
 
-          <div className="login-tab-bar">
-            <button
-              className={`login-tab-btn ${tab === "login" ? "active" : ""}`}
-              onClick={() => switchTab("login")}
-              type="button"
-            >
-              Sign In
-            </button>
-            <button
-              className={`login-tab-btn ${tab === "register" ? "active" : ""}`}
-              onClick={() => switchTab("register")}
-              type="button"
-            >
-              Register
-            </button>
-          </div>
-
-          {tab === "login" ? (
-            <form onSubmit={handleLogin} className="login-form">
-              <div className="form-group">
-                <label htmlFor="loginTeam">Team Name</label>
-                <input
-                  id="loginTeam"
-                  type="text"
-                  value={loginTeam}
-                  onChange={(e) => setLoginTeam(e.target.value)}
-                  placeholder="Enter your team name"
-                  autoComplete="username"
-                  autoFocus
-                  disabled={loading}
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="loginPassword">Password</label>
-                <div className="password-wrapper">
-                  <input
-                    id="loginPassword"
-                    type={showLoginPassword ? "text" : "password"}
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    autoComplete="current-password"
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowLoginPassword(!showLoginPassword)}
-                    tabIndex={-1}
-                    aria-label={
-                      showLoginPassword ? "Hide password" : "Show password"
-                    }
-                  >
-                    {showLoginPassword ? (
-                      <EyeOff size={16} />
-                    ) : (
-                      <Eye size={16} />
-                    )}
-                  </button>
-                </div>
-              </div>
-              <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? "Signing in..." : "Sign In"}
+          <div className="login-form-card">
+            <div className="login-tab-bar">
+              <button
+                className={`login-tab-btn ${tab === "login" ? "active" : ""}`}
+                onClick={() => switchTab("login")}
+                type="button"
+              >
+                Sign In
               </button>
-            </form>
-          ) : (
-            <form onSubmit={handleRegister} className="login-form">
-              <div className="form-group">
-                <label htmlFor="regTeam">Team Name</label>
-                <input
-                  id="regTeam"
-                  type="text"
-                  value={regTeam}
-                  onChange={(e) => setRegTeam(e.target.value)}
-                  placeholder="Choose a team name"
-                  autoComplete="off"
-                  autoFocus
-                  disabled={loading}
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="regPassword">Password</label>
-                <div className="password-wrapper">
+              <button
+                className={`login-tab-btn ${tab === "register" ? "active" : ""}`}
+                onClick={() => switchTab("register")}
+                type="button"
+              >
+                Register
+              </button>
+            </div>
+
+            {tab === "login" ? (
+              <form onSubmit={handleLogin} className="login-form">
+                <div className="form-group">
+                  <label htmlFor="loginTeam">Team Name</label>
                   <input
-                    id="regPassword"
-                    type={showRegPassword ? "text" : "password"}
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="Choose a password"
-                    autoComplete="new-password"
+                    id="loginTeam"
+                    type="text"
+                    value={loginTeam}
+                    onChange={(e) => setLoginTeam(e.target.value)}
+                    placeholder="Enter your team name"
+                    autoComplete="username"
+                    autoFocus
                     disabled={loading}
+                    className="modern-input"
                   />
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowRegPassword(!showRegPassword)}
-                    tabIndex={-1}
-                    aria-label={
-                      showRegPassword ? "Hide password" : "Show password"
-                    }
-                  >
-                    {showRegPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
                 </div>
-              </div>
-              <div className="form-group">
-                <label>Student IDs ({studentIds.length}/5)</label>
-                <div className="student-ids-list">
-                  {studentIds.map((id, i) => (
-                    <div className="student-id-row" key={i}>
-                      <input
-                        type="text"
-                        value={id}
-                        onChange={(e) => updateStudentId(i, e.target.value)}
-                        placeholder={`Student ID #${i + 1}`}
-                        autoComplete="off"
-                        disabled={loading}
-                      />
-                      {studentIds.length > 1 && (
-                        <button
-                          type="button"
-                          className="id-remove-btn"
-                          onClick={() => removeStudentId(i)}
-                          disabled={loading}
-                          title="Remove"
-                        >
-                          −
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {studentIds.length < 5 && (
+                <div className="form-group">
+                  <label htmlFor="loginPassword">Password</label>
+                  <div className="password-wrapper">
+                    <input
+                      id="loginPassword"
+                      type={showLoginPassword ? "text" : "password"}
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      autoComplete="current-password"
+                      disabled={loading}
+                      className="modern-input"
+                    />
                     <button
                       type="button"
-                      className="id-add-btn"
-                      onClick={addStudentId}
-                      disabled={loading}
+                      className="password-toggle"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      tabIndex={-1}
+                      aria-label={
+                        showLoginPassword ? "Hide password" : "Show password"
+                      }
                     >
-                      <span className="plus-icon">+</span> Add Member
+                      {showLoginPassword ? (
+                        <EyeOff size={16} />
+                      ) : (
+                        <Eye size={16} />
+                      )}
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
-              <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? "Registering..." : "Register Team"}
-              </button>
-            </form>
-          )}
+                <button type="submit" className="login-btn" disabled={loading}>
+                  {loading ? "Signing in..." : "Sign In"}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleRegister} className="login-form">
+                <div className="form-group">
+                  <label htmlFor="regTeam">Team Name</label>
+                  <input
+                    id="regTeam"
+                    type="text"
+                    value={regTeam}
+                    onChange={(e) => setRegTeam(e.target.value)}
+                    placeholder="Choose a team name"
+                    autoComplete="off"
+                    autoFocus
+                    disabled={loading}
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="regPassword">Password</label>
+                  <div className="password-wrapper">
+                    <input
+                      id="regPassword"
+                      type={showRegPassword ? "text" : "password"}
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="Choose a password"
+                      autoComplete="new-password"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onClick={() => setShowRegPassword(!showRegPassword)}
+                      tabIndex={-1}
+                      aria-label={
+                        showRegPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showRegPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Student IDs ({studentIds.length}/5)</label>
+                  <div className="student-ids-list">
+                    {studentIds.map((id, i) => (
+                      <div className="student-id-row" key={i}>
+                        <input
+                          type="text"
+                          value={id}
+                          onChange={(e) => updateStudentId(i, e.target.value)}
+                          placeholder={`Student ID #${i + 1}`}
+                          autoComplete="off"
+                          disabled={loading}
+                        />
+                        {studentIds.length > 1 && (
+                          <button
+                            type="button"
+                            className="id-remove-btn"
+                            onClick={() => removeStudentId(i)}
+                            disabled={loading}
+                            title="Remove"
+                          >
+                            −
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {studentIds.length < 5 && (
+                      <button
+                        type="button"
+                        className="id-add-btn"
+                        onClick={addStudentId}
+                        disabled={loading}
+                      >
+                        <span className="plus-icon">+</span> Add Member
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <button type="submit" className="login-btn" disabled={loading}>
+                  {loading ? "Registering..." : "Register Team"}
+                </button>
+              </form>
+            )}
 
-          <div className="login-footer">
-            <div className="offline-note">
-              <span
-                className="dot offline"
-                style={{ display: "inline-block", marginRight: 6 }}
-              />
-              Offline mode available with cached credentials
+            <div className="login-footer">
+              <div className="offline-note">
+                <span
+                  className="dot offline"
+                  style={{ display: "inline-block", marginRight: 6 }}
+                />
+                Offline mode available with cached credentials
+              </div>
             </div>
           </div>
         </div>
