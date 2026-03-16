@@ -776,6 +776,8 @@ function IDEContent() {
             : t,
         ),
       );
+      // Always notify the file tree so it can cancel any cut state on this path.
+      window.dispatchEvent(new CustomEvent("file-manually-saved", { detail: { path: activeTab.path } }));
       if (hotReload) {
         window.dispatchEvent(new CustomEvent("file-saved"));
       }
