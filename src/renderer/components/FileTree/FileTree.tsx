@@ -692,19 +692,21 @@ function FileTreeNode({
     if (newName !== node.name && newName.trim()) {
       const dir = node.path.split(/[\\/]/).slice(0, -1).join("/");
       const newPath = `${dir}/${newName.trim()}`;
+      // Perform disk rename FIRST to avoid CRDT merge issues on collision
+      let finalPath: string;
       try {
-        onFileRenamed?.(node.path, newPath);
-      } catch (err) {
-        console.error('broadcastRename failed:', err);
-      }
-      try {
-        await window.electronAPI.fs.renameItem(node.path, newPath);
+        const result = await window.electronAPI.fs.renameItem(node.path, newPath);
+        finalPath = (result || newPath).replace(/\\/g, "/");
       } catch (err) {
         console.error("Local rename failed:", err);
         commitRenameRef.current = false;
-        try { onFileRenamed?.(newPath, node.path); } catch(e){} // rollback
         onRefresh();
         return;
+      }
+      try {
+        onFileRenamed?.(node.path, finalPath);
+      } catch (err) {
+        console.error('broadcastRename failed:', err);
       }
       onRefresh();
     }
