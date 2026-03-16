@@ -1487,7 +1487,7 @@ function IDEContent() {
         
         if (blockNonEmpty && (stats.totalFiles > 0 || stats.totalFolders > 0)) {
           console.warn("Blocked opening non-empty workspace.");
-          showToast("Admin restricted opening non-empty workspaces.");
+          showToast("The workspace must be empty.");
           return;
         }
 
