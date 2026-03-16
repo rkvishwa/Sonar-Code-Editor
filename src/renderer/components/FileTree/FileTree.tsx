@@ -512,13 +512,15 @@ function FileTreeNode({
     try {
       if (fileClipboard.action === "cut") {
         // Perform disk rename FIRST, then update tabs on success
+        let finalPath = newPath;
         try {
-          await window.electronAPI.fs.renameItem(fileClipboard.path, newPath);
+          const result = await window.electronAPI.fs.renameItem(fileClipboard.path, newPath);
+          if (result) finalPath = result.replace(/\\/g, "/");
         } catch (err) {
           console.error("Paste failed on disk:", err);
           return;
         }
-        onFileRenamed?.(fileClipboard.path, newPath);
+        onFileRenamed?.(fileClipboard.path, finalPath);
         fileClipboard = null;
         window.dispatchEvent(new CustomEvent("clipboard-updated"));
         onFileMoved?.();
@@ -596,14 +598,16 @@ function FileTreeNode({
 
       if (newPath === source.path) return;
 
-      onFileRenamed?.(source.path, newPath);
+      // Perform disk rename FIRST to avoid CRDT merge issues on collision
+      let finalPath: string;
       try {
-        await window.electronAPI.fs.renameItem(source.path, newPath);
+        const result = await window.electronAPI.fs.renameItem(source.path, newPath);
+        finalPath = (result || newPath).replace(/\\/g, "/");
       } catch (err) {
         console.error("Drop failed on disk:", err);
-        onFileRenamed?.(newPath, source.path); // rollback
         return;
       }
+      onFileRenamed?.(source.path, finalPath);
       onRefresh();
       onFileMoved?.();
     } catch (err) {
@@ -654,14 +658,16 @@ function FileTreeNode({
 
       if (newPath === source.path) return;
 
-      onFileRenamed?.(source.path, newPath);
+      // Perform disk rename FIRST to avoid CRDT merge issues on collision
+      let finalPath: string;
       try {
-        await window.electronAPI.fs.renameItem(source.path, newPath);
+        const result = await window.electronAPI.fs.renameItem(source.path, newPath);
+        finalPath = (result || newPath).replace(/\\/g, "/");
       } catch (err) {
         console.error("Drop in children failed on disk:", err);
-        onFileRenamed?.(newPath, source.path);
         return;
       }
+      onFileRenamed?.(source.path, finalPath);
       onRefresh();
       onFileMoved?.();
     } catch (err) {
@@ -1151,13 +1157,15 @@ const FileTree = React.memo(function FileTree({
     try {
       if (fileClipboard.action === "cut") {
         // Perform disk rename FIRST, then update tabs on success
+        let finalPath = newPath;
         try {
-          await window.electronAPI.fs.renameItem(fileClipboard.path, newPath);
+          const result = await window.electronAPI.fs.renameItem(fileClipboard.path, newPath);
+          if (result) finalPath = result.replace(/\\/g, "/");
         } catch (err) {
           console.error("Paste failed at root:", err);
           return;
         }
-        onFileRenamed?.(fileClipboard.path, newPath);
+        onFileRenamed?.(fileClipboard.path, finalPath);
         fileClipboard = null;
         window.dispatchEvent(new CustomEvent("clipboard-updated"));
         onFileMoved?.();
@@ -1202,14 +1210,16 @@ const FileTree = React.memo(function FileTree({
 
       if (newPath === source.path) return;
 
-      onFileRenamed?.(source.path, newPath);
+      // Perform disk rename FIRST to avoid CRDT merge issues on collision
+      let finalPath: string;
       try {
-        await window.electronAPI.fs.renameItem(source.path, newPath);
+        const result = await window.electronAPI.fs.renameItem(source.path, newPath);
+        finalPath = (result || newPath).replace(/\\/g, "/");
       } catch (err) {
         console.error("Drop failed at root:", err);
-        onFileRenamed?.(newPath, source.path); // rollback
         return;
       }
+      onFileRenamed?.(source.path, finalPath);
       loadRoot();
       onFileMoved?.();
     } catch (err) {
