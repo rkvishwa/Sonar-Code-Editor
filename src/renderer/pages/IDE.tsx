@@ -299,6 +299,8 @@ function IDEContent() {
             ? (collaboration.getFileContent(tab.path, workspaceRootRef.current ?? undefined) ?? tab.content)
             : tab.content;
           await window.electronAPI.fs.writeFile(tab.path, contentToSave);
+          // Notify file tree so it can clear cut state on the saved file.
+          window.dispatchEvent(new CustomEvent("file-manually-saved", { detail: { path: tab.path } }));
           if (autoSave) {
             setTabs((prev) =>
               prev.map((t) =>
@@ -347,6 +349,8 @@ function IDEContent() {
             const content = collaboration.getFileContent(matchingTab.path, workspaceRootRef.current ?? undefined);
             if (content !== null) {
               await window.electronAPI.fs.writeFile(matchingTab.path, content);
+              // Notify file tree so it can clear cut state on the saved file.
+              window.dispatchEvent(new CustomEvent("file-manually-saved", { detail: { path: matchingTab.path } }));
               if (hotReload) {
                 window.dispatchEvent(new CustomEvent("file-saved"));
               }
@@ -1395,6 +1399,8 @@ function IDEContent() {
                 const content = collaboration.getFileContent(fullPath, wsRoot);
                 if (content !== null) {
                   await window.electronAPI.fs.writeFile(fullPath, content);
+                  // Notify file tree so it can clear cut state on the saved file.
+                  window.dispatchEvent(new CustomEvent("file-manually-saved", { detail: { path: fullPath } }));
                   setTabs((prev) =>
                     prev.map((t) => {
                       const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
