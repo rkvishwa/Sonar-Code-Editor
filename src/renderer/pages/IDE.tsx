@@ -892,25 +892,44 @@ function IDEContent() {
       setTimeout(() => recentlyMovedPaths.current.delete(oldNorm), 2000);
 
       setTabs((prev) => {
-        let updated = false;
-        const next = prev.map((t) => {
-          const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
-          const oNorm = oldPath.replace(/\\/g, "/").toLowerCase();
+        const oNorm = oldPath.replace(/\\/g, "/").toLowerCase();
 
+        // Build a set of destination paths that the renamed tab(s) will occupy
+        const destinationPaths = new Set<string>();
+        for (const t of prev) {
+          const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
           if (tNorm === oNorm || tNorm.startsWith(oNorm + "/")) {
-            updated = true;
-            const newFilePath = (newPath + t.path.slice(oldPath.length)).replace(/\\/g, "/");
-            const newName = newFilePath.split(/[\\/]/).pop() || "";
-            return { ...t, path: newFilePath, name: newName };
+            const destPath = (newPath + t.path.slice(oldPath.length)).replace(/\\/g, "/").toLowerCase();
+            destinationPaths.add(destPath);
           }
-          return t;
-        });
+        }
+
+        // Remove any existing tabs at the destination paths (conflict resolution)
+        // then update the renamed tab(s) to their new paths
+        let updated = false;
+        const next = prev
+          .filter((t) => {
+            const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+            // Keep this tab if it's the one being renamed, or if it's NOT at a conflicting destination
+            const isBeingRenamed = tNorm === oNorm || tNorm.startsWith(oNorm + "/");
+            if (isBeingRenamed) return true;
+            return !destinationPaths.has(tNorm);
+          })
+          .map((t) => {
+            const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+            if (tNorm === oNorm || tNorm.startsWith(oNorm + "/")) {
+              updated = true;
+              const newFilePath = (newPath + t.path.slice(oldPath.length)).replace(/\\/g, "/");
+              const newName = newFilePath.split(/[\\/]/).pop() || "";
+              return { ...t, path: newFilePath, name: newName };
+            }
+            return t;
+          });
 
         if (updated) {
           setActiveTabPath((current) => {
             if (!current) return null;
             const cNorm = current.replace(/\\/g, "/").toLowerCase();
-            const oNorm = oldPath.replace(/\\/g, "/").toLowerCase();
             if (cNorm === oNorm || cNorm.startsWith(oNorm + "/")) {
               return (newPath + current.slice(oldPath.length)).replace(/\\/g, "/");
             }
@@ -1302,28 +1321,46 @@ function IDEContent() {
               // Update tabs locally WITHOUT calling handleFileRenamed (which would
               // re-broadcast the op and create an infinite echo loop)
               setTabs((prev) => {
-                let updated = false;
-                const next = prev.map((t) => {
+                const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
+
+                // Build a set of destination paths that the renamed tab(s) will occupy
+                const destinationPaths = new Set<string>();
+                for (const t of prev) {
                   const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
-                  const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
-                  if (
-                    tNorm === fNorm ||
-                    tNorm.startsWith(fNorm + "/")
-                  ) {
-                    updated = true;
-                    const newFilePath =
-                      newFullPath + t.path.slice(fullPath.length);
-                    const newName =
-                      newFilePath.split(/[\\/]/).pop() || "";
-                    return { ...t, path: newFilePath, name: newName };
+                  if (tNorm === fNorm || tNorm.startsWith(fNorm + "/")) {
+                    const destPath = (newFullPath + t.path.slice(fullPath.length)).replace(/\\/g, "/").toLowerCase();
+                    destinationPaths.add(destPath);
                   }
-                  return t;
-                });
+                }
+
+                // Remove conflicting tabs at destination, then update renamed tab(s)
+                let updated = false;
+                const next = prev
+                  .filter((t) => {
+                    const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+                    const isBeingRenamed = tNorm === fNorm || tNorm.startsWith(fNorm + "/");
+                    if (isBeingRenamed) return true;
+                    return !destinationPaths.has(tNorm);
+                  })
+                  .map((t) => {
+                    const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
+                    if (
+                      tNorm === fNorm ||
+                      tNorm.startsWith(fNorm + "/")
+                    ) {
+                      updated = true;
+                      const newFilePath =
+                        newFullPath + t.path.slice(fullPath.length);
+                      const newName =
+                        newFilePath.split(/[\\/]/).pop() || "";
+                      return { ...t, path: newFilePath, name: newName };
+                    }
+                    return t;
+                  });
                 if (updated) {
                   setActiveTabPath((current) => {
                     if (!current) return null;
                     const cNorm = current.replace(/\\/g, "/").toLowerCase();
-                    const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
                     if (
                       cNorm === fNorm ||
                       cNorm.startsWith(fNorm + "/")
