@@ -507,7 +507,7 @@ function FileTreeNode({
     const fileName = fileClipboard.path.substring(Math.max(fileClipboard.path.lastIndexOf("/"), fileClipboard.path.lastIndexOf("\\")) + 1);
     const newPath = `${targetDir}/${fileName}`.replace(/\\/g, "/");
 
-    if (newPath === fileClipboard.path) return;
+    if (fileClipboard.action === "cut" && newPath === fileClipboard.path) return;
 
     try {
       if (fileClipboard.action === "cut") {
@@ -523,14 +523,16 @@ function FileTreeNode({
         window.dispatchEvent(new CustomEvent("clipboard-updated"));
         onFileMoved?.();
       } else if (fileClipboard.action === "copy") {
+        let finalPath = newPath;
         try {
-          await window.electronAPI.fs.copyItem(fileClipboard.path, newPath);
+          const resultPath = await window.electronAPI.fs.copyItem(fileClipboard.path, newPath);
+          if (resultPath) finalPath = resultPath.replace(/\\/g, "/");
         } catch (err) {
           console.error("Paste copy failed on disk:", err);
           return;
         }
         // For copy, we don't clear the clipboard so the user can paste multiple times.
-        onFileCopied?.(newPath, fileClipboard.type);
+        onFileCopied?.(finalPath, fileClipboard.type);
         onFileMoved?.();
       }
       
@@ -1144,7 +1146,7 @@ const FileTree = React.memo(function FileTree({
     const fileName = fileClipboard.path.substring(Math.max(fileClipboard.path.lastIndexOf("/"), fileClipboard.path.lastIndexOf("\\")) + 1);
     const newPath = `${workspaceRoot.replace(/\\/g, "/")}/${fileName}`;
 
-    if (newPath === fileClipboard.path) return;
+    if (fileClipboard.action === "cut" && newPath === fileClipboard.path) return;
 
     try {
       if (fileClipboard.action === "cut") {
@@ -1160,13 +1162,15 @@ const FileTree = React.memo(function FileTree({
         window.dispatchEvent(new CustomEvent("clipboard-updated"));
         onFileMoved?.();
       } else if (fileClipboard.action === "copy") {
+        let finalPath = newPath;
         try {
-          await window.electronAPI.fs.copyItem(fileClipboard.path, newPath);
+          const resultPath = await window.electronAPI.fs.copyItem(fileClipboard.path, newPath);
+          if (resultPath) finalPath = resultPath.replace(/\\/g, "/");
         } catch (err) {
           console.error("Paste copy failed at root:", err);
           return;
         }
-        onFileCopied?.(newPath, fileClipboard.type);
+        onFileCopied?.(finalPath, fileClipboard.type);
         onFileMoved?.();
       }
       loadRoot();
