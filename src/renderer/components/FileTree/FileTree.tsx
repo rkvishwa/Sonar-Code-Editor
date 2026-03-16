@@ -223,9 +223,11 @@ function InlineCreateInput({
     blurTimeoutRef.current = setTimeout(() => {
       if (document.activeElement === inputRef.current) return;
       
-      if (!userClickedAway && (wentToMonaco || wentToBody || isEarlyBlur)) {
-        // This was a programmatic focus steal (e.g., y-monaco merging edits),
-        // or an early blur caused by rapid rendering/event firing.
+      // If we are in the early mount window (Cause 1 fix), always treat a blur
+      // as a programmatic steal (even if isUserClicking is true). This prevents
+      // the mousedown/mouseup that opened the input from being misinterpreted
+      // as the user clicking away from the newly-focused input.
+      if (isEarlyBlur || (!userClickedAway && (wentToMonaco || wentToBody))) {
         // Safely put focus back without aggressive capture loops that crash React.
         inputRef.current?.focus();
         return; 
@@ -1135,6 +1137,15 @@ const FileTree = React.memo(function FileTree({
     }
   }, [activeFilePath]);
 
+  // Sync selectedNode with workspaceRoot if it becomes null while a workspace is open.
+  // This ensures that the header action buttons always have a valid basePath to work
+  // from, even before the user has manually interacted with the tree (Cause for "freeing" bug).
+  useEffect(() => {
+    if (workspaceRoot && !selectedNode) {
+      setSelectedNode({ path: workspaceRoot, type: "directory" });
+    }
+  }, [workspaceRoot, selectedNode]);
+
   useEffect(() => {
     if (!newFileTrigger || !workspaceRoot) return;
     // Normalize to forward slashes so Windows backslash paths match correctly
@@ -1221,7 +1232,11 @@ const FileTree = React.memo(function FileTree({
     const fileName = fileClipboard.path.substring(Math.max(fileClipboard.path.lastIndexOf("/"), fileClipboard.path.lastIndexOf("\\")) + 1);
     const newPath = `${workspaceRoot.replace(/\\/g, "/")}/${fileName}`;
 
-    if (fileClipboard.action === "cut" && newPath === fileClipboard.path) return;
+    if (fileClipboard.action === "cut" && newPath === fileClipboard.path) {
+      fileClipboard = null;
+      window.dispatchEvent(new CustomEvent("clipboard-updated"));
+      return;
+    }
 
     try {
       if (fileClipboard.action === "cut") {
@@ -1386,7 +1401,7 @@ const FileTree = React.memo(function FileTree({
               setTimeout(() => {
                 setCreatingItem({
                   type: "file",
-                  parentPath: pPath,
+                  parentPath: workspaceRoot,
                 });
               }, 0);
             }}
@@ -1409,7 +1424,7 @@ const FileTree = React.memo(function FileTree({
               setTimeout(() => {
                 setCreatingItem({
                   type: "folder",
-                  parentPath: pPath,
+                  parentPath: workspaceRoot,
                 });
               }, 0);
             }}
