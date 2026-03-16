@@ -19,6 +19,7 @@ import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { useActivityLogger } from "../hooks/useActivityLogger";
 import { getGlobalBlockNonEmptyWorkspace } from "../services/appwrite";
 import { addActivityEvent } from "../services/activityLogger";
+import { AlertCircle, X } from "lucide-react";
 import "./IDE.css";
 
 export interface OpenTab {
@@ -1717,9 +1718,14 @@ function IDEContent() {
         onClose={() => setIsCollaborationOpen(false)}
       />
       {toastMessage && (
-        <div className="ide-toast" onClick={() => setToastMessage(null)}>
-          <span className="ide-toast-icon">⚠️</span>
-          <span>{toastMessage}</span>
+        <div className="ide-toast">
+          <div className="ide-toast-content">
+            <span className="ide-toast-icon"><AlertCircle size={18} /></span>
+            <span className="ide-toast-message">{toastMessage}</span>
+          </div>
+          <button className="ide-toast-close" onClick={() => setToastMessage(null)} aria-label="Close">
+            <X size={16} />
+          </button>
         </div>
       )}
     </div>
