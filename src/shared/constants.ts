@@ -8,6 +8,7 @@ export const IPC_CHANNELS = {
   FS_CREATE_FOLDER: 'fs:createFolder',
   FS_DELETE_ITEM: 'fs:deleteItem',
   FS_RENAME_ITEM: 'fs:renameItem',
+  FS_COPY_ITEM: 'fs:copyItem',
   FS_SEARCH: 'fs:search',
   FS_OPEN_FOLDER_DIALOG: 'fs:openFolderDialog',
   FS_OPEN_FILE_DIALOG: 'fs:openFileDialog',

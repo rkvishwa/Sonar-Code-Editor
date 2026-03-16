@@ -132,9 +132,25 @@
   color: var(--accent);
 }
 
+.tree-node.drag-over {
+  background: var(--bg-hover);
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
 .tree-node.selected-folder {
   background: var(--bg-hover);
   border-right: 2px solid var(--accent);
+}
+
+.tree-node.drag-over {
+  background: var(--bg-hover) !important;
+  border: 1px dashed var(--accent);
+}
+
+.tree-node.cut-node {
+  opacity: 0.4;
+  font-style: italic;
 }
 
 .expand-icon {

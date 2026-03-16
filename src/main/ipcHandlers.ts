@@ -292,6 +292,27 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
     }
   });
 
+  ipcMain.handle(IPC_CHANNELS.FS_COPY_ITEM, async (_event, srcPath: string, destPath: string) => {
+    try {
+      if (!srcPath || !destPath) throw new Error('Missing path for copy');
+      if (!fs.existsSync(srcPath)) throw new Error('Source path does not exist');
+
+      const destBase = path.basename(destPath);
+      const nameErr = validateName(destBase);
+      if (nameErr) throw new Error(nameErr);
+
+      // Ensure target parent directory exists
+      const targetDir = path.dirname(destPath);
+      if (!fs.existsSync(targetDir)) {
+        await fsp.mkdir(targetDir, { recursive: true });
+      }
+
+      await fsp.cp(srcPath, destPath, { recursive: true });
+    } catch (err) {
+      throw new Error(`Failed to copy item: ${(err as Error).message}`);
+    }
+  });
+
   ipcMain.handle(IPC_CHANNELS.FS_SEARCH, async (_event, dirPath: string, query: string) => {
     const results: any[] = [];
     if (!dirPath || !query) return results;
