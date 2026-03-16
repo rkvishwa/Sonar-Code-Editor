@@ -326,7 +326,15 @@ function FileTreeNode({
     if (node.type === "directory") {
       try {
         const items = await window.electronAPI.fs.readDirectory(node.path);
-        setChildren(items);
+        // Deduplicate by normalized path to prevent React duplicate key errors
+        const seen = new Set<string>();
+        const unique = items.filter((item) => {
+          const norm = item.path.replace(/\\/g, "/").toLowerCase();
+          if (seen.has(norm)) return false;
+          seen.add(norm);
+          return true;
+        });
+        setChildren(unique);
       } catch (err) {
         // Directory may have been renamed/deleted by a collaboration peer.
         // Silently return stale children instead of crashing.
@@ -1124,7 +1132,15 @@ const FileTree = React.memo(function FileTree({
     if (!workspaceRoot) return;
     try {
       const items = await window.electronAPI.fs.readDirectory(workspaceRoot);
-      setRootNodes(items);
+      // Deduplicate by normalized path to prevent React duplicate key errors
+      const seen = new Set<string>();
+      const unique = items.filter((item) => {
+        const norm = item.path.replace(/\\/g, "/").toLowerCase();
+        if (seen.has(norm)) return false;
+        seen.add(norm);
+        return true;
+      });
+      setRootNodes(unique);
     } catch (err) {
       console.warn('loadRoot failed:', err);
       // Don't clear rootNodes — keep showing stale data so UI isn't blank
