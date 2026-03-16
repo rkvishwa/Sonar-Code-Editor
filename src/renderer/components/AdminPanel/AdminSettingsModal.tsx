@@ -384,55 +384,50 @@ export default function AdminSettingsModal({
             <div className="vscode-settings-section">
               <h2 className="vscode-settings-section-title">About</h2>
 
-              <div className="account-card" style={{ padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div className="about-card">
+                <div className="about-header">
                   <img
                     src={appIcon}
                     alt="Sonar Code Editor"
-                    style={{
-                      width: 72, height: 72,
-                      borderRadius: 16,
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-                      objectFit: 'cover'
-                    }}
+                    className="about-app-icon"
                   />
                   <div>
-                    <h3 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Sonar Code Editor</h3>
-                    <div style={{ color: 'var(--text-muted)', marginTop: 4, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <h3 className="about-title">Sonar Code Editor</h3>
+                    <div className="about-subtitle">
                       <span>Version 1.0.0-beta</span>
                     </div>
                   </div>
                 </div>
 
-                <div style={{ height: 1, background: 'var(--divider)' }}></div>
+                <div className="about-divider"></div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                <div className="about-content">
+                  <div className="about-description">
                     Sonar is a collaborative, real-time code editor built for educational institutions and development teams. It provides seamless coding experiences with integrated monitoring and activity logging.
                   </div>
 
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                    <a href="https://github.com/rkvishwa/Sonar-Code-Editor" target="_blank" rel="noopener noreferrer" className="activity-log-btn secondary" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px' }}>
-                      <Github size={14} />
+                  <div className="about-links">
+                    <a href="https://github.com/rkvishwa/Sonar-Code-Editor" target="_blank" rel="noopener noreferrer" className="about-link-btn">
+                      <Github size={16} />
                       GitHub Repository
                     </a>
-                    <a href="https://sonar.knurdz.org" target="_blank" rel="noopener noreferrer" className="activity-log-btn secondary" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px' }}>
-                      <Globe size={14} />
+                    <a href="https://sonar.knurdz.org" target="_blank" rel="noopener noreferrer" className="about-link-btn">
+                      <Globe size={16} />
                       Official Website
                     </a>
                   </div>
                 </div>
 
-                <div style={{ height: 1, background: 'var(--divider)', marginTop: '8px' }}></div>
+                <div className="about-divider spaced"></div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)' }}>
+                <div className="about-footer">
                   <div>
-                    Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>MIT License</a>.
+                    Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer" className="about-footer-link">MIT License</a>.
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div className="about-powered-by">
                     Powered by
-                    <a href="https://knurdz.org" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      Knurdz <ExternalLink size={12} />
+                    <a href="https://knurdz.org" target="_blank" rel="noopener noreferrer" className="about-footer-link" style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-primary)' }}>
+                      Knurdz <ExternalLink size={14} />
                     </a>
                   </div>
                 </div>
