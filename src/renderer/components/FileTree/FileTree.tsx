@@ -132,6 +132,7 @@ function InlineCreateInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const submittedRef = useRef(false);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedAtRef = useRef(Date.now());
   // Keep latest callbacks in refs so the debounced blur always calls the
   // current versions (parent re-renders may swap identities).
   const onSubmitRef = useRef(onSubmit);
@@ -199,13 +200,15 @@ function InlineCreateInput({
     const relatedTarget = e.relatedTarget as Element | null;
     const wentToMonaco = relatedTarget && !!relatedTarget.closest('.monaco-editor');
     const wentToBody = relatedTarget === document.body || !relatedTarget;
+    const isEarlyBlur = Date.now() - mountedAtRef.current < 150;
 
     if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
     blurTimeoutRef.current = setTimeout(() => {
       if (document.activeElement === inputRef.current) return;
       
-      if (!userClickedAway && (wentToMonaco || wentToBody)) {
-        // This was a programmatic focus steal (e.g., y-monaco merging edits).
+      if (!userClickedAway && (wentToMonaco || wentToBody || isEarlyBlur)) {
+        // This was a programmatic focus steal (e.g., y-monaco merging edits),
+        // or an early blur caused by rapid rendering/event firing.
         // Safely put focus back without aggressive capture loops that crash React.
         inputRef.current?.focus();
         return; 
@@ -427,7 +430,7 @@ function FileTreeNode({
       node.type === "directory"
         ? node.path.replace(/\\/g, "/")
         : node.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/");
-    onSetCreating({ type: "file", parentPath: dirPath });
+    setTimeout(() => onSetCreating({ type: "file", parentPath: dirPath }), 0);
   };
 
   const handleNewFolder = () => {
@@ -436,7 +439,7 @@ function FileTreeNode({
       node.type === "directory"
         ? node.path.replace(/\\/g, "/")
         : node.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/");
-    onSetCreating({ type: "folder", parentPath: dirPath });
+    setTimeout(() => onSetCreating({ type: "folder", parentPath: dirPath }), 0);
   };
 
   const handleInlineCreate = async (name: string) => {
@@ -1144,10 +1147,12 @@ const FileTree = React.memo(function FileTree({
             : selectedNode.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/")
         )
       : workspaceRoot.replace(/\\/g, "/");
-    setCreatingItem({
-      type: "file",
-      parentPath: pPath,
-    });
+    setTimeout(() => {
+      setCreatingItem({
+        type: "file",
+        parentPath: pPath,
+      });
+    }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newFileTrigger]);
 
@@ -1379,10 +1384,12 @@ const FileTree = React.memo(function FileTree({
                       : selectedNode.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/")
                   )
                 : normRoot;
-              setCreatingItem({
-                type: "file",
-                parentPath: pPath,
-              });
+              setTimeout(() => {
+                setCreatingItem({
+                  type: "file",
+                  parentPath: pPath,
+                });
+              }, 0);
             }}
           >
             <FilePlus2 size={18} />
@@ -1400,10 +1407,12 @@ const FileTree = React.memo(function FileTree({
                       : selectedNode.path.replace(/\\/g, "/").split("/").slice(0, -1).join("/")
                   )
                 : normRoot;
-              setCreatingItem({
-                type: "folder",
-                parentPath: pPath,
-              });
+              setTimeout(() => {
+                setCreatingItem({
+                  type: "folder",
+                  parentPath: pPath,
+                });
+              }, 0);
             }}
           >
             <FolderPlus size={18} />
@@ -1523,7 +1532,7 @@ const FileTree = React.memo(function FileTree({
             <div
               className="context-menu-item"
               onClick={() => {
-                setCreatingItem({ type: "file", parentPath: workspaceRoot });
+                setTimeout(() => setCreatingItem({ type: "file", parentPath: workspaceRoot }), 0);
                 setContextMenu(null);
               }}
             >
@@ -1532,7 +1541,7 @@ const FileTree = React.memo(function FileTree({
             <div
               className="context-menu-item"
               onClick={() => {
-                setCreatingItem({ type: "folder", parentPath: workspaceRoot });
+                setTimeout(() => setCreatingItem({ type: "folder", parentPath: workspaceRoot }), 0);
                 setContextMenu(null);
               }}
             >
