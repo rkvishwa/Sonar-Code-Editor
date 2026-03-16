@@ -114,6 +114,17 @@ export interface SearchResult {
   text: string;
 }
 
+export interface WorkspaceStats {
+  totalFiles: number;
+  totalFolders: number;
+  authors: {
+    [name: string]: {
+      count: number;
+      files: string[];
+    };
+  };
+}
+
 export interface ElectronAPI {
   fs: {
     readDirectory: (path: string) => Promise<FileNode[]>;
@@ -126,6 +137,7 @@ export interface ElectronAPI {
     renameItem: (oldPath: string, newPath: string) => Promise<string>;
     copyItem: (oldPath: string, newPath: string) => Promise<string>;
     search: (dirPath: string, query: string) => Promise<SearchResult[]>;
+    getWorkspaceStats: (dirPath: string) => Promise<WorkspaceStats>;
     openFolderDialog: () => Promise<{ path: string; isDirectory: boolean } | null>;
     cancelFolderDialog?: () => Promise<void>;
     openFileDialog: () => Promise<{ path: string; isDirectory: boolean; parentPath: string; name: string } | null>;

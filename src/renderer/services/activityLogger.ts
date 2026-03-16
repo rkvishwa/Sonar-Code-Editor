@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export interface ActivityEvent {
-  type: 'status_online' | 'status_offline' | 'app_focus' | 'app_blur' | 'clipboard_copy' | 'clipboard_paste_external';
+  type: 'status_online' | 'status_offline' | 'app_focus' | 'app_blur' | 'clipboard_copy' | 'clipboard_paste_external' | 'workspace_opened';
   timestamp: string;
   details?: string;
 }
@@ -55,6 +55,7 @@ function formatEventType(type: ActivityEvent['type'], details?: string): string 
     }
     case 'clipboard_copy': return 'Clipboard Copy';
     case 'clipboard_paste_external': return 'External Paste';
+    case 'workspace_opened': return 'Workspace Opened';
   }
 }
 
@@ -232,9 +233,21 @@ export function generateActivityLogPDF(teamName: string): void {
   let bursts = 0;
   for (let i = 1; i < copyTs.length; i++) { if (copyTs[i] - copyTs[i - 1] < 10000) bursts++; }
 
+  // Non-empty Workspaces
+  let nonEmptyWorkspaces = 0;
+  for (const e of sorted) {
+    if (e.type === 'workspace_opened' && e.details) {
+      try {
+        const stats = JSON.parse(e.details);
+        if (stats.totalFiles > 0 || stats.totalFolders > 0) nonEmptyWorkspaces++;
+      } catch {}
+    }
+  }
+
   // Risk scoring
   const flags: string[] = [];
   let risk = 0;
+  if (nonEmptyWorkspaces > 0) { risk += nonEmptyWorkspaces * 30; flags.push(`Opened ${nonEmptyWorkspaces} non-empty workspace(s)`); }
   if (suspSwitches > 0) { risk += Math.min(25, suspSwitches * 5); flags.push(`Opened browser/messenger/AI tool ${suspSwitches} time(s)`); }
   if (pctInIDE < 70) { risk += 20; flags.push(`Only ${pctInIDE.toFixed(0)}% of session in IDE`); }
   else if (pctInIDE < 85) { risk += 10; flags.push(`${pctInIDE.toFixed(0)}% of session in IDE (below 85%)`); }
@@ -431,7 +444,21 @@ export function generateActivityLogPDF(teamName: string): void {
     startY: y,
     head: [['Time', 'Event', 'Details']],
     body: sorted.map(e => {
-      const d = e.details || '—';
+      let d = e.details || '—';
+      if (e.type === 'workspace_opened' && e.details) {
+        try {
+          const stats = JSON.parse(e.details);
+          const f = stats.totalFiles || 0;
+          const a = stats.authors || {};
+          const users = Object.entries(a).filter(([_, data]: any) => data.count > 0).map(([name, data]: any) => `${name}: ${data.count}`).join(', ');
+          
+          let fileNames = '';
+          const allFiles = (a.user?.files || []).slice(0, 3).map((f: string) => f.split(/[/\\]/).pop());
+          if (allFiles.length > 0) fileNames = ` (e.g. ${allFiles.join(', ')})`;
+          
+          d = `Files: ${f}${users ? `, ${users}` : ''}. Folders: ${stats.totalFolders || 0}${fileNames}`;
+        } catch {}
+      }
       return [fmtTime(e.timestamp), formatEventType(e.type, e.details), d.length > 90 ? d.substring(0, 90) + '…' : d];
     }),
     theme: 'plain',

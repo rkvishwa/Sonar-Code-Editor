@@ -461,6 +461,56 @@ export async function getAllTeams(): Promise<Team[]> {
   }
 }
 
+export async function getGlobalBlockNonEmptyWorkspace(): Promise<boolean> {
+  try {
+    const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
+      Query.equal('settingType', 'blockNonEmptyWorkspace'),
+      Query.limit(1),
+    ]);
+    if (res.documents.length > 0) {
+      return res.documents[0].settingValue === 'true';
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export async function setGlobalBlockNonEmptyWorkspace(blocked: boolean): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
+      Query.equal('settingType', 'blockNonEmptyWorkspace'),
+      Query.limit(1),
+    ]);
+    if (res.documents.length > 0) {
+      await databases.updateDocument(DB_ID, COL_SETTINGS, res.documents[0].$id, {
+        settingValue: String(blocked),
+      });
+    } else {
+      await databases.createDocument(DB_ID, COL_SETTINGS, ID.unique(), {
+        settingType: 'blockNonEmptyWorkspace',
+        settingValue: String(blocked),
+      });
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to update restriction' };
+  }
+}
+
+export function subscribeGlobalBlockNonEmptyWorkspace(callback: (blocked: boolean) => void): () => void {
+  return client.subscribe(`databases.${DB_ID}.collections.${COL_SETTINGS}.documents`, (response: RealtimeResponseEvent<any>) => {
+    if (
+      response.events.includes(`databases.${DB_ID}.collections.${COL_SETTINGS}.documents.*.update`) ||
+      response.events.includes(`databases.${DB_ID}.collections.${COL_SETTINGS}.documents.*.create`)
+    ) {
+      if (response.payload.settingType === 'blockNonEmptyWorkspace') {
+        callback(response.payload.settingValue === 'true');
+      }
+    }
+  });
+}
+
 export async function getGlobalInternetRestriction(): Promise<boolean> {
   try {
     const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
