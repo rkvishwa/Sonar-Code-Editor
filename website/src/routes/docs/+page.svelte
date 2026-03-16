@@ -113,7 +113,10 @@
     content="Complete documentation for Sonar IDE — features, security model, and developer reference. Learn how to set up supervised exams and collaborative workspaces."
   />
   <meta property="og:title" content="Documentation | Sonar IDE" />
-  <meta property="og:description" content="Complete documentation for Sonar IDE — features, security model, and developer reference." />
+  <meta
+    property="og:description"
+    content="Complete documentation for Sonar IDE — features, security model, and developer reference."
+  />
   <meta property="og:image" content="/favicon.png" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -124,7 +127,7 @@
 >
   <!-- Sidebar Navigation -->
   <aside
-    class="w-full md:w-64 shrink-0 font-medium sticky top-22 self-start max-h-[calc(100vh-6.5rem)] overflow-y-auto"
+    class="hidden md:block w-full md:w-64 shrink-0 font-medium md:sticky top-22 self-start md:max-h-[calc(100vh-6.5rem)] md:overflow-y-auto"
   >
     <div class="space-y-6 pr-2">
       <div class="relative mb-6">
@@ -306,12 +309,22 @@
         </div>
       </div>
 
-      <div class="mt-4 p-5 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
-        <h4 class="font-semibold text-amber-900 dark:text-amber-200 mb-2 text-sm flex items-center gap-2">
+      <div
+        class="mt-4 p-5 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20"
+      >
+        <h4
+          class="font-semibold text-amber-900 dark:text-amber-200 mb-2 text-sm flex items-center gap-2"
+        >
           <Shield size={16} /> Admin-Controlled Editor Policies
         </h4>
         <p class="text-sm text-amber-800 dark:text-amber-300">
-          To maintain strict exam environments, advanced editor behaviors such as <strong>quick suggestions (autocomplete)</strong>, <strong>snippet completions</strong>, and <strong>auto-closing brackets/quotes</strong> can be dynamically enabled or disabled globally by an administrator in the admin dashboard settings. This prevents over-reliance on IntelliSense and enforces academic integrity when needed.
+          To maintain strict exam environments, advanced editor behaviors such
+          as <strong>quick suggestions (autocomplete)</strong>,
+          <strong>snippet completions</strong>, and
+          <strong>auto-closing brackets/quotes</strong> can be dynamically enabled
+          or disabled globally by an administrator in the admin dashboard settings.
+          This prevents over-reliance on IntelliSense and enforces academic integrity
+          when needed.
         </p>
       </div>
     </section>
@@ -375,31 +388,73 @@
       <h3 class="text-lg font-semibold mb-3 text-zinc-800 dark:text-zinc-200">
         Step-by-Step Guide
       </h3>
-      <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-lg text-sm border border-blue-200 dark:border-blue-800/30">
-        <strong>Important:</strong> Both the host and all clients <strong>must be connected to the same Wi-Fi or local network</strong> for the collaboration connection to work.
+      <div
+        class="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-lg text-sm border border-blue-200 dark:border-blue-800/30"
+      >
+        <strong>Important:</strong> Both the host and all clients
+        <strong>must be connected to the same Wi-Fi or local network</strong> for
+        the collaboration connection to work.
       </div>
       <div
         class="bg-zinc-50 dark:bg-white/2 rounded-xl border border-zinc-200 dark:border-white/5 p-5 text-sm text-zinc-600 dark:text-zinc-400 space-y-4 mb-6"
       >
         <div>
-          <h4 class="font-bold text-zinc-900 dark:text-white mb-2">For the Host (Sharing the Workspace)</h4>
+          <h4 class="font-bold text-zinc-900 dark:text-white mb-2">
+            For the Host (Sharing the Workspace)
+          </h4>
           <ol class="list-decimal pl-5 space-y-2">
-            <li><strong>Start Session:</strong> Click the "Collaboration" icon in the Activity Bar and click the <strong>"Start Host"</strong> button.</li>
-            <li><strong>Share Details:</strong> The system will generate a connection IP. Share this IP address with your team members on the same network.</li>
-            <li><strong>Wait for Clients:</strong> Wait for your team members to join your session.</li>
-            <li><strong>Open the Workspace:</strong> Once all clients have successfully connected, the host should then open the project folder in the IDE.</li>
-            <li><strong>Workspace Sync:</strong> The entire workspace structure and file contents will then be automatically synchronized to all connected clients.</li>
+            <li>
+              <strong>Start Session:</strong> Click the "Collaboration" icon in
+              the Activity Bar and click the <strong>"Start Host"</strong> button.
+            </li>
+            <li>
+              <strong>Share Details:</strong> The system will generate a connection
+              IP. Share this IP address with your team members on the same network.
+            </li>
+            <li>
+              <strong>Wait for Clients:</strong> Wait for your team members to join
+              your session.
+            </li>
+            <li>
+              <strong>Open the Workspace:</strong> Once all clients have successfully
+              connected, the host should then open the project folder in the IDE.
+            </li>
+            <li>
+              <strong>Workspace Sync:</strong> The entire workspace structure and
+              file contents will then be automatically synchronized to all connected
+              clients.
+            </li>
           </ol>
         </div>
         <hr class="border-zinc-200 dark:border-white/10" />
         <div>
-          <h4 class="font-bold text-zinc-900 dark:text-white mb-2">For the Client (Joining the Session)</h4>
+          <h4 class="font-bold text-zinc-900 dark:text-white mb-2">
+            For the Client (Joining the Session)
+          </h4>
           <ol class="list-decimal pl-5 space-y-2">
-            <li><strong>Do Not Open a Workspace:</strong> When the IDE launches, do not open any project folder.</li>
-            <li><strong>Join Session:</strong> Click the "Collaboration" icon and select the <strong>"Join Session"</strong> tab/button.</li>
-            <li><strong>Select Empty Location:</strong> You will be prompted to select an empty folder on your local machine where the host's files will be cloned.</li>
-            <li><strong>Enter Details:</strong> Enter the exact IP address generated by the Host (no port number is needed; the default 1234 port is automatically used).</li>
-            <li><strong>Team Validation & Sync:</strong> The system verifies your team ID. Once connected, wait for the host to open their workspace, which will automatically populate your file tree and allow live editing.</li>
+            <li>
+              <strong>Do Not Open a Workspace:</strong> When the IDE launches, do
+              not open any project folder.
+            </li>
+            <li>
+              <strong>Join Session:</strong> Click the "Collaboration" icon and
+              select the <strong>"Join Session"</strong> tab/button.
+            </li>
+            <li>
+              <strong>Select Empty Location:</strong> You will be prompted to select
+              an empty folder on your local machine where the host's files will be
+              cloned.
+            </li>
+            <li>
+              <strong>Enter Details:</strong> Enter the exact IP address generated
+              by the Host (no port number is needed; the default 1234 port is automatically
+              used).
+            </li>
+            <li>
+              <strong>Team Validation & Sync:</strong> The system verifies your team
+              ID. Once connected, wait for the host to open their workspace, which
+              will automatically populate your file tree and allow live editing.
+            </li>
           </ol>
         </div>
       </div>
@@ -616,7 +671,8 @@
           > file
         </li>
         <li>
-          Preview Tab & Sidebar Panel: view and interact with the local preview simultaneously.
+          Preview Tab & Sidebar Panel: view and interact with the local preview
+          simultaneously.
         </li>
         <li>Hot reload: refreshes preview on every file save (toggleable)</li>
         <li>
@@ -639,7 +695,10 @@
         Settings
       </h2>
       <p class="text-zinc-600 dark:text-zinc-400 mb-4">
-        The settings modal provides tabs for customizing the IDE experience. User settings persist to <code class="text-blue-700 dark:text-blue-300">localStorage</code>. Administrator actions sync globally in real-time.
+        The settings modal provides tabs for customizing the IDE experience.
+        User settings persist to <code class="text-blue-700 dark:text-blue-300"
+          >localStorage</code
+        >. Administrator actions sync globally in real-time.
       </p>
 
       <h3 class="text-lg font-semibold mb-3 text-zinc-800 dark:text-zinc-200">
@@ -662,7 +721,8 @@
         Admin Settings & Overrides
       </h3>
       <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-3">
-        Administrators have access to global management settings that bypass local student choices.
+        Administrators have access to global management settings that bypass
+        local student choices.
       </p>
       <div
         class="bg-zinc-50 dark:bg-white/[0.02] rounded-xl border border-zinc-200 dark:border-white/5 divide-y divide-zinc-100 dark:divide-white/5 text-sm overflow-hidden"
@@ -737,27 +797,35 @@
         Permissions
       </h2>
       <p class="text-zinc-600 dark:text-zinc-400 mb-6">
-        To function as a monitored evaluation environment, the application requires and utilizes the following native permissions:
+        To function as a monitored evaluation environment, the application
+        requires and utilizes the following native permissions:
       </p>
 
       <div class="space-y-4 text-sm text-zinc-600 dark:text-zinc-400">
-        <div class="p-4 rounded-xl bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5">
+        <div
+          class="p-4 rounded-xl bg-zinc-50 dark:bg-white/2 border border-zinc-200 dark:border-white/5"
+        >
           <h4 class="font-semibold text-zinc-900 dark:text-white mb-1">
             Local & Outbound Network Access
           </h4>
           <p>
-            Required for Appwrite authentication and real-time WebSocket collaboration (Yjs). 
-            Local network access is only required if you are actively collaborating.
+            Required for Appwrite authentication and real-time WebSocket
+            collaboration (Yjs). Local network access is only required if you
+            are actively collaborating.
           </p>
         </div>
-        <div class="p-4 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5">
+        <div
+          class="p-4 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5"
+        >
           <h4 class="font-semibold text-zinc-900 dark:text-white mb-1">
             Activity Monitoring
           </h4>
           <p>
-            The IDE automatically tracks window focus states (e.g., leaving the IDE during an exam), 
-            keyboard activity metrics, and internal application navigation. This data is logged and accessible 
-            to authorized Administrators via the Admin Panel or PDF reports. Without granting monitoring permissions, users cannot use the IDE.
+            The IDE automatically tracks window focus states (e.g., leaving the
+            IDE during an exam), keyboard activity metrics, and internal
+            application navigation. This data is logged and accessible to
+            authorized Administrators via the Admin Panel or PDF reports.
+            Without granting monitoring permissions, users cannot use the IDE.
           </p>
         </div>
       </div>
