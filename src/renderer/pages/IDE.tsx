@@ -173,6 +173,9 @@ function IDEContent() {
   // Refs for stable file-operation subscriber (avoids re-subscription on every render)
   const fileOpQueueRef = useRef<Promise<void>>(Promise.resolve());
   const workspaceRootRef = useRef<string | null>(null);
+  // Tracks old paths of files being moved — updated synchronously so auto-save
+  // can skip them even before React re-renders the component.
+  const recentlyMovedPaths = useRef<Set<string>>(new Set());
   // Keep the ref in sync with state
   useEffect(() => {
     workspaceRootRef.current = workspaceRoot;
@@ -185,11 +188,13 @@ function IDEContent() {
   const collabActiveRef = useRef(collaboration.isActive);
   const broadcastFileOpRef = useRef(collaboration.broadcastFileOp);
   const setFileContentRef = useRef(collaboration.setFileContent);
+  const renameFileRef = useRef(collaboration.renameFile);
   useEffect(() => {
     collabActiveRef.current = collaboration.isActive;
     broadcastFileOpRef.current = collaboration.broadcastFileOp;
     setFileContentRef.current = collaboration.setFileContent;
-  }, [collaboration.isActive, collaboration.broadcastFileOp, collaboration.setFileContent]);
+    renameFileRef.current = collaboration.renameFile;
+  }, [collaboration.isActive, collaboration.broadcastFileOp, collaboration.setFileContent, collaboration.renameFile]);
 
   useEffect(() => {
     // Add platform class to body for OS-specific styling
@@ -279,6 +284,16 @@ function IDEContent() {
     const timer = setTimeout(async () => {
       let savedAny = false;
       for (const tab of dirtyTabs) {
+        // Guard: skip paths that are currently being moved/renamed.
+        // This Set is updated synchronously when handleFileRenamed runs,
+        // so it's always up-to-date even before React re-renders.
+        const tabNorm = tab.path.replace(/\\/g, "/").toLowerCase();
+        if (recentlyMovedPaths.current.has(tabNorm)) continue;
+
+        // Also check if the tab path still exists in the latest tabs state.
+        const currentTabs = tabsRef.current;
+        if (!currentTabs.some((t) => t.path === tab.path)) continue;
+
         try {
           const contentToSave = collabActiveRef.current
             ? (collaboration.getFileContent(tab.path, workspaceRootRef.current ?? undefined) ?? tab.content)
@@ -323,7 +338,7 @@ function IDEContent() {
         if (workspaceRootRef.current) {
           relPath = toRelativePath(t.path, workspaceRootRef.current);
         }
-        return relPath.replace(/[^a-zA-Z0-9]/g, "_") === docName;
+        return relPath === docName;
       });
 
       if (matchingTab) {
@@ -678,9 +693,7 @@ function IDEContent() {
   // keeps FileTree (wrapped in React.memo) from re-rendering on every tab
   // change, preventing focus loss in inline-create inputs.
   const tabsRef = useRef(tabs);
-  useEffect(() => {
-    tabsRef.current = tabs;
-  }, [tabs]);
+  tabsRef.current = tabs;  // Sync update during render so auto-save guard always sees latest paths
 
   const openFile = useCallback(
     async (rawFilePath: string, fileName: string, isPreview: boolean = true) => {
@@ -871,6 +884,13 @@ function IDEContent() {
 
   const handleFileRenamed = useCallback(
     (oldPath: string, newPath: string) => {
+      // Immediately mark the old path as "moved" so auto-save skips it.
+      // This is synchronous and bypasses React's batched rendering.
+      const oldNorm = oldPath.replace(/\\/g, "/").toLowerCase();
+      recentlyMovedPaths.current.add(oldNorm);
+      // Clean up after 2 seconds (plenty of time for React to re-render)
+      setTimeout(() => recentlyMovedPaths.current.delete(oldNorm), 2000);
+
       setTabs((prev) => {
         let updated = false;
         const next = prev.map((t) => {
@@ -904,6 +924,9 @@ function IDEContent() {
       try {
         const wsRoot = workspaceRootRef.current;
         if (collabActiveRef.current && wsRoot) {
+          // Move the CRDT instance FIRST so local peers keep their history
+          renameFileRef.current(oldPath, newPath, wsRoot);
+          
           const relOld = toRelativePath(oldPath, wsRoot);
           const relNew = toRelativePath(newPath, wsRoot);
           broadcastFileOpRef.current({
@@ -1063,6 +1086,74 @@ function IDEContent() {
     [],
   );
 
+  // When a file/folder is copy-pasted, broadcast the new items to peers
+  const handleFileCopied = useCallback(
+    async (newPath: string, type: "file" | "directory") => {
+      try {
+        const wsRoot = workspaceRootRef.current;
+        if (!collabActiveRef.current || !wsRoot) return;
+
+        if (type === "file") {
+          let content = "";
+          try {
+            content = await window.electronAPI.fs.readFile(newPath);
+          } catch (readErr) {
+            console.warn(`Could not read copied file for broadcast: ${newPath}`, readErr);
+          }
+          const relativePath = toRelativePath(newPath, wsRoot);
+          setFileContentRef.current(newPath, content, wsRoot, true);
+          broadcastFileOpRef.current({
+            type: "create-file",
+            relativePath,
+            content,
+          });
+        } else {
+          // Directory: recursively scan and broadcast each item
+          const scanAndBroadcast = async (dirPath: string) => {
+            const relativeDirPath = toRelativePath(dirPath, wsRoot);
+            broadcastFileOpRef.current({
+              type: "create-folder",
+              relativePath: relativeDirPath,
+            });
+
+            let entries: any[] = [];
+            try {
+              entries = await window.electronAPI.fs.readDirectory(dirPath);
+            } catch {
+              return;
+            }
+
+            for (const entry of entries) {
+              const entryFullPath = `${dirPath}/${entry.name}`.replace(/\\/g, "/");
+              if (entry.type === "directory") {
+                await scanAndBroadcast(entryFullPath);
+              } else {
+                let content = "";
+                try {
+                  content = await window.electronAPI.fs.readFile(entryFullPath);
+                } catch {
+                  // skip unreadable files
+                }
+                const relPath = toRelativePath(entryFullPath, wsRoot);
+                setFileContentRef.current(entryFullPath, content, wsRoot, true);
+                broadcastFileOpRef.current({
+                  type: "create-file",
+                  relativePath: relPath,
+                  content,
+                });
+              }
+            }
+          };
+
+          await scanAndBroadcast(newPath);
+        }
+      } catch (err) {
+        console.error("broadcastFileOp copy failed:", err);
+      }
+    },
+    [],
+  );
+
   // Subscribe to file operations from collaboration peers.
   // Uses a STABLE subscription (deps: isActive + onFileOperation) to avoid
   // constant unsubscribe/resubscribe on every render, which could create
@@ -1147,6 +1238,12 @@ function IDEContent() {
               } catch {
                 // File may already be gone (e.g. after a failed rename); treat as success
               }
+              // Mark the deleted path so auto-save doesn't recreate it
+              {
+                const delNorm = fullPath.replace(/\\/g, "/").toLowerCase();
+                recentlyMovedPaths.current.add(delNorm);
+                setTimeout(() => recentlyMovedPaths.current.delete(delNorm), 2000);
+              }
               // Update tabs locally WITHOUT calling handleFileDeleted (which would
               // re-broadcast the op and create an infinite echo loop)
               setTabs((prev) => {
@@ -1182,6 +1279,18 @@ function IDEContent() {
             case "rename": {
               const newRelPath = sanitizeRelPath(op.newRelativePath || "");
               const newFullPath = `${normRoot}/${newRelPath}`;
+              // Mark the old path so auto-save doesn't recreate it on this peer
+              {
+                const oldNorm = fullPath.replace(/\\/g, "/").toLowerCase();
+                recentlyMovedPaths.current.add(oldNorm);
+                setTimeout(() => recentlyMovedPaths.current.delete(oldNorm), 2000);
+              }
+              
+              // Move the CRDT document to the new path before renaming on disk
+              if (wsRoot) {
+                renameFileRef.current(fullPath, newFullPath, wsRoot);
+              }
+
               try {
                 await window.electronAPI.fs.renameItem(fullPath, newFullPath);
               } catch (renameErr) {
@@ -1399,6 +1508,8 @@ function IDEContent() {
                   onFileRenamed={handleFileRenamed}
                   onFileCreated={handleFileCreated}
                   onFolderCreated={handleFolderCreated}
+                  onFileCopied={handleFileCopied}
+                  onFileMoved={() => setFileTreeRefreshKey((k) => k + 1)}
                   refreshTrigger={fileTreeRefreshKey}
                 />
               </Panel>

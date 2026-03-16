@@ -109,6 +109,7 @@ interface CollaborationContextValue {
   getCurrentEditorContent: () => string | null;
   getFileContent: (filePath: string, workspaceRoot?: string) => string | null;
   setFileContent: (filePath: string, content: string, workspaceRoot?: string, forcePurge?: boolean) => void;
+  renameFile: (oldPath: string, newPath: string, workspaceRoot?: string) => void;
   ydoc: Y.Doc | null;
   provider: WebsocketProvider | null;
   // Shared file methods
@@ -714,7 +715,7 @@ export function CollaborationProvider({
           relativePath = toRelativePath(filePath, workspaceRoot);
         }
 
-        const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
+        const docName = relativePath;
         console.log(`Collaboration docName: ${docName} (from ${relativePath})`);
 
         const fileSystem = ydocRef.current.getMap<Y.Text>("file_system");
@@ -847,7 +848,7 @@ export function CollaborationProvider({
       if (workspaceRoot) {
         relativePath = toRelativePath(filePath, workspaceRoot);
       }
-      const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
+      const docName = relativePath;
 
       const fileSystem = ydocRef.current.getMap<Y.Text>("file_system");
       const ytext = fileSystem.get(docName);
@@ -871,7 +872,7 @@ export function CollaborationProvider({
       if (workspaceRoot) {
         relativePath = toRelativePath(filePath, workspaceRoot);
       }
-      const docName = relativePath.replace(/[^a-zA-Z0-9]/g, "_");
+      const docName = relativePath;
 
       const fileSystem = ydocRef.current.getMap<Y.Text>("file_system");
       let ytext = fileSystem.get(docName);
@@ -907,6 +908,55 @@ export function CollaborationProvider({
       }
     },
     [],
+  );
+
+  // Move a file's CRDT document to a new path to prevent collaboration break on drag/drop or cut/paste.
+  // We can't actually move the key in a Y.Map, so we copy the content into a new Y.Text and remove the old key.
+  const renameFile = useCallback(
+    (oldPath: string, newPath: string, workspaceRoot?: string) => {
+      if (!ydocRef.current) return;
+
+      let oldRel = oldPath;
+      let newRel = newPath;
+      if (workspaceRoot) {
+        oldRel = toRelativePath(oldPath, workspaceRoot);
+        newRel = toRelativePath(newPath, workspaceRoot);
+      }
+
+      if (oldRel === newRel) return;
+
+      const fileSystem = ydocRef.current.getMap<Y.Text>("file_system");
+      
+      // We must migrate not only the exact file/folder 'oldRel', but also ANY nested files
+      // if 'oldRel' was a directory (e.g., 'src' -> 'src2' must also rename 'src/main.ts' -> 'src2/main.ts').
+      ydocRef.current.transact(() => {
+        // Collect all keys to migrate first to avoid mutating during iteration
+        const keysToMigrate = new Map<string, string>();
+        
+        for (const existingKey of fileSystem.keys()) {
+          if (existingKey === oldRel) {
+            keysToMigrate.set(existingKey, newRel);
+          } else if (existingKey.startsWith(`${oldRel}/`)) {
+            const nestedPath = existingKey.substring(oldRel.length);
+            const newNestedKey = `${newRel}${nestedPath}`;
+            keysToMigrate.set(existingKey, newNestedKey);
+          }
+        }
+        
+        for (const [oldKey, newKey] of keysToMigrate.entries()) {
+          const oldYText = fileSystem.get(oldKey);
+          if (oldYText) {
+            const content = oldYText.toString();
+            const freshText = new Y.Text();
+            freshText.insert(0, content);
+            fileSystem.set(newKey, freshText);
+            fileSystem.delete(oldKey);
+            console.log(`Migrated CRDT from ${oldKey} to ${newKey}`);
+          }
+        }
+      });
+    },
+    []
   );
 
   // Share a file with all connected users
@@ -1123,6 +1173,7 @@ export function CollaborationProvider({
       getCurrentEditorContent,
       getFileContent,
       setFileContent,
+      renameFile,
       ydoc: ydocRef.current,
       provider: providerRef.current,
       // Shared file methods
@@ -1161,6 +1212,8 @@ export function CollaborationProvider({
       unbindEditor,
       getCurrentEditorContent,
       getFileContent,
+      setFileContent,
+      renameFile,
       shareFile,
       getSharedFiles,
       setActiveSharedFile,
