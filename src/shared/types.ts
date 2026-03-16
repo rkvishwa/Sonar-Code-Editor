@@ -127,6 +127,7 @@ export interface ElectronAPI {
     copyItem: (oldPath: string, newPath: string) => Promise<string>;
     search: (dirPath: string, query: string) => Promise<SearchResult[]>;
     openFolderDialog: () => Promise<{ path: string; isDirectory: boolean } | null>;
+    cancelFolderDialog?: () => Promise<void>;
     openFileDialog: () => Promise<{ path: string; isDirectory: boolean; parentPath: string; name: string } | null>;
   };
   server: {
