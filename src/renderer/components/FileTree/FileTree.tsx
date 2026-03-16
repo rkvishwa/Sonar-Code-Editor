@@ -1202,10 +1202,6 @@ const FileTree = React.memo(function FileTree({
   useEffect(() => {
     if (typeof refreshTrigger === 'number' && refreshTrigger > 0) {
       loadRoot();
-      // Only clear creatingItem if the user is NOT in the middle of naming a new file/folder.
-      // During collaboration, refreshTrigger fires on every remote file-op (e.g. peer saves
-      // a file, triggers onFileMoved → fileTreeRefreshKey++) which previously wiped the
-      // inline input before it could even be painted, making "New File" silently fail.
       setCreatingItem((current) => (current ? current : null));
     }
   }, [refreshTrigger, loadRoot]);
