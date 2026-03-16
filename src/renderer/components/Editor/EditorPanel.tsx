@@ -567,31 +567,12 @@ const EditorPanel = React.memo(function EditorPanel({
   if (tabs.length === 0) {
     return (
       <div className="editor-panel empty">
-        <div className="welcome-screen">
-          <div className="welcome-hero">
-            <div className="welcome-logo-container">
-              <svg width="0" height="0" style={{ position: 'absolute' }}>
-                <defs>
-                  <linearGradient id="logoGradient2" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="30%" stopColor="var(--text-primary)" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="var(--bg-primary)" stopOpacity="0" />
-                  </linearGradient>
-                  
-                  <linearGradient id="shineGradient2" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0" stopColor="var(--text-primary)" stopOpacity="0" />
-                    <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.8" />
-                    <stop offset="1" stopColor="var(--text-primary)" stopOpacity="0" />
-                    <animate attributeName="x1" values="-1.5; 1.5; 1.5" dur="5s" keyTimes="0; 0.3; 1" repeatCount="indefinite" />
-                    <animate attributeName="x2" values="-0.5; 2.5; 2.5" dur="5s" keyTimes="0; 0.3; 1" repeatCount="indefinite" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div style={{ position: 'relative' }}>
-                <FileCode2 size={160} className="welcome-logo" color="url(#logoGradient2)" />
-                <FileCode2 size={160} className="welcome-logo" color="url(#shineGradient2)" style={{ position: 'absolute', top: 0, left: 0 }} />
-              </div>
+        <div className="welcome-screen folder-opened">
+          <div className="folder-welcome-hero" style={{ marginTop: '-40px' }}>
+            <div className="folder-welcome-icon">
+              <FileCode2 size={64} className="folder-icon" />
             </div>
-            <h1 className="welcome-title">Folder Opened</h1>
+            <h1 className="folder-welcome-title">Folder Opened</h1>
             <p className="welcome-subtitle">
               Select a file from the explorer to begin
             </p>
