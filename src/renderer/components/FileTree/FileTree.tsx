@@ -266,8 +266,8 @@ interface FileTreeNodeProps {
   onSetCreating: (item: CreatingItem | null) => void;
   selectedNode: { path: string; type: "file" | "directory" } | null;
   onSelectNode: (node: { path: string; type: "file" | "directory" } | null) => void;
-  onFileOpened: (path: string, name: string, isPreview?: boolean) => void;
-  onFileDeleted: (path: string, type: "file" | "directory", skipBroadcast?: boolean) => void;
+  onFileOpened?: (path: string, name: string, isPreview?: boolean) => void;
+  onFileDeleted?: (path: string, type: "file" | "directory", skipBroadcast?: boolean) => void;
   onFileRenamed?: (oldPath: string, newPath: string) => void;
   onFileCreated?: (path: string, name: string, savedContent?: string, isUndo?: boolean) => void;
   onFolderCreated?: (path: string) => void;
@@ -430,7 +430,7 @@ function FileTreeNode({
         await window.electronAPI.fs.createFile(fullPath);
         await loadChildren();
         onFileCreated?.(fullPath, name);
-        onFileOpened(fullPath, name, false);
+        onFileOpened?.(fullPath, name, false);
       } else {
         await window.electronAPI.fs.createFolder(fullPath);
         await loadChildren();
@@ -485,7 +485,7 @@ function FileTreeNode({
         }
       });
       
-      onFileDeleted(node.path, node.type);
+      onFileDeleted?.(node.path, node.type);
       onRefresh();
     } catch (err) {
       console.error("Failed to delete item:", err);
@@ -1061,7 +1061,7 @@ interface FileTreeProps {
   onAutoSaveChange: (autoSave: boolean) => void;
   onFileOpened?: (path: string, name: string, isPreview?: boolean) => void;
   newFileTrigger?: number;
-  onFileDeleted?: (path: string, type: "file" | "directory") => void;
+  onFileDeleted?: (path: string, type: "file" | "directory", skipBroadcast?: boolean) => void;
   onFileRenamed?: (oldPath: string, newPath: string) => void;
   onFileCreated?: (path: string, name: string, savedContent?: string, isUndo?: boolean) => void;
   onFolderCreated?: (path: string) => void;
@@ -1189,7 +1189,8 @@ const FileTree = React.memo(function FileTree({
       if (fileClipboard.action === "cut") {
         // Close the file in the editor BEFORE moving to avoid errors if the
         // destination already exists and gets its content overwritten or merged
-        onFileDeleted?.(fileClipboard.path, fileClipboard.type);
+        // Pass skipBroadcast=true so this local-only tab close doesn't delete the file for other peers!
+        onFileDeleted?.(fileClipboard.path, fileClipboard.type, true);
 
         // Perform disk rename FIRST, then update tabs on success
         let finalPath = newPath;
@@ -1247,7 +1248,8 @@ const FileTree = React.memo(function FileTree({
 
       // Close the file in the editor BEFORE moving to avoid errors if the
       // destination already exists and gets its content overwritten or merged
-      onFileDeleted?.(source.path, source.type);
+      // Pass skipBroadcast=true so this local-only tab close doesn't delete the file for other peers!
+      onFileDeleted?.(source.path, source.type, true);
 
       // Perform disk rename FIRST to avoid CRDT merge issues on collision
       let finalPath: string;
