@@ -511,14 +511,14 @@ function FileTreeNode({
 
     try {
       if (fileClipboard.action === "cut") {
-        onFileRenamed?.(fileClipboard.path, newPath);
+        // Perform disk rename FIRST, then update tabs on success
         try {
           await window.electronAPI.fs.renameItem(fileClipboard.path, newPath);
         } catch (err) {
           console.error("Paste failed on disk:", err);
-          onFileRenamed?.(newPath, fileClipboard.path); // rollback
           return;
         }
+        onFileRenamed?.(fileClipboard.path, newPath);
         fileClipboard = null;
         window.dispatchEvent(new CustomEvent("clipboard-updated"));
         onFileMoved?.();
@@ -1148,14 +1148,14 @@ const FileTree = React.memo(function FileTree({
 
     try {
       if (fileClipboard.action === "cut") {
-        onFileRenamed?.(fileClipboard.path, newPath);
+        // Perform disk rename FIRST, then update tabs on success
         try {
           await window.electronAPI.fs.renameItem(fileClipboard.path, newPath);
         } catch (err) {
           console.error("Paste failed at root:", err);
-          onFileRenamed?.(newPath, fileClipboard.path); // rollback
           return;
         }
+        onFileRenamed?.(fileClipboard.path, newPath);
         fileClipboard = null;
         window.dispatchEvent(new CustomEvent("clipboard-updated"));
         onFileMoved?.();

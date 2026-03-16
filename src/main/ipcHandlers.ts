@@ -314,6 +314,11 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
         await fsp.mkdir(targetDir, { recursive: true });
       }
 
+      // Prevent silent overwrite: reject if destination already exists
+      if (fs.existsSync(destPath)) {
+        throw new Error(`A file or folder already exists at the destination: ${destBase}`);
+      }
+
       await fsp.cp(srcPath, destPath, { recursive: true });
     } catch (err) {
       throw new Error(`Failed to copy item: ${(err as Error).message}`);
