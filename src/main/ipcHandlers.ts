@@ -275,20 +275,31 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
       const isCaseOnlyRename =
         oldBase !== newBase && oldBase.toLowerCase() === newBase.toLowerCase();
 
-      // Prevent silent overwrite: if a different file already exists at the
-      // destination, reject the rename so the UI can inform the user.
+      // Auto-rename on collision: if a different file already exists at the
+      // destination, generate a unique name (e.g. "file copy.txt",
+      // "file copy 2.txt") instead of overwriting or throwing.
       // Case-only renames are exempt (same file, different casing).
+      let finalNewPath = newPath;
       if (!isCaseOnlyRename && normPath(oldPath) !== normPath(newPath) && fs.existsSync(newPath)) {
-        throw new Error(`A file or folder already exists at the destination: ${newBase}`);
+        const ext = path.extname(newPath);
+        const base = path.basename(newPath, ext);
+        const targetDir = path.dirname(newPath);
+        let counter = 1;
+        while (fs.existsSync(finalNewPath)) {
+          finalNewPath = path.join(targetDir, `${base} copy${counter > 1 ? ` ${counter}` : ''}${ext}`);
+          counter++;
+        }
       }
 
       if (isCaseOnlyRename) {
         const tmpPath = oldPath + '.__rename_tmp__';
         await fsp.rename(oldPath, tmpPath);
-        await fsp.rename(tmpPath, newPath);
+        await fsp.rename(tmpPath, finalNewPath);
       } else {
-        await fsp.rename(oldPath, newPath);
+        await fsp.rename(oldPath, finalNewPath);
       }
+
+      return finalNewPath;
     } catch (err) {
       // ENOENT during rename is treated as non-fatal (collab race condition)
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
