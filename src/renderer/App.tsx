@@ -6,6 +6,8 @@ import IDE from './pages/IDE';
 import AdminDashboard from './pages/AdminDashboard';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 
+import { ShieldAlert, WifiOff, RefreshCw, Settings, AlertTriangle } from 'lucide-react';
+
 // ── Permission gate ──────────────────────────────────────────────────────────
 // On macOS the app needs Automation/System Events access to track app switching.
 // If the user denied it, show a full-screen block — the app cannot be used.
@@ -50,55 +52,71 @@ function PermissionRequired({ onRecheck }: { onRecheck: () => Promise<void> }) {
         alignItems: 'center',
         justifyContent: 'center',
         height: '100vh',
-        background: '#1e1e1e',
-        color: '#d4d4d4',
+        background: 'linear-gradient(135deg, #121212 0%, #1e1e1e 100%)',
+        color: '#e0e0e0',
         fontFamily: 'system-ui, -apple-system, sans-serif',
         padding: '40px',
         textAlign: 'center',
-        gap: '16px',
       }}
     >
-      <div style={{ fontSize: '48px', marginBottom: '8px' }}>🔒</div>
-      <h2 style={{ color: '#f14c4c', margin: 0, fontSize: '22px' }}>
+      <div style={{
+        background: 'rgba(241, 76, 76, 0.1)',
+        padding: '24px',
+        borderRadius: '50%',
+        marginBottom: '24px',
+        border: '1px solid rgba(241, 76, 76, 0.2)'
+      }}>
+        <ShieldAlert size={64} color="#f14c4c" />
+      </div>
+
+      <h2 style={{ color: '#ffffff', margin: '0 0 16px', fontSize: '28px', fontWeight: '600' }}>
         Permission Required
       </h2>
-      <p style={{ maxWidth: '480px', lineHeight: '1.6', margin: 0, color: '#a0a0a0' }}>
-        Sonar Code Editor requires <strong style={{ color: '#d4d4d4' }}>Automation</strong> permission
-        to monitor app switching during exams. Without this permission the application cannot
-        be used.
+
+      <p style={{ maxWidth: '480px', lineHeight: '1.6', margin: '0 0 32px', color: '#9e9e9e', fontSize: '15px' }}>
+        Sonar Code Editor requires <strong style={{ color: '#fff' }}>Automation</strong> permission
+        to securely monitor app switching during exams. Without this access, the application must remain locked.
       </p>
-      <div
-        style={{
-          background: '#2d2d2d',
-          border: '1px solid #3e3e3e',
-          borderRadius: '8px',
-          padding: '16px 24px',
-          maxWidth: '420px',
+
+      <div style={{
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '12px',
+          padding: '24px',
+          maxWidth: '480px',
+          width: '100%',
           textAlign: 'left',
-          fontSize: '13px',
-          lineHeight: '1.8',
-          color: '#c0c0c0',
-        }}
-      >
-        <strong style={{ color: '#d4d4d4' }}>How to grant permission:</strong>
-        <ol style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+          boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <Settings size={20} color="#60a5fa" />
+          <strong style={{ color: '#e0e0e0', fontSize: '15px' }}>How to grant permission:</strong>
+        </div>
+        <ol style={{ margin: 0, paddingLeft: '24px', color: '#a0a0a0', lineHeight: '2' }}>
           <li>Open System Settings</li>
-          <li>Go to <em>Privacy &amp; Security → Automation</em></li>
-          <li>Enable <strong>System Events</strong> for <strong>Sonar Code Editor</strong></li>
-          <li>Return to Sonar Code Editor — it will continue automatically</li>
+          <li>Go to <span style={{ color: '#ccc' }}>Privacy &amp; Security → Automation</span></li>
+          <li>Enable <strong style={{ color: '#fff' }}>System Events</strong> for <strong style={{ color: '#fff' }}>Sonar Code Editor</strong></li>
+          <li>Return to this window to continue automatically</li>
         </ol>
       </div>
-      <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+
+      <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
         <button
           onClick={openSettings}
           style={{
-            padding: '10px 20px',
-            background: '#0e639c',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '12px 24px',
+            background: '#2563eb',
             color: '#fff',
             border: 'none',
-            borderRadius: '6px',
+            borderRadius: '8px',
             cursor: 'pointer',
-            fontSize: '14px',
+            fontSize: '15px',
+            fontWeight: '500',
+            transition: 'background 0.2s',
           }}
         >
           Open System Settings
@@ -107,28 +125,56 @@ function PermissionRequired({ onRecheck }: { onRecheck: () => Promise<void> }) {
           onClick={recheck}
           disabled={checking}
           style={{
-            padding: '10px 20px',
-            background: checking ? '#2a2a2a' : '#3e3e3e',
-            color: checking ? '#666' : '#d4d4d4',
-            border: '1px solid #555',
-            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '12px 24px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            color: checking ? '#666' : '#e0e0e0',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
             cursor: checking ? 'not-allowed' : 'pointer',
-            fontSize: '14px',
+            fontSize: '15px',
+            fontWeight: '500',
+            transition: 'all 0.2s',
           }}
         >
-          {checking ? 'Checking…' : 'Recheck Permission'}
+          <RefreshCw size={18} className={checking ? 'spin' : ''} />
+          {checking ? 'Verifying…' : 'I\'ve enabled it'}
         </button>
       </div>
-      {checking && (
-        <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>
-          Verifying permission…
-        </p>
-      )}
+      <style>
+        {`
+          @keyframes spin-anim {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          .spin {
+            animation: spin-anim 1s linear infinite;
+          }
+        `}
+      </style>
     </div>
   );
 }
 
 function InternetRestrictedBlock() {
+  const [checking, setChecking] = useState(false);
+
+  const checkManually = async () => {
+    setChecking(true);
+    try {
+      if (window.electronAPI?.network) {
+        await window.electronAPI.network.getStatus();
+      }
+      // Wait a moment for visual feedback and native hook synchronization
+      await new Promise(r => setTimeout(r, 1000));
+    } finally {
+      setChecking(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -137,23 +183,86 @@ function InternetRestrictedBlock() {
         alignItems: 'center',
         justifyContent: 'center',
         height: '100vh',
-        background: '#1e1e1e',
-        color: '#d4d4d4',
+        background: 'linear-gradient(135deg, #121212 0%, #1e1e1e 100%)',
+        color: '#e0e0e0',
         fontFamily: 'system-ui, -apple-system, sans-serif',
         padding: '40px',
         textAlign: 'center',
-        gap: '16px',
       }}
     >
-      <div style={{ fontSize: '48px', marginBottom: '8px' }}>🌐</div>
-      <h2 style={{ color: '#f14c4c', margin: 0, fontSize: '22px' }}>
+      <div style={{
+        background: 'rgba(234, 179, 8, 0.1)',
+        padding: '24px',
+        borderRadius: '50%',
+        marginBottom: '24px',
+        border: '1px solid rgba(234, 179, 8, 0.2)'
+      }}>
+        <WifiOff size={64} color="#eab308" />
+      </div>
+
+      <h2 style={{ color: '#ffffff', margin: '0 0 16px', fontSize: '28px', fontWeight: '600' }}>
         Internet Access Restricted
       </h2>
-      <p style={{ maxWidth: '480px', lineHeight: '1.6', margin: 0, color: '#a0a0a0' }}>
-        Your admin has restricted IDE usage while connected to the internet.
-        <br/><br/>
-        Please disconnect from the internet or disable your network adapter to continue using Sonar Code Editor.
+
+      <p style={{ maxWidth: '440px', lineHeight: '1.6', margin: '0 0 32px', color: '#9e9e9e', fontSize: '15px' }}>
+        The exam administrator has mandated an <strong style={{ color: '#fff' }}>offline-only</strong> environment. 
+        Please disconnect from Wi-Fi or Ethernet to proceed with your session.
       </p>
+
+      <div style={{
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '12px',
+          padding: '20px',
+          maxWidth: '440px',
+          width: '100%',
+          textAlign: 'center',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
+          <AlertTriangle size={18} color="#eab308" />
+          <strong style={{ color: '#e0e0e0', fontSize: '14px' }}>Network Connection Detected</strong>
+        </div>
+        <p style={{ margin: 0, color: '#a0a0a0', fontSize: '13px' }}>
+          Disable your network adapters or turn off Wi-Fi, then click retry manually.
+        </p>
+      </div>
+
+      <button
+        onClick={checkManually}
+        disabled={checking}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginTop: '32px',
+          padding: '12px 32px',
+          background: '#eab308',
+          color: '#1a1a1a',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: checking ? 'not-allowed' : 'pointer',
+          fontSize: '15px',
+          fontWeight: '600',
+          transition: 'all 0.2s',
+          opacity: checking ? 0.7 : 1,
+        }}
+      >
+        <RefreshCw size={18} className={checking ? 'spin' : ''} />
+        {checking ? 'Checking Connection...' : 'Retry Connection'}
+      </button>
+
+      <style>
+        {`
+          @keyframes spin-anim {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          .spin {
+            animation: spin-anim 1s linear infinite;
+          }
+        `}
+      </style>
     </div>
   );
 }
@@ -161,8 +270,20 @@ function InternetRestrictedBlock() {
 function AppRoutes() {
   const { user, loading, internetBlocked } = useAuth();
   const isOnline = useNetworkStatus();
+  const [attestation, setAttestation] = useState<string | null>(null);
 
-  if (loading) {
+  useEffect(() => {
+    (async () => {
+      if (window.electronAPI?.security) {
+        const token = await window.electronAPI.security.getAttestationToken();
+        setAttestation(token);
+      } else {
+        setAttestation('DEV_MODE');
+      }
+    })();
+  }, []);
+
+  if (loading || attestation === null) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#1e1e1e', color: '#d4d4d4' }}>
         <div>Loading...</div>
@@ -170,23 +291,31 @@ function AppRoutes() {
     );
   }
 
-  if (!user) return <Login />;
-  if (user.role === 'admin') return (
-    <Routes>
-      <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="*" element={<Navigate to="/admin" />} />
-    </Routes>
-  );
-
-  if (internetBlocked && isOnline) {
-    return <InternetRestrictedBlock />;
-  }
+  const showDevBanner = attestation === 'DEV_MODE';
 
   return (
-    <Routes>
-      <Route path="/ide" element={<IDE />} />
-      <Route path="*" element={<Navigate to="/ide" />} />
-    </Routes>
+    <>
+      {showDevBanner && (
+        <div style={{ background: '#d32f2f', color: '#fff', textAlign: 'center', padding: '4px', fontSize: '12px', fontWeight: 'bold', zIndex: 9999, position: 'relative' }}>
+          ⚠️ UNOFFICIAL BUILD — DEV MODE ⚠️
+        </div>
+      )}
+      {!user ? (
+        <Login />
+      ) : user.role === 'admin' ? (
+        <Routes>
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="*" element={<Navigate to="/admin" />} />
+        </Routes>
+      ) : internetBlocked && isOnline ? (
+        <InternetRestrictedBlock />
+      ) : (
+        <Routes>
+          <Route path="/ide" element={<IDE />} />
+          <Route path="*" element={<Navigate to="/ide" />} />
+        </Routes>
+      )}
+    </>
   );
 }
 

@@ -18,6 +18,12 @@ export const IPC_CHANNELS = {
   MONITORING_START: 'monitoring:start',
   MONITORING_STOP: 'monitoring:stop',
   MONITORING_HEARTBEAT: 'monitoring:heartbeat',
+  // Security
+  SECURITY_HEARTBEAT_PING: 'security:heartbeat-ping',
+  SECURITY_NONCE_REQUEST: 'security:nonce-request',
+  SECURITY_NONCE_RESPONSE: 'security:nonce-response',
+  SECURITY_GET_LOG: 'security:get-log',
+  SECURITY_GET_ATTESTATION: 'security:get-attestation',
   // Network
   NETWORK_STATUS: 'network:status',
   // Static Server

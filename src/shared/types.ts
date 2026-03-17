@@ -170,6 +170,12 @@ export interface ElectronAPI {
     checkPermission: () => Promise<boolean>;
     openPrivacyPrefs: () => Promise<void>;
   };
+  security?: {
+    requestNonce: () => Promise<string>;
+    sendHeartbeat: (nonce: string) => void;
+    getSecurityLog: () => Promise<any[]>;
+    getAttestationToken: () => Promise<string>;
+  };
   clipboard: {
     readText: () => Promise<string>;
   };

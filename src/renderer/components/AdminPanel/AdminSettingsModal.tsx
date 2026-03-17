@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Search, ArrowLeft, X, Users, LogOut, Settings, Key, CheckCircle2, Eye, EyeOff, Trash2, Github, Globe, ExternalLink, Code2, User, Activity, Shield, Palette, Info } from 'lucide-react';
 import { updateTeamName, updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction, getGlobalBlockNonEmptyWorkspace, setGlobalBlockNonEmptyWorkspace, subscribeGlobalBlockNonEmptyWorkspace } from '../../services/appwrite';
 import appIcon from '../../assets/icon.png';
-import { cacheCredentials } from '../../services/localStore';
 import { Team } from '../../../shared/types';
 import '../Settings/SettingsModal.css';
 
@@ -184,7 +183,6 @@ export default function AdminSettingsModal({
     setSavingPassword(true);
     const result = await updateTeamPassword(user.$id, oldPassword, newPassword);
     if (result.success) {
-      cacheCredentials(user.teamName, newPassword, user.$id, user.role);
       setPasswordSuccess('Password updated successfully');
       setOldPassword('');
       setNewPassword('');

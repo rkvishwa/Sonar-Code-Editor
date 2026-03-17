@@ -64,7 +64,7 @@ function formatTimestamp(iso: string): string {
   return d.toLocaleString();
 }
 
-export function generateActivityLogPDF(teamName: string): void {
+export function generateActivityLogPDF(teamName: string, attestationStatus?: string): void {
   const log = getActivityLog();
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
@@ -161,7 +161,7 @@ export function generateActivityLogPDF(teamName: string): void {
     doc.setFontSize(12);
     doc.setTextColor(...C.midGray);
     doc.text('No activity events were recorded during this session.', margin, y);
-    addPdfFooters(doc, C);
+    addPdfFooters(doc, C, attestationStatus);
     doc.save(fileName);
     return;
   }
@@ -570,16 +570,34 @@ export function generateActivityLogPDF(teamName: string): void {
     margin: { left: margin, right: margin },
   });
 
-  addPdfFooters(doc, C);
+  addPdfFooters(doc, C, attestationStatus);
   doc.save(fileName);
 }
 
-function addPdfFooters(doc: jsPDF, C: { lightGray: [number, number, number]; midGray: [number, number, number] }): void {
+function addPdfFooters(doc: jsPDF, C: { lightGray: [number, number, number]; midGray: [number, number, number] }, attestationStatus?: string): void {
   const pageCount = doc.getNumberOfPages();
   const pageH = doc.internal.pageSize.getHeight();
   const pageW = doc.internal.pageSize.getWidth();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    
+    // Add unofficial build watermark background
+    if (attestationStatus && attestationStatus !== 'VALID') {
+      doc.setTextColor(255, 230, 230); // Very light red
+      doc.setFontSize(60);
+      doc.setFont('helvetica', 'bold');
+      
+      // Save state
+      doc.saveGraphicsState();
+      const text = 'UNOFFICIAL BUILD';
+      
+      // We have an issue rotating, let's just make it plain large text horizontally in the middle of page
+      doc.text(text, pageW / 2, pageH / 2, { align: 'center', angle: 45 });
+      
+      // Restore state
+      doc.restoreGraphicsState();
+    }
+    
     doc.setDrawColor(...C.lightGray);
     doc.setLineWidth(0.3);
     doc.line(14, pageH - 12, pageW - 14, pageH - 12);

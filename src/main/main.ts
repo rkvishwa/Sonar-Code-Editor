@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, session, protocol, Menu, net, shel
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
+import { verifyAsarIntegrity } from './integrityCheck';
 
 dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', '.env') });
 import { execSync } from 'child_process';
@@ -9,6 +10,9 @@ import { registerFsHandlers } from './ipcHandlers';
 import { MonitoringService } from './monitoring';
 import { IPC_CHANNELS } from '../shared/constants';
 import { stopStaticServer } from './staticServer';
+import { initOfflineHeartbeat, stopOfflineHeartbeat } from './offlineHeartbeat';
+import { initSecurityLog, logSecurityEvent, getSecurityLog } from './securityLog';
+import { getAttestationToken } from './buildAttestation';
 
 // Lazy load collaboration manager to prevent ws import issues on some systems
 let collaborationManager: typeof import('./collaborationManager').collaborationManager | null = null;
@@ -108,6 +112,7 @@ function createWindow(): void {
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
     startNetworkPolling();
+    initOfflineHeartbeat(mainWindow!);
   });
 
   mainWindow.setMenuBarVisibility(false);
@@ -116,6 +121,13 @@ function createWindow(): void {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  mainWindow.webContents.on('devtools-opened', () => {
+    if (!isDev) {
+      logSecurityEvent('DEVTOOLS_OPENED', 'DevTools was unexpectedly opened in production');
+      mainWindow?.webContents.closeDevTools();
+    }
   });
 }
 
@@ -137,6 +149,14 @@ ipcMain.on(IPC_CHANNELS.MONITORING_STOP, () => {
 
 ipcMain.on('monitoring:setCurrentFile', (_event, filePath: string) => {
   monitoringService?.setCurrentFile(filePath);
+});
+
+ipcMain.handle(IPC_CHANNELS.SECURITY_GET_LOG, () => {
+  return getSecurityLog();
+});
+
+ipcMain.handle(IPC_CHANNELS.SECURITY_GET_ATTESTATION, () => {
+  return getAttestationToken();
 });
 
 // Register collaboration IPC handlers
@@ -278,6 +298,11 @@ app.whenReady().then(async () => {
     }
   }
 
+  initSecurityLog();
+  getAttestationToken(); // Logs the type of attestation we have on startup
+
+  await verifyAsarIntegrity();
+
   createWindow();
 
   app.on('activate', () => {
@@ -286,6 +311,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
+  stopOfflineHeartbeat();
   monitoringService?.stopHeartbeat();
   getCollaborationManager().then(collab => collab?.stopSession());
   stopStaticServer();
@@ -293,8 +319,10 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  stopOfflineHeartbeat();
   monitoringService?.stopHeartbeat();
   getCollaborationManager().then(collab => collab?.stopSession());
+  logSecurityEvent('APP_QUIT');
 });
 
 // Network connectivity check — ping the actual Appwrite endpoint used by the app

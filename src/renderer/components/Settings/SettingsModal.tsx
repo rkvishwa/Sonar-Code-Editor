@@ -39,7 +39,6 @@ import {
   getTeamById,
   changeTeamPassword,
 } from "../../services/appwrite";
-import { cacheCredentials } from "../../services/localStore";
 import { Team } from "../../../shared/types";
 import { formatKey, isMac } from "../../utils/shortcut";
 import "./SettingsModal.css";
@@ -227,7 +226,6 @@ export default function SettingsModal({
     setChangingPassword(true);
     const result = await changeTeamPassword(user.$id, oldPassword, newPassword);
     if (result.success) {
-      cacheCredentials(user.teamName, newPassword, user.$id, user.role);
       setPasswordSuccess("Password changed successfully");
       setOldPassword("");
       setNewPassword("");

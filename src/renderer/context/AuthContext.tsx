@@ -13,11 +13,6 @@ import {
   getGlobalInternetRestriction,
   subscribeToSettings,
 } from "../services/appwrite";
-import {
-  cacheCredentials,
-  validateCachedAuth,
-  clearCache,
-} from "../services/localStore";
 
 interface AuthContextValue {
   user: Team | null;
@@ -43,15 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [internetBlocked, setInternetBlocked] = useState(false);
 
   useEffect(() => {
-    // Attempt to restore session from cache
-    const cached = JSON.parse(localStorage.getItem("sonar_session") || "null");
-    if (cached) {
-      setUser(cached);
-      // Mark session as online in DB on restore (fire-and-forget)
-      if (cached.$id && cached.teamName) {
-        upsertSession(cached.$id, cached.teamName, "online").catch(() => {});
-      }
-    }
+    // Session is no longer cached locally across restarts for security.
     setLoading(false);
   }, []);
 
@@ -80,40 +67,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Try online auth first
+      // Attestation checking
+      const attestationToken = window.electronAPI?.security ? await window.electronAPI.security.getAttestationToken() : 'DEV_MODE';
       const team = await validateTeamCredentials(teamName, password);
+      
       if (team) {
         setUser(team);
-        localStorage.setItem("sonar_session", JSON.stringify(team));
-        cacheCredentials(teamName, password, team.$id!, team.role);
-        await upsertSession(team.$id!, teamName, "online");
+        await upsertSession(team.$id!, teamName, "online", attestationToken);
         return { success: true };
       }
-      // Online auth returned null = invalid credentials (server reachable)
       return { success: false, error: "Invalid credentials" };
     } catch (err) {
-      // Network error - try cached login
-      const cached = validateCachedAuth(teamName, password);
-      if (cached) {
-        const offlineUser: Team = {
-          $id: cached.teamId,
-          teamName: cached.teamName,
-          role: cached.role,
-        };
-        setUser(offlineUser);
-        localStorage.setItem("sonar_session", JSON.stringify(offlineUser));
-        return { success: true };
-      }
-      return { success: false, error: "Login failed. Check your connection." };
+      return { success: false, error: "Login failed. Check your connection or server status." };
     }
   };
 
   const logout = () => {
     if (user) {
-      upsertSession(user.$id!, user.teamName, "offline").catch(() => {});
+      const attestationToken = 'DEV_MODE'; // Doesn't matter much on exit, but we need type satisfaction
+      upsertSession(user.$id!, user.teamName, "offline", attestationToken).catch(() => {});
     }
     setUser(null);
-    localStorage.removeItem("sonar_session");
   };
 
   const register = async (
