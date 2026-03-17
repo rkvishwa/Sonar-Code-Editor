@@ -7,6 +7,25 @@ import { FileNode } from '../shared/types';
 import { IPC_CHANNELS } from '../shared/constants';
 import { startStaticServer, stopStaticServer, getServerUrl } from './staticServer';
 
+const trustedRoots = new Set<string>();
+
+function enforceTrustedPath(targetPath: string) {
+  if (!targetPath) return;
+  const absTarget = path.resolve(targetPath);
+  let isTrusted = false;
+  for (const root of trustedRoots) {
+    const resolvedRoot = path.resolve(root);
+    // Enforce strict prefix matching or exact match to prevent sibling directory traversal
+    if (absTarget === resolvedRoot || absTarget.startsWith(resolvedRoot + path.sep)) {
+      isTrusted = true;
+      break;
+    }
+  }
+  if (!isTrusted) {
+    throw new Error(`Security Error: Access to path denied outside trusted workspace roots: ${targetPath}`);
+  }
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function getExtension(filename: string): string {
@@ -137,6 +156,7 @@ function searchFilesRecursive(dirPath: string, query: string, results: any[]) {
 export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   ipcMain.handle(IPC_CHANNELS.FS_READ_DIR, async (_event, dirPath: string) => {
     if (!dirPath) throw new Error("Path is required");
+    enforceTrustedPath(dirPath);
     if (!fs.existsSync(dirPath)) throw new Error("Directory does not exist");
     
     try {
@@ -150,6 +170,7 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   ipcMain.handle(IPC_CHANNELS.FS_READ_FILE, async (_event, filePath: string) => {
     try {
       if (!filePath) throw new Error('No file path provided');
+      enforceTrustedPath(filePath);
       if (!fs.existsSync(filePath)) throw new Error(`File not found: ${filePath}`);
       // Check if file is binary — return empty string for binary files
       // to avoid garbled UTF-8 data or IPC serialisation issues
@@ -165,6 +186,7 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   ipcMain.handle(IPC_CHANNELS.FS_READ_FILE_BASE64, async (_event, filePath: string) => {
     try {
       if (!filePath) throw new Error('No file path provided');
+      enforceTrustedPath(filePath);
       const buffer = await fsp.readFile(filePath);
       const ext = path.extname(filePath).toLowerCase().slice(1);
       const mimeMap: Record<string, string> = {
@@ -182,6 +204,7 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   ipcMain.handle(IPC_CHANNELS.FS_WRITE_FILE, async (_event, filePath: string, content: string) => {
     try {
       if (!filePath) throw new Error('No file path provided');
+      enforceTrustedPath(filePath);
       // Ensure parent directory exists (collaboration may create files before folders)
       const parentDir = path.dirname(filePath);
       if (!fs.existsSync(parentDir)) {
@@ -196,6 +219,7 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   ipcMain.handle(IPC_CHANNELS.FS_CREATE_FILE, async (_event, filePath: string) => {
     try {
       if (!filePath) throw new Error('No file path provided');
+      enforceTrustedPath(filePath);
       const fileName = path.basename(filePath);
       const nameErr = validateName(fileName);
       if (nameErr) throw new Error(nameErr);
@@ -217,6 +241,7 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   ipcMain.handle(IPC_CHANNELS.FS_CREATE_FOLDER, async (_event, folderPath: string) => {
     try {
       if (!folderPath) throw new Error('No folder path provided');
+      enforceTrustedPath(folderPath);
       const folderName = path.basename(folderPath);
       const nameErr = validateName(folderName);
       if (nameErr) throw new Error(nameErr);
@@ -232,6 +257,7 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   ipcMain.handle(IPC_CHANNELS.FS_DELETE_ITEM, async (_event, itemPath: string) => {
     try {
       if (!itemPath) return;
+      enforceTrustedPath(itemPath);
       // If it doesn't exist, treat as success (idempotent — collab peer may have deleted first)
       if (!fs.existsSync(itemPath)) return;
       const stat = await fsp.stat(itemPath);
@@ -249,6 +275,8 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   ipcMain.handle(IPC_CHANNELS.FS_RENAME_ITEM, async (_event, oldPath: string, newPath: string) => {
     try {
       if (!oldPath || !newPath) throw new Error('Missing path for rename');
+      enforceTrustedPath(oldPath);
+      enforceTrustedPath(newPath);
 
       // If source doesn't exist, it may have been renamed/deleted by a collab peer.
       // Treat as success to avoid blocking remote operations.
@@ -313,6 +341,8 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   ipcMain.handle(IPC_CHANNELS.FS_COPY_ITEM, async (_event, srcPath: string, destPath: string) => {
     try {
       if (!srcPath || !destPath) throw new Error('Missing path for copy');
+      enforceTrustedPath(srcPath);
+      enforceTrustedPath(destPath);
       if (!fs.existsSync(srcPath)) throw new Error('Source path does not exist');
 
       // Ensure target parent directory exists
@@ -347,12 +377,15 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
   ipcMain.handle(IPC_CHANNELS.FS_SEARCH, async (_event, dirPath: string, query: string) => {
     const results: any[] = [];
     if (!dirPath || !query) return results;
+    try { enforceTrustedPath(dirPath); } catch { return results; }
     searchFilesRecursive(dirPath, query, results);
     return results;
   });
 
   ipcMain.handle(IPC_CHANNELS.FS_GET_WORKSPACE_STATS, async (_event, dirPath: string) => {
     try {
+      if (!dirPath) throw new Error('Path required');
+      enforceTrustedPath(dirPath);
       const stats = {
         totalFiles: 0,
         totalFolders: 0,
@@ -450,6 +483,7 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
       activeFolderDialogReject = null;
 
       if (result.canceled || !('filePaths' in result) || !result.filePaths || result.filePaths.length === 0) return null;
+      trustedRoots.add(result.filePaths[0]);
       return { path: result.filePaths[0], isDirectory: true };
     } catch (err) {
       if (activeFolderDialogWin && !activeFolderDialogWin.isDestroyed()) {
@@ -472,6 +506,7 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
       const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
       if (result.canceled || result.filePaths.length === 0) return null;
       const selectedPath = result.filePaths[0];
+      trustedRoots.add(selectedPath);
       return { path: selectedPath, isDirectory: false, parentPath: path.dirname(selectedPath), name: path.basename(selectedPath) };
     } catch (err) {
       throw new Error(`Failed to open file dialog: ${(err as Error).message}`);

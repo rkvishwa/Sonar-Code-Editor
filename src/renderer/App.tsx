@@ -274,12 +274,7 @@ function AppRoutes() {
 
   useEffect(() => {
     (async () => {
-      if (window.electronAPI?.security) {
-        const token = await window.electronAPI.security.getAttestationToken();
-        setAttestation(token);
-      } else {
-        setAttestation('DEV_MODE');
-      }
+      setAttestation('SECURE');
     })();
   }, []);
 

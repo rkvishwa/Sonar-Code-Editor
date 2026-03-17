@@ -30,7 +30,7 @@ function compileDirectory(dir) {
         });
         
         // Replace original JS with loader stub
-        const loaderCode = `require('bytenode');\nrequire('./${file.replace(/\.js$/, '.jsc')}');\n`;
+        const loaderCode = `require('bytenode');\nmodule.exports = require('./${file.replace(/\.js$/, '.jsc')}');\n`;
         fs.writeFileSync(fullPath, loaderCode, 'utf8');
       } catch (err) {
         console.error(`Failed to compile ${fullPath}:`, err);
@@ -42,3 +42,4 @@ function compileDirectory(dir) {
 console.log('Starting bytecode compilation...');
 compileDirectory(mainDistDir);
 console.log('Bytecode compilation finished.');
+process.exit(0);

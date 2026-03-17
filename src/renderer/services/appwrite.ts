@@ -168,28 +168,6 @@ export async function getAdminTeamIds(): Promise<Set<string>> {
 }
 
 // ---- Sessions ----
-export async function upsertSession(teamId: string, teamName: string, status: 'online' | 'offline', attestation: string): Promise<void> {
-  try {
-    const existing = await databases.listDocuments(DB_ID, COL_SESSIONS, [
-      Query.equal('teamId', teamId),
-    ]);
-    const data: Omit<Session, '$id'> & { attestation?: string } = {
-      teamId,
-      teamName,
-      status,
-      lastSeen: new Date().toISOString(),
-      attestation,
-    };
-    if (existing.documents.length > 0) {
-      await databases.updateDocument(DB_ID, COL_SESSIONS, existing.documents[0].$id, data);
-    } else {
-      await databases.createDocument(DB_ID, COL_SESSIONS, ID.unique(), data);
-    }
-  } catch (err) {
-    console.error('Failed to upsert session:', err);
-  }
-}
-
 export async function updateSessionLastSeen(teamId: string): Promise<void> {
   const existing = await databases.listDocuments(DB_ID, COL_SESSIONS, [
     Query.equal('teamId', teamId),

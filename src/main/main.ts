@@ -86,7 +86,7 @@ function createWindow(): void {
       preload: path.join(__dirname, '../../preload/preload/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
       webSecurity: true,
       webviewTag: true,
     },
@@ -109,10 +109,11 @@ function createWindow(): void {
     );
   }
 
+  startNetworkPolling();
+  initOfflineHeartbeat(mainWindow!);
+
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
-    startNetworkPolling();
-    initOfflineHeartbeat(mainWindow!);
   });
 
   mainWindow.setMenuBarVisibility(false);
@@ -155,8 +156,57 @@ ipcMain.handle(IPC_CHANNELS.SECURITY_GET_LOG, () => {
   return getSecurityLog();
 });
 
-ipcMain.handle(IPC_CHANNELS.SECURITY_GET_ATTESTATION, () => {
-  return getAttestationToken();
+ipcMain.handle(IPC_CHANNELS.SECURITY_UPSERT_SESSION, async (_event, teamId: string, teamName: string, status: 'online' | 'offline') => {
+  try {
+    const endpoint = process.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+    const projectId = process.env.VITE_APPWRITE_PROJECT_ID;
+    const dbId = process.env.VITE_APPWRITE_DB_NAME || 'devwatch_db';
+    const colSessions = process.env.VITE_APPWRITE_COLLECTION_SESSIONS || 'sessions';
+
+    if (!projectId) return;
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Appwrite-Project': projectId,
+    };
+
+    const attestation = getAttestationToken();
+    const dataToSend = {
+      teamId,
+      teamName,
+      status,
+      lastSeen: new Date().toISOString(),
+      attestation,
+    };
+
+    // First try to list documents:
+    const listUrl = `${endpoint}/databases/${dbId}/collections/${colSessions}/documents?queries[]=equal("teamId", ["${teamId}"])`;
+    const listRes = await net.fetch(listUrl, { headers });
+    if (!listRes.ok) return;
+
+    const listData = await listRes.json() as any;
+    if (listData.documents && listData.documents.length > 0) {
+      const docId = listData.documents[0].$id;
+      const updateUrl = `${endpoint}/databases/${dbId}/collections/${colSessions}/documents/${docId}`;
+      await net.fetch(updateUrl, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ data: dataToSend }),
+      });
+    } else {
+      const createUrl = `${endpoint}/databases/${dbId}/collections/${colSessions}/documents`;
+      await net.fetch(createUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ 
+          documentId: 'unique()',
+          data: dataToSend 
+        }),
+      });
+    }
+  } catch (err) {
+    console.error('Failed to upsert session from main:', err);
+  }
 });
 
 // Register collaboration IPC handlers

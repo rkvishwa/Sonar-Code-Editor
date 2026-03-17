@@ -8,7 +8,6 @@ import React, {
 import { Team } from "../../shared/types";
 import {
   validateTeamCredentials,
-  upsertSession,
   registerTeam,
   getGlobalInternetRestriction,
   subscribeToSettings,
@@ -67,13 +66,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Attestation checking
-      const attestationToken = window.electronAPI?.security ? await window.electronAPI.security.getAttestationToken() : 'DEV_MODE';
+      // Attestation checking moved to main process
       const team = await validateTeamCredentials(teamName, password);
       
       if (team) {
         setUser(team);
-        await upsertSession(team.$id!, teamName, "online", attestationToken);
+        if (window.electronAPI?.security) {
+          await window.electronAPI.security.upsertSession(team.$id!, teamName, "online");
+        } else {
+          console.warn("Desktop app required to update session");
+        }
         return { success: true };
       }
       return { success: false, error: "Invalid credentials" };
@@ -84,8 +86,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     if (user) {
-      const attestationToken = 'DEV_MODE'; // Doesn't matter much on exit, but we need type satisfaction
-      upsertSession(user.$id!, user.teamName, "offline", attestationToken).catch(() => {});
+      if (window.electronAPI?.security) {
+        window.electronAPI.security.upsertSession(user.$id!, user.teamName, "offline").catch(() => {});
+      } else {
+        console.warn("Desktop app required to update session");
+      }
     }
     setUser(null);
   };

@@ -58,7 +58,7 @@ const api: ElectronAPI = {
     requestNonce: () => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_NONCE_REQUEST),
     sendHeartbeat: (nonce) => ipcRenderer.send(IPC_CHANNELS.SECURITY_HEARTBEAT_PING, nonce),
     getSecurityLog: () => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_GET_LOG),
-    getAttestationToken: () => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_GET_ATTESTATION),
+    upsertSession: (teamId, teamName, status) => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_UPSERT_SESSION, teamId, teamName, status),
   },
   clipboard: {
     readText: () => ipcRenderer.invoke(IPC_CHANNELS.CLIPBOARD_READ_TEXT),

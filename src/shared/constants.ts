@@ -24,6 +24,7 @@ export const IPC_CHANNELS = {
   SECURITY_NONCE_RESPONSE: 'security:nonce-response',
   SECURITY_GET_LOG: 'security:get-log',
   SECURITY_GET_ATTESTATION: 'security:get-attestation',
+  SECURITY_UPSERT_SESSION: 'security:upsert-session',
   // Network
   NETWORK_STATUS: 'network:status',
   // Static Server
