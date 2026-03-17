@@ -351,6 +351,49 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
     return results;
   });
 
+  ipcMain.handle(IPC_CHANNELS.FS_GET_WORKSPACE_STATS, async (_event, dirPath: string) => {
+    try {
+      const stats = {
+        totalFiles: 0,
+        totalFolders: 0,
+        authors: {
+          npm: { count: 0, files: [] as string[] },
+          composer: { count: 0, files: [] as string[] },
+          user: { count: 0, files: [] as string[] }
+        }
+      };
+
+      const scanDirectory = (currentPath: string, parentAuthor: 'npm' | 'composer' | 'user') => {
+        try {
+          const items = fs.readdirSync(currentPath, { withFileTypes: true });
+          for (const item of items) {
+            // Determine author context based on current item or parent
+            let author = parentAuthor;
+            if (item.name === 'node_modules') author = 'npm';
+            else if (item.name === 'vendor') author = 'composer';
+            else if (item.name === '.git') continue;
+
+            if (item.isDirectory()) {
+              stats.totalFolders++;
+              scanDirectory(path.join(currentPath, item.name), author);
+            } else if (item.isFile()) {
+              stats.totalFiles++;
+              stats.authors[author].count++;
+              stats.authors[author].files.push(path.join(currentPath, item.name));
+            }
+          }
+        } catch (e) {
+          console.error(`Failed to scan directory ${currentPath}`, e);
+        }
+      };
+      
+      scanDirectory(dirPath, 'user');
+      return stats;
+    } catch (err: any) {
+      throw new Error(`Failed to get workspace stats: ${err.message}`);
+    }
+  });
+
   let activeFolderDialogWin: BrowserWindow | null = null;
   let activeFolderDialogReject: ((reason?: any) => void) | null = null;
   let activeFolderDialogResolve: ((value?: any) => void) | null = null;

@@ -14,6 +14,7 @@ const api: ElectronAPI = {
     renameItem: (oldPath, newPath) => ipcRenderer.invoke(IPC_CHANNELS.FS_RENAME_ITEM, oldPath, newPath),
     copyItem: (oldPath, newPath) => ipcRenderer.invoke(IPC_CHANNELS.FS_COPY_ITEM, oldPath, newPath),
     search: (dirPath, query) => ipcRenderer.invoke(IPC_CHANNELS.FS_SEARCH, dirPath, query),
+    getWorkspaceStats: (dirPath) => ipcRenderer.invoke(IPC_CHANNELS.FS_GET_WORKSPACE_STATS, dirPath),
     openFolderDialog: () => ipcRenderer.invoke(IPC_CHANNELS.FS_OPEN_FOLDER_DIALOG),
     cancelFolderDialog: () => ipcRenderer.invoke(IPC_CHANNELS.FS_CANCEL_FOLDER_DIALOG),
     openFileDialog: () => ipcRenderer.invoke(IPC_CHANNELS.FS_OPEN_FILE_DIALOG),

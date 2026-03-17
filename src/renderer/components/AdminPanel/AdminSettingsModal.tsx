@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ArrowLeft, X, Users, LogOut, Settings, Key, CheckCircle2, Eye, EyeOff, Trash2, Github, Globe, ExternalLink, Code2, User, Activity, Shield, Palette, Info } from 'lucide-react';
-import { updateTeamName, updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction } from '../../services/appwrite';
+import { updateTeamName, updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction, getGlobalBlockNonEmptyWorkspace, setGlobalBlockNonEmptyWorkspace, subscribeGlobalBlockNonEmptyWorkspace } from '../../services/appwrite';
 import appIcon from '../../assets/icon.png';
 import { cacheCredentials } from '../../services/localStore';
 import { Team } from '../../../shared/types';
@@ -63,6 +63,12 @@ export default function AdminSettingsModal({
   const [restrictionError, setRestrictionError] = useState('');
   const [restrictionSuccess, setRestrictionSuccess] = useState('');
 
+  // Block non-empty workspace state
+  const [blockNonEmpty, setBlockNonEmpty] = useState(false);
+  const [savingBlockNonEmpty, setSavingBlockNonEmpty] = useState(false);
+  const [blockNonEmptyError, setBlockNonEmptyError] = useState('');
+  const [blockNonEmptySuccess, setBlockNonEmptySuccess] = useState('');
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) onClose();
@@ -89,9 +95,20 @@ export default function AdminSettingsModal({
       setGlobalRestriction(false);
       setRestrictionError('');
       setRestrictionSuccess('');
+      setBlockNonEmpty(false);
+      setBlockNonEmptyError('');
+      setBlockNonEmptySuccess('');
+      let unsubBlockNonEmpty: (() => void) | undefined;
+      
       if (user?.role === 'admin') {
         getGlobalInternetRestriction().then(setGlobalRestriction).catch(console.error);
+        getGlobalBlockNonEmptyWorkspace().then(setBlockNonEmpty).catch(console.error);
+        unsubBlockNonEmpty = subscribeGlobalBlockNonEmptyWorkspace(setBlockNonEmpty);
       }
+
+      return () => {
+        if (unsubBlockNonEmpty) unsubBlockNonEmpty();
+      };
     }
   }, [isOpen, user]);
 
@@ -105,6 +122,8 @@ export default function AdminSettingsModal({
     setFlushSuccess('');
     setRestrictionError('');
     setRestrictionSuccess('');
+    setBlockNonEmptyError('');
+    setBlockNonEmptySuccess('');
   }, [activeTab]);
 
   if (!isOpen && !isEmbedded) return null;
@@ -205,6 +224,21 @@ export default function AdminSettingsModal({
       setRestrictionError(result.error || 'Failed to update restriction');
     }
     setSavingRestriction(false);
+  };
+
+  const handleToggleBlockNonEmpty = async (checked: boolean) => {
+    setSavingBlockNonEmpty(true);
+    setBlockNonEmptyError('');
+    setBlockNonEmptySuccess('');
+    const result = await setGlobalBlockNonEmptyWorkspace(checked);
+    if (result.success) {
+      setBlockNonEmpty(checked);
+      setBlockNonEmptySuccess(checked ? 'Non-empty workspaces blocked for all teams' : 'Non-empty workspaces allowed for all teams');
+      setTimeout(() => setBlockNonEmptySuccess(''), 3000);
+    } else {
+      setBlockNonEmptyError(result.error || 'Failed to update restriction');
+    }
+    setSavingBlockNonEmpty(false);
   };
 
   const isWindows = navigator.userAgent.toLowerCase().includes('win');
@@ -497,10 +531,39 @@ export default function AdminSettingsModal({
                     </label>
                   </div>
                 </div>
+
+                <div className="editor-setting-row">
+                  <div className="editor-setting-info-wrap">
+                    <div className="editor-setting-icon">
+                      <Shield size={18} />
+                    </div>
+                    <div className="editor-setting-info">
+                      <span className="editor-setting-title">Block Non-Empty Workspaces</span>
+                      <span className="editor-setting-desc">
+                        Prevent users from opening folders that already contain files.
+                      </span>
+                    </div>
+                  </div>
+                  <div className="editor-setting-action">
+                    <label className="vscode-toggle" title="Block Non-Empty Workspaces">
+                      <input
+                        type="checkbox"
+                        checked={blockNonEmpty}
+                        aria-label="Block Non-Empty Workspaces"
+                        title="Block Non-Empty Workspaces"
+                        onChange={(e) => handleToggleBlockNonEmpty(e.target.checked)}
+                        disabled={savingBlockNonEmpty}
+                      />
+                      <span className="vscode-toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
               </div>
 
               {restrictionError && <div className="account-error">{restrictionError}</div>}
               {restrictionSuccess && <div className="account-success"><CheckCircle2 size={12} /> {restrictionSuccess}</div>}
+              {blockNonEmptyError && <div className="account-error">{blockNonEmptyError}</div>}
+              {blockNonEmptySuccess && <div className="account-success"><CheckCircle2 size={12} /> {blockNonEmptySuccess}</div>}
             </div>
           )}
 

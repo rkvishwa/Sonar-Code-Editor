@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export interface ActivityEvent {
-  type: 'status_online' | 'status_offline' | 'app_focus' | 'app_blur' | 'clipboard_copy' | 'clipboard_paste_external';
+  type: 'status_online' | 'status_offline' | 'app_focus' | 'app_blur' | 'clipboard_copy' | 'clipboard_paste_external' | 'workspace_opened';
   timestamp: string;
   details?: string;
 }
@@ -55,6 +55,7 @@ function formatEventType(type: ActivityEvent['type'], details?: string): string 
     }
     case 'clipboard_copy': return 'Clipboard Copy';
     case 'clipboard_paste_external': return 'External Paste';
+    case 'workspace_opened': return 'Workspace Opened';
   }
 }
 
@@ -232,9 +233,23 @@ export function generateActivityLogPDF(teamName: string): void {
   let bursts = 0;
   for (let i = 1; i < copyTs.length; i++) { if (copyTs[i] - copyTs[i - 1] < 10000) bursts++; }
 
+  // Non-empty Workspaces
+  let nonEmptyWorkspaces = 0;
+  const workspaceEvents: { stats: any; timestamp: string }[] = [];
+  for (const e of sorted) {
+    if (e.type === 'workspace_opened' && e.details) {
+      try {
+        const stats = JSON.parse(e.details);
+        if (stats.totalFiles > 0 || stats.totalFolders > 0) nonEmptyWorkspaces++;
+        workspaceEvents.push({ stats, timestamp: e.timestamp });
+      } catch {}
+    }
+  }
+
   // Risk scoring
   const flags: string[] = [];
   let risk = 0;
+  if (nonEmptyWorkspaces > 0) { risk += nonEmptyWorkspaces * 30; flags.push(`Opened ${nonEmptyWorkspaces} non-empty workspace(s)`); }
   if (suspSwitches > 0) { risk += Math.min(25, suspSwitches * 5); flags.push(`Opened browser/messenger/AI tool ${suspSwitches} time(s)`); }
   if (pctInIDE < 70) { risk += 20; flags.push(`Only ${pctInIDE.toFixed(0)}% of session in IDE`); }
   else if (pctInIDE < 85) { risk += 10; flags.push(`${pctInIDE.toFixed(0)}% of session in IDE (below 85%)`); }
@@ -424,6 +439,94 @@ export function generateActivityLogPDF(teamName: string): void {
     y = getTableY() + 10;
   }
 
+  // ========== WORKSPACE TREES ==========
+  if (workspaceEvents.length > 0) {
+    y = ensureSpace(y, 20);
+    y = drawSection(y, 'Workspace File Trees');
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(50, 50, 50);
+
+    for (let idx = 0; idx < workspaceEvents.length; idx++) {
+      const we = workspaceEvents[idx];
+      const stats = we.stats;
+      
+      y = ensureSpace(y, 10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Workspace ${idx + 1} (${fmtTime(we.timestamp)}):`, margin, y);
+      y += 6;
+      doc.setFont('courier', 'normal');
+
+      let allPaths: string[] = [];
+      if (stats.authors?.user?.files) {
+        allPaths.push(...stats.authors.user.files);
+      }
+      let isTruncated = false;
+      if (allPaths.length > 150) {
+        allPaths = allPaths.slice(0, 150);
+        isTruncated = true;
+      }
+
+      if (allPaths.length === 0) {
+        y = ensureSpace(y, 8);
+        doc.text('(Empty Workspace or no user files found)', margin, y);
+        y += 8;
+      } else {
+        const buildTreeText = (paths: string[]): string[] => {
+          const root = { name: 'workspace', children: {} as any, isFile: false };
+          for (const p of paths) {
+            const parts = p.split(/[/\\]/).filter(Boolean);
+            if (parts.length === 0) continue;
+            let current = root;
+            for (let i = 0; i < parts.length; i++) {
+              const part = parts[i];
+              if (!current.children[part]) {
+                current.children[part] = { name: part, children: {}, isFile: i === parts.length - 1 };
+              }
+              current = current.children[part];
+            }
+          }
+          let actualRoot = root;
+          while (Object.keys(actualRoot.children).length === 1) {
+            const key = Object.keys(actualRoot.children)[0];
+            if (actualRoot.children[key].isFile) break;
+            actualRoot = actualRoot.children[key];
+          }
+          const lines: string[] = [];
+          lines.push(actualRoot.name + '/');
+          const traverse = (node: any, prefix: string) => {
+            const keys = Object.keys(node.children).sort();
+            for (let i = 0; i < keys.length; i++) {
+              const key = keys[i];
+              const child = node.children[key];
+              const isLast = i === keys.length - 1;
+              const connector = isLast ? '`-- ' : '|-- ';
+              lines.push(`${prefix}${connector}${child.name}${child.isFile ? '' : '/'}`);
+              if (!child.isFile) {
+                traverse(child, prefix + (isLast ? '    ' : '|   '));
+              }
+            }
+          };
+          traverse(actualRoot, '');
+          return lines;
+        };
+
+        const treeLines = buildTreeText(allPaths);
+        if (isTruncated) treeLines.push('... (tree truncated for size) ...');
+
+        for (const line of treeLines) {
+          y = ensureSpace(y, 4);
+          doc.text(line, margin, y);
+          y += 4;
+        }
+      }
+      y += 6;
+    }
+    
+    doc.setFont('helvetica', 'normal');
+    y += 6;
+  }
+
   // ========== COMPLETE TIMELINE ==========
   y = ensureSpace(y, 20);
   y = drawSection(y, 'Complete Activity Timeline');
@@ -431,7 +534,21 @@ export function generateActivityLogPDF(teamName: string): void {
     startY: y,
     head: [['Time', 'Event', 'Details']],
     body: sorted.map(e => {
-      const d = e.details || '—';
+      let d = e.details || '—';
+      if (e.type === 'workspace_opened' && e.details) {
+        try {
+          const stats = JSON.parse(e.details);
+          const f = stats.totalFiles || 0;
+          const a = stats.authors || {};
+          const users = Object.entries(a).filter(([_, data]: any) => data.count > 0).map(([name, data]: any) => `${name}: ${data.count}`).join(', ');
+          
+          let fileNames = '';
+          const allFiles = (a.user?.files || []).slice(0, 3).map((f: string) => f.split(/[/\\]/).pop());
+          if (allFiles.length > 0) fileNames = ` (e.g. ${allFiles.join(', ')})`;
+          
+          d = `Files: ${f}${users ? `, ${users}` : ''}. Folders: ${stats.totalFolders || 0}${fileNames}`;
+        } catch {}
+      }
       return [fmtTime(e.timestamp), formatEventType(e.type, e.details), d.length > 90 ? d.substring(0, 90) + '…' : d];
     }),
     theme: 'plain',

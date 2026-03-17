@@ -292,6 +292,26 @@ export default function SettingsModal({
     matchesSearch("online") ||
     matchesSearch("offline");
 
+  const formatEventDetailsRender = (event: any): string => {
+    if (event.type === 'workspace_opened' && event.details) {
+      try {
+        const stats = JSON.parse(event.details);
+        const f = stats.totalFiles || 0;
+        const a = stats.authors || {};
+        const users = Object.entries(a).filter(([_, data]: any) => data.count > 0).map(([name, data]: any) => `${name}: ${data.count}`).join(', ');
+        
+        let fileNames = '';
+        const allFiles = (a.user?.files || []).slice(0, 3).map((f: string) => f.split(/[/\\]/).pop());
+        if (allFiles.length > 0) fileNames = ` (e.g. ${allFiles.join(', ')})`;
+        
+        return `Files: ${f}${users ? `, ${users}` : ''}. Folders: ${stats.totalFolders || 0}${fileNames}`;
+      } catch {}
+    }
+    
+    if (!event.details) return '\u2014';
+    return event.details;
+  };
+
   const formatEventType = (
     type: ActivityEvent["type"],
     details?: string,
@@ -319,6 +339,10 @@ export default function SettingsModal({
         return "Clipboard Copy";
       case "clipboard_paste_external":
         return "External Copy";
+      case "workspace_opened":
+        return "Workspace Opened";
+      default:
+        return (type as string) || "Unknown Event";
     }
   };
 
@@ -843,13 +867,12 @@ export default function SettingsModal({
                           </span>
                           <span
                             className="activity-log-details"
-                            title={event.details || ""}
+                            title={formatEventDetailsRender(event)}
                           >
-                            {event.details
-                              ? event.details.length > 60
-                                ? event.details.substring(0, 60) + "…"
-                                : event.details
-                              : "—"}
+                            {(() => {
+                              const d = formatEventDetailsRender(event);
+                              return d.length > 60 ? d.substring(0, 60) + "…" : d;
+                            })()}
                           </span>
                         </div>
                       ))}
