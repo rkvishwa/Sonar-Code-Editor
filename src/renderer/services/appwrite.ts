@@ -71,7 +71,8 @@ async function executeSettingsFunction(payload: Record<string, unknown>): Promis
 const knownRestrictedCollections = new Set<string>([
   COL_ACTIVITY_LOGS,
   COL_SESSIONS,
-  COL_REPORTS
+  COL_REPORTS,
+  COL_SETTINGS
 ]);
 
 // Fallback helper for listDocuments
