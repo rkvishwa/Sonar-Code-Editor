@@ -21,6 +21,7 @@ export interface Session {
   teamName: string;
   status: 'online' | 'offline';
   lastSeen: string;
+  buildType?: 'dev' | 'official' | 'unknown';
   ipAddress?: string;
 }
 
@@ -104,6 +105,7 @@ export interface HeartbeatPayload {
   status: 'online' | 'offline';
   timestamp: string;
   appName?: string;
+  windowTitle?: string;
   activityEvents?: Array<{ type: string; timestamp: string; details?: string }>;
 }
 

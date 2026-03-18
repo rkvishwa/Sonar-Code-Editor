@@ -52,6 +52,24 @@ export default function AdminDashboard() {
     });
   }, []);
 
+  const dedupeByTeamId = useCallback((sessions: Session[]): Session[] => {
+    const byTeamId = new Map<string, Session>();
+    for (const s of sessions) {
+      const id = s.teamId || s.$id;
+      if (!id) continue;
+      const normalized = { ...s, teamId: id };
+      const existing = byTeamId.get(id);
+      if (!existing) {
+        byTeamId.set(id, normalized);
+        continue;
+      }
+      const existingMs = new Date(existing.lastSeen || 0).getTime();
+      const currentMs = new Date(normalized.lastSeen || 0).getTime();
+      if (currentMs >= existingMs) byTeamId.set(id, normalized);
+    }
+    return Array.from(byTeamId.values());
+  }, []);
+
   const loadSessions = useCallback(async () => {
     const [sessions, logs, adminIds] = await Promise.all([
       getAllSessions(),
@@ -71,7 +89,7 @@ export default function AdminDashboard() {
     }
 
     const now = Date.now();
-    const fetched = sessions
+    const fetched = dedupeByTeamId(sessions)
       .filter((s) => !adminIds.has(s.teamId))
       .map((s) => {
         const lastSeenMs = new Date(s.lastSeen).getTime();
@@ -102,7 +120,7 @@ export default function AdminDashboard() {
     setActivityLogs(logs);
     setLastUpdated(new Date());
     setLoading(false);
-  }, []);
+  }, [dedupeByTeamId]);
 
   useEffect(() => {
     let activeTheme = theme;
@@ -174,12 +192,15 @@ export default function AdminDashboard() {
     });
 
     const unsubSessions = subscribeToSessions((session: Session) => {
-      if (adminIdsRef.current.has(session.teamId)) return;
+      const sessionTeamId = session.teamId || session.$id;
+      if (!sessionTeamId) return;
+      if (adminIdsRef.current.has(sessionTeamId)) return;
       setTeams((prev) => {
-        const idx = prev.findIndex((t) => t.teamId === session.teamId);
-        if (idx === -1) return [...prev, session as TeamStatus];
+        const normalized = { ...session, teamId: sessionTeamId } as TeamStatus;
+        const idx = prev.findIndex((t) => t.teamId === sessionTeamId);
+        if (idx === -1) return [...prev, normalized];
         const updated = [...prev];
-        updated[idx] = { ...updated[idx], ...session };
+        updated[idx] = { ...updated[idx], ...normalized };
         return updated;
       });
       setLastUpdated(new Date());
@@ -227,14 +248,17 @@ export default function AdminDashboard() {
     for (const team of teams) {
       const sync = team.syncData;
       if (!sync) continue;
-      const apps = Object.keys(sync.apps);
+      const appsObj = sync.apps && typeof sync.apps === 'object' ? sync.apps : {};
+      const apps = Object.keys(appsObj);
+      const windows = Array.isArray(sync.windows) ? sync.windows : [];
+      const files = Array.isArray(sync.files) ? sync.files : [];
 
       // Count activity events
       let appBlurCount = 0;
       let extPasteCount = 0;
       let onlineCount = 0;
       let clipboardCopyCount = 0;
-      const events = sync.activityEvents || [];
+      const events = Array.isArray(sync.activityEvents) ? sync.activityEvents : [];
       for (const e of events) {
         if (e.type === 'app_blur') appBlurCount++;
         else if (e.type === 'clipboard_paste_external') extPasteCount++;
@@ -243,15 +267,15 @@ export default function AdminDashboard() {
       }
 
       metrics.set(team.teamId, {
-        totalLogs: sync.heartbeatCount,
+        totalLogs: Number.isFinite(Number(sync.heartbeatCount)) ? Number(sync.heartbeatCount) : 0,
         uniqueApps: new Set(apps),
-        uniqueWindows: new Set(sync.windows),
-        lastFile: sync.files.length > 0 ? sync.files[sync.files.length - 1] : '',
-        lastWindow: sync.windows.length > 0 ? sync.windows[sync.windows.length - 1] : '',
-        firstSeen: sync.sessionStart,
-        lastSeen: sync.lastStatusAt,
-        onlineSec: sync.totalOnlineSec,
-        offlineSec: sync.totalOfflineSec,
+        uniqueWindows: new Set(windows),
+        lastFile: files.length > 0 ? files[files.length - 1] : '',
+        lastWindow: windows.length > 0 ? windows[windows.length - 1] : '',
+        firstSeen: sync.sessionStart || team.lastSeen,
+        lastSeen: sync.lastStatusAt || team.lastSeen,
+        onlineSec: Number.isFinite(Number(sync.totalOnlineSec)) ? Number(sync.totalOnlineSec) : 0,
+        offlineSec: Number.isFinite(Number(sync.totalOfflineSec)) ? Number(sync.totalOfflineSec) : 0,
         appBlurCount,
         extPasteCount,
         onlineCount,
@@ -268,13 +292,18 @@ export default function AdminDashboard() {
     let totalOnlineSec = 0;
     let totalOfflineSec = 0;
     let totalHeartbeats = 0;
+    let totalActivityEvents = 0;
 
     for (const team of teams) {
       const sync = team.syncData;
       if (!sync) continue;
-      totalHeartbeats += sync.heartbeatCount;
-      totalOnlineSec += sync.totalOnlineSec;
-      totalOfflineSec += sync.totalOfflineSec;
+      const heartbeatCount = Number.isFinite(Number(sync.heartbeatCount)) ? Number(sync.heartbeatCount) : 0;
+      const onlineSec = Number.isFinite(Number(sync.totalOnlineSec)) ? Number(sync.totalOnlineSec) : 0;
+      const offlineSec = Number.isFinite(Number(sync.totalOfflineSec)) ? Number(sync.totalOfflineSec) : 0;
+      totalHeartbeats += heartbeatCount;
+      totalOnlineSec += onlineSec;
+      totalOfflineSec += offlineSec;
+      totalActivityEvents += Array.isArray(sync.activityEvents) ? sync.activityEvents.length : 0;
       // Count switched-to apps from app_blur events
       for (const ev of (sync.activityEvents || [])) {
         if (ev.type === 'app_blur' && ev.details) {
@@ -310,7 +339,8 @@ export default function AdminDashboard() {
     const avgSessionMs = sessionCount > 0 ? totalSessionDuration / sessionCount : 0;
 
     return {
-      totalLogs: totalHeartbeats,
+      // New sync payloads can contain only activity events without heartbeat aggregates.
+      totalLogs: totalHeartbeats > 0 ? totalHeartbeats : totalActivityEvents,
       uniqueApps: switchedAppCounts.size,
       topApps,
       totalOnlineSec,
@@ -337,6 +367,11 @@ export default function AdminDashboard() {
     });
     return result;
   }, [teams, search, statusFilter, sortKey, sortDir]);
+
+  const devSessions = useMemo(
+    () => teams.filter((t) => t.buildType === 'dev'),
+    [teams]
+  );
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -367,6 +402,12 @@ export default function AdminDashboard() {
   const sortIcon = (key: SortKey) => {
     if (sortKey !== key) return '\u2195';
     return sortDir === 'asc' ? '\u2191' : '\u2193';
+  };
+
+  const getBuildTypeLabel = (buildType?: Session['buildType']) => {
+    if (buildType === 'dev') return 'DEV';
+    if (buildType === 'official') return 'OFFICIAL';
+    return 'UNKNOWN';
   };
 
   const handleOpenReport = (team: TeamStatus) => {
@@ -495,6 +536,31 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
+
+          <div className="insight-card">
+            <div className="insight-card-header">
+              <div className="insight-title"><ShieldAlert size={16} /> DEV Version Sessions</div>
+              <span className="insight-stat-pill">{devSessions.length} active records</span>
+            </div>
+            {devSessions.length > 0 ? (
+              <div className="dev-session-list">
+                {devSessions.slice(0, 8).map((team) => (
+                  <div key={team.teamId} className="dev-session-item">
+                    <span className="dev-session-team">{team.teamName}</span>
+                    <span className={`status-sm ${team.status}`}>
+                      <span className="dot" />
+                      {team.status}
+                    </span>
+                    <span className="dev-session-time">{timeSince(team.lastSeen)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="insight-empty">
+                <span style={{ opacity: 0.5 }}>No DEV-version sessions detected.</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Sticky Toolbar */}
@@ -554,6 +620,7 @@ export default function AdminDashboard() {
                     <th className="th-sortable" onClick={() => handleSort('status')}>
                       <div className="th-content">Status {sortKey === 'status' && (sortDir === 'asc' ? '↑' : '↓')}</div>
                     </th>
+                    <th>Version</th>
                     <th>Engagement Metrics</th>
                     <th className="th-sortable" onClick={() => handleSort('lastSeen')}>
                       <div className="th-content">Ping {sortKey === 'lastSeen' && (sortDir === 'asc' ? '↑' : '↓')}</div>
@@ -584,6 +651,11 @@ export default function AdminDashboard() {
                             <span className="pulse-disc" />
                             {team.status === 'online' ? 'Active' : 'Disconnected'}
                           </div>
+                        </td>
+                        <td>
+                          <span className={`version-badge ${team.buildType || 'unknown'}`}>
+                            {getBuildTypeLabel(team.buildType)}
+                          </span>
                         </td>
                         <td>
                           {metrics ? (
@@ -632,9 +704,14 @@ export default function AdminDashboard() {
                       <div className="gc-avatar">{team.teamName.charAt(0).toUpperCase()}</div>
                       <div className="gc-title">
                         <h4>{team.teamName}</h4>
-                        <div className={`status-sm ${team.status}`}>
-                          <span className="dot" />
-                          {team.status}
+                        <div className="gc-subline">
+                          <div className={`status-sm ${team.status}`}>
+                            <span className="dot" />
+                            {team.status}
+                          </div>
+                          <span className={`version-badge compact ${team.buildType || 'unknown'}`}>
+                            {getBuildTypeLabel(team.buildType)}
+                          </span>
                         </div>
                       </div>
                     </div>

@@ -11,6 +11,7 @@ import {
   registerTeam,
   getGlobalInternetRestriction,
   subscribeToSettings,
+  updateSessionLastSeen,
 } from "../services/appwrite";
 
 interface AuthContextValue {
@@ -71,10 +72,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (team) {
         setUser(team);
-        if (window.electronAPI?.security) {
-          await window.electronAPI.security.upsertSession(team.$id!, teamName, "online");
-        } else {
-          console.warn("Desktop app required to update session");
+        try {
+          await updateSessionLastSeen(team.$id!, team.teamName, "online");
+        } catch {
+          // Fallback path for environments where function sync is unavailable.
+          if (window.electronAPI?.security) {
+            await window.electronAPI.security.upsertSession(team.$id!, team.teamName, "online");
+          }
         }
         return { success: true };
       }
@@ -86,11 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     if (user) {
-      if (window.electronAPI?.security) {
-        window.electronAPI.security.upsertSession(user.$id!, user.teamName, "offline").catch(() => {});
-      } else {
-        console.warn("Desktop app required to update session");
-      }
+      updateSessionLastSeen(user.$id!, user.teamName, "offline").catch(() => {
+        if (window.electronAPI?.security) {
+          window.electronAPI.security.upsertSession(user.$id!, user.teamName, "offline").catch(() => {});
+        }
+      });
     }
     setUser(null);
   };

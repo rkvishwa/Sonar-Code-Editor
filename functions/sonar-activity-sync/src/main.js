@@ -1,4 +1,4 @@
-const { Client, Databases, ID } = require('node-appwrite');
+const { Client, Databases } = require('node-appwrite');
 
 module.exports = async (context) => {
   const { req, res, log, error } = context;
@@ -12,10 +12,7 @@ module.exports = async (context) => {
     }
 
     const signingKey = process.env.BUILD_SIGNING_KEY;
-    if (signingKey) {
-      if (attestation === 'DEV_MODE') {
-        return res.json({ success: false, error: 'Unofficial DEV client build not permitted.' }, 403);
-      }
+    if (signingKey && attestation !== 'DEV_MODE') {
       try {
         const attData = JSON.parse(attestation);
         const crypto = require('crypto');
@@ -47,20 +44,34 @@ module.exports = async (context) => {
     const dbId = process.env.DB_ID;
     const colActivity = process.env.COL_ACTIVITY_LOGS;
 
-    // Batch insert logs
-    const promises = payload.map(logData => 
-      databases.createDocument(dbId, colActivity, ID.unique(), {
-        teamId,
-        ...logData
-      })
-    );
+    if (!Array.isArray(payload) || payload.length === 0) {
+      return res.json({ success: false, error: 'Missing or invalid payload' }, 400);
+    }
 
-    await Promise.all(promises);
+    // Keep one up-to-date activity row per team so admin dashboards can read latest state quickly.
+    const latest = payload[payload.length - 1] || {};
+    const { activityEvents, ...rest } = latest;
+
+    const activityDoc = {
+      teamId,
+      teamName: rest.teamName || '',
+      currentWindow: rest.currentWindow || '',
+      currentFile: rest.currentFile || '',
+      status: rest.status || 'online',
+      timestamp: rest.timestamp || new Date().toISOString(),
+      event: rest.event,
+      appName: rest.appName,
+      ...((rest.windowTitle || activityEvents) ? { windowTitle: rest.windowTitle || JSON.stringify(activityEvents) } : {}),
+    };
+
+    await databases.updateDocument(dbId, colActivity, teamId, activityDoc).catch(async () => {
+      await databases.createDocument(dbId, colActivity, teamId, activityDoc);
+    });
 
     return res.json({ success: true });
 
   } catch (err) {
     error(err.message);
-    return res.json({ success: false, error: 'Internal Server Error' }, 500);
+    return res.json({ success: false, error: 'Internal Server Error: ' + err.message }, 500);
   }
 };

@@ -274,7 +274,12 @@ function AppRoutes() {
 
   useEffect(() => {
     (async () => {
-      setAttestation('SECURE');
+      try {
+        const token = await window.electronAPI?.security?.getAttestationToken?.();
+        setAttestation(token === 'DEV_MODE' ? 'DEV_MODE' : 'SECURE');
+      } catch {
+        setAttestation('SECURE');
+      }
     })();
   }, []);
 
@@ -291,8 +296,8 @@ function AppRoutes() {
   return (
     <>
       {showDevBanner && (
-        <div style={{ background: '#d32f2f', color: '#fff', textAlign: 'center', padding: '4px', fontSize: '12px', fontWeight: 'bold', zIndex: 9999, position: 'relative' }}>
-          ⚠️ UNOFFICIAL BUILD — DEV MODE ⚠️
+        <div style={{ background: '#d32f2f', color: '#fff', textAlign: 'center', padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', zIndex: 9999, position: 'fixed', bottom: '16px', right: '16px', borderRadius: '4px', opacity: 0.8, pointerEvents: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+          ⚠️ DEV MODE
         </div>
       )}
       {!user ? (

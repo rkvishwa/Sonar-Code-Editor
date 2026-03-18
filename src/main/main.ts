@@ -175,11 +175,21 @@ ipcMain.handle(IPC_CHANNELS.SECURITY_UPSERT_SESSION, async (_event, teamId: stri
     };
 
     const attestation = getAttestationToken();
+    const buildType = attestation === 'DEV_MODE' ? 'dev' : 'official';
     const dataToSend = {
       teamId,
       teamName,
       status,
       lastSeen: new Date().toISOString(),
+      attestation,
+      buildType,
+    };
+
+    const legacyDataToSend = {
+      teamId,
+      teamName,
+      status,
+      lastSeen: dataToSend.lastSeen,
       attestation,
     };
 
@@ -192,14 +202,21 @@ ipcMain.handle(IPC_CHANNELS.SECURITY_UPSERT_SESSION, async (_event, teamId: stri
     if (listData.documents && listData.documents.length > 0) {
       const docId = listData.documents[0].$id;
       const updateUrl = `${endpoint}/databases/${dbId}/collections/${colSessions}/documents/${docId}`;
-      await net.fetch(updateUrl, {
+      let updateRes = await net.fetch(updateUrl, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ data: dataToSend }),
       });
+      if (!updateRes.ok) {
+        updateRes = await net.fetch(updateUrl, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify({ data: legacyDataToSend }),
+        });
+      }
     } else {
       const createUrl = `${endpoint}/databases/${dbId}/collections/${colSessions}/documents`;
-      await net.fetch(createUrl, {
+      let createRes = await net.fetch(createUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify({ 
@@ -207,6 +224,16 @@ ipcMain.handle(IPC_CHANNELS.SECURITY_UPSERT_SESSION, async (_event, teamId: stri
           data: dataToSend 
         }),
       });
+      if (!createRes.ok) {
+        createRes = await net.fetch(createUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            documentId: 'unique()',
+            data: legacyDataToSend,
+          }),
+        });
+      }
     }
   } catch (err) {
     console.error('Failed to upsert session from main:', err);

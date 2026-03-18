@@ -18,6 +18,10 @@ const COL_SESSIONS = import.meta.env.VITE_APPWRITE_COLLECTION_SESSIONS || 'sessi
 const COL_ACTIVITY_LOGS = import.meta.env.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS || 'activityLogs';
 const COL_REPORTS = import.meta.env.VITE_APPWRITE_COLLECTION_REPORTS || 'reports';
 const COL_SETTINGS = import.meta.env.VITE_APPWRITE_COLLECTION_SETTINGS || 'settings';
+const SETTINGS_FUNCTION_ID = 'sonar-settings';
+const SETTINGS_FUNCTION_COOLDOWN_MS = 30_000;
+
+let settingsFunctionBlockedUntil = 0;
 
 function isUnauthorizedAppwriteError(err: any): boolean {
   const code = err?.code ?? err?.response?.code;
@@ -26,11 +30,48 @@ function isUnauthorizedAppwriteError(err: any): boolean {
   return code === 401 || message.includes('unauthorized') || type.includes('unauthorized');
 }
 
+function isTimeoutOrNetworkError(err: any): boolean {
+  const code = String(err?.code || '').toLowerCase();
+  const type = String(err?.type || '').toLowerCase();
+  const message = String(err?.message || '').toLowerCase();
+  return (
+    code.includes('timed_out') ||
+    code.includes('timeout') ||
+    type.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('timeout') ||
+    message.includes('network request failed') ||
+    message.includes('failed to fetch')
+  );
+}
+
+async function executeSettingsFunction(payload: Record<string, unknown>): Promise<any> {
+  if (Date.now() < settingsFunctionBlockedUntil) {
+    throw new Error('sonar-settings temporarily unavailable');
+  }
+
+  try {
+    const res = await functions.createExecution(
+      SETTINGS_FUNCTION_ID,
+      JSON.stringify(payload),
+      false,
+      '/',
+      ExecutionMethod.POST
+    );
+    settingsFunctionBlockedUntil = 0;
+    return res;
+  } catch (err: any) {
+    if (isTimeoutOrNetworkError(err)) {
+      settingsFunctionBlockedUntil = Date.now() + SETTINGS_FUNCTION_COOLDOWN_MS;
+    }
+    throw err;
+  }
+}
+
 const knownRestrictedCollections = new Set<string>([
   COL_ACTIVITY_LOGS,
   COL_SESSIONS,
-  COL_REPORTS,
-  COL_SETTINGS
+  COL_REPORTS
 ]);
 
 // Fallback helper for listDocuments
@@ -40,7 +81,18 @@ async function fallbackListDocuments(
   queries?: any[]
 ): Promise<any> {
   if (knownRestrictedCollections.has(colId)) {
-    return _listDocumentsViaFunction(colId, queries);
+    try {
+      return await _listDocumentsViaFunction(colId, queries);
+    } catch (err: any) {
+      if (isTimeoutOrNetworkError(err)) {
+        try {
+          return await databases.listDocuments(dbId, colId, queries);
+        } catch {
+          return { total: 0, documents: [] };
+        }
+      }
+      throw err;
+    }
   }
 
   try {
@@ -57,13 +109,7 @@ async function fallbackListDocuments(
 async function _listDocumentsViaFunction(colId: string, queries?: any[]): Promise<any> {
   try {
     const payload = { action: 'listDocuments', collectionId: colId, queries };
-    const res = await functions.createExecution(
-      'sonar-settings',
-      JSON.stringify(payload),
-      false,
-      '/',
-      ExecutionMethod.POST
-    );
+    const res = await executeSettingsFunction(payload);
     const data = JSON.parse(res.responseBody || '{}');
     if (data.success) {
       return { total: (data.documents || []).length, documents: data.documents || [] };
@@ -81,7 +127,18 @@ async function fallbackGetDocument(
   docId: string
 ): Promise<any> {
   if (knownRestrictedCollections.has(colId)) {
-    return _getDocumentViaFunction(colId, docId);
+    try {
+      return await _getDocumentViaFunction(colId, docId);
+    } catch (err: any) {
+      if (isTimeoutOrNetworkError(err)) {
+        try {
+          return await databases.getDocument(dbId, colId, docId);
+        } catch {
+          return null;
+        }
+      }
+      throw err;
+    }
   }
 
   try {
@@ -98,13 +155,7 @@ async function fallbackGetDocument(
 async function _getDocumentViaFunction(colId: string, docId: string): Promise<any> {
   try {
     const payload = { action: 'listDocuments', collectionId: colId, queries: [Query.equal('$id', docId)] };
-    const res = await functions.createExecution(
-      'sonar-settings',
-      JSON.stringify(payload),
-      false,
-      '/',
-      ExecutionMethod.POST
-    );
+    const res = await executeSettingsFunction(payload);
     const data = JSON.parse(res.responseBody || '{}');
     if (data.success && data.documents && data.documents.length > 0) {
       return data.documents[0];
@@ -116,30 +167,80 @@ async function _getDocumentViaFunction(colId: string, docId: string): Promise<an
 }
 
 async function getSettingViaFunction(settingType: string): Promise<boolean> {
-  const res = await functions.createExecution(
-    'sonar-settings',
-    JSON.stringify({ action: 'getSetting', settingType }),
-    false,
-    '/',
-    ExecutionMethod.POST
-  );
+  const res = await executeSettingsFunction({ action: 'getSetting', settingType });
   const data = JSON.parse(res.responseBody || '{}');
   return data?.success === true ? data.value === true : false;
 }
 
 async function updateSettingViaFunction(settingType: string, settingValue: boolean): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await functions.createExecution(
-      'sonar-settings',
-      JSON.stringify({ action: 'updateSetting', settingType, settingValue }),
-      false,
-      '/',
-      ExecutionMethod.POST
-    );
+    const res = await executeSettingsFunction({ action: 'updateSetting', settingType, settingValue });
     const data = JSON.parse(res.responseBody || '{}');
-    return data;
+    if (data?.success === true) {
+      return data;
+    }
+
+    const directResult = await upsertSettingDirect(settingType, settingValue);
+    if (directResult.success) {
+      return directResult;
+    }
+
+    return {
+      success: false,
+      error: data?.error || directResult.error || 'Failed to update setting',
+    };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    const directResult = await upsertSettingDirect(settingType, settingValue);
+    if (directResult.success) {
+      return directResult;
+    }
+    return { success: false, error: directResult.error || err.message };
+  }
+}
+
+async function upsertSettingDirect(settingType: string, settingValue: boolean): Promise<{ success: boolean; error?: string }> {
+  try {
+    const val = String(settingValue);
+    const existing = await databases.listDocuments(DB_ID, COL_SETTINGS, [
+      Query.equal('settingType', settingType),
+      Query.limit(1),
+    ]);
+
+    if (existing.documents.length > 0) {
+      await databases.updateDocument(DB_ID, COL_SETTINGS, existing.documents[0].$id, {
+        settingValue: val,
+      });
+    } else {
+      await databases.createDocument(DB_ID, COL_SETTINGS, ID.unique(), {
+        settingType,
+        settingValue: val,
+      });
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Direct setting update failed' };
+  }
+}
+
+async function executeFunctionAndRequireSuccess(functionId: string, payload: Record<string, unknown>): Promise<void> {
+  const res = await functions.createExecution(
+    functionId,
+    JSON.stringify(payload),
+    false,
+    '/',
+    ExecutionMethod.POST
+  );
+
+  let data: any = {};
+  try {
+    data = JSON.parse(res.responseBody || '{}');
+  } catch {
+    throw new Error(`${functionId} returned invalid JSON response`);
+  }
+
+  if (data?.success !== true) {
+    throw new Error(data?.error || `${functionId} execution failed`);
   }
 }
 
@@ -288,14 +389,15 @@ export async function getAdminTeamIds(): Promise<Set<string>> {
 export async function updateSessionLastSeen(teamId: string, teamName?: string, status: string = 'online'): Promise<void> {
   try {
     const token = await window.electronAPI.security!.getAttestationToken();
-    await functions.createExecution('sonar-session-sync', JSON.stringify({
+    await executeFunctionAndRequireSuccess('sonar-session-sync', {
       teamId, 
       teamName: teamName || 'Unknown', 
       status, 
       attestation: token
-    }), false, '/', ExecutionMethod.POST);
+    });
   } catch (err) {
     console.error('Session sync error:', err);
+    throw err;
   }
 }
 
@@ -313,9 +415,12 @@ export async function getAllSessions(): Promise<Session[]> {
 // ---- Activity Logs (one row per team, upserted) ----
 
 export function parseSyncData(doc: ActivityLog): ActivitySyncData {
+  let parsed: any = null;
   try {
-    if (doc.windowTitle) return JSON.parse(doc.windowTitle);
+    if (doc.windowTitle) parsed = JSON.parse(doc.windowTitle);
   } catch { /* ignore */ }
+  
+  const isArray = Array.isArray(parsed);
   return {
     sessionStart: doc.timestamp,
     heartbeatCount: 0,
@@ -325,9 +430,11 @@ export function parseSyncData(doc: ActivityLog): ActivitySyncData {
     statusChanges: 0,
     totalOnlineSec: 0,
     totalOfflineSec: 0,
-    lastStatus: doc.status,
+    lastStatus: doc.status as 'online' | 'offline',
     lastStatusAt: doc.timestamp,
     offlinePeriods: [],
+    activityEvents: isArray ? parsed : (parsed?.activityEvents || []),
+    ...(isArray ? {} : parsed),
   };
 }
 
@@ -336,13 +443,14 @@ const HEARTBEAT_SEC = APP_CONFIG.HEARTBEAT_INTERVAL_MS / 1000;
 export async function upsertActivityLog(payload: HeartbeatPayload): Promise<void> {
   try {
     const token = await window.electronAPI.security!.getAttestationToken();
-    await functions.createExecution('sonar-activity-sync', JSON.stringify({
+    await executeFunctionAndRequireSuccess('sonar-activity-sync', {
       teamId: payload.teamId,
       payload: [payload],
       attestation: token
-    }), false, '/', ExecutionMethod.POST);
+    });
   } catch (err) {
     console.error('Activity sync error:', err);
+    throw err;
   }
 }
 
@@ -372,13 +480,14 @@ export async function mergeOfflineSyncData(
       event: 'offline_sync',
     }));
     
-    await functions.createExecution('sonar-activity-sync', JSON.stringify({
+    await executeFunctionAndRequireSuccess('sonar-activity-sync', {
       teamId,
       payload,
       attestation: token
-    }), false, '/', ExecutionMethod.POST);
+    });
   } catch (err) {
     console.error('Offline sync error:', err);
+    throw err;
   }
 }
 
@@ -480,6 +589,7 @@ export async function getActivityLogForTeam(teamId: string): Promise<ActivityLog
   try {
     const res = await fallbackListDocuments(DB_ID, COL_ACTIVITY_LOGS, [
       Query.equal('teamId', teamId),
+      Query.orderDesc('timestamp'),
       Query.limit(1),
     ]);
     if (res.documents.length === 0) return null;
@@ -495,7 +605,13 @@ export async function getAllActivityLogs(limit = 100): Promise<ActivityLog[]> {
       Query.orderDesc('timestamp'),
       Query.limit(limit),
     ]);
-    return res.documents as unknown as ActivityLog[];
+    const logs = res.documents as unknown as ActivityLog[];
+    const byTeam = new Map<string, ActivityLog>();
+    for (const log of logs) {
+      if (!log?.teamId) continue;
+      if (!byTeam.has(log.teamId)) byTeam.set(log.teamId, log);
+    }
+    return Array.from(byTeam.values()).slice(0, limit);
   } catch {
     return [];
   }
@@ -523,45 +639,57 @@ export async function getReportsForTeam(teamId: string): Promise<Report[]> {
 }
 
 // ---- Realtime ----
+// Delay helper to prevent WebSocket CONNECTING state errors when making multiple quick subscriptions
+const createDeferredSubscription = (channel: string, callback: (payload: any) => void, delayMs = 100) => {
+  let unsub: (() => void) | null = null;
+  const timeoutId = setTimeout(() => {
+    unsub = client.subscribe(channel, callback);
+  }, delayMs);
+  return () => {
+    clearTimeout(timeoutId);
+    if (unsub) unsub();
+  };
+};
+
 export function subscribeToActivityLogs(callback: (log: ActivityLog) => void): () => void {
-  const unsub = client.subscribe(
+  return createDeferredSubscription(
     `databases.${DB_ID}.collections.${COL_ACTIVITY_LOGS}.documents`,
     (response: RealtimeResponseEvent<ActivityLog>) => {
       if (response.events.some((e) => e.includes('create') || e.includes('update'))) {
         callback(response.payload);
       }
-    }
+    },
+    50
   );
-  return unsub;
 }
 
 export function subscribeToActivityLogDeletes(callback: () => void): () => void {
-  const unsub = client.subscribe(
+  return createDeferredSubscription(
     `databases.${DB_ID}.collections.${COL_SETTINGS}.documents`,
     (response: RealtimeResponseEvent<any>) => {
       const isCreateOrUpdate = response.events.some((e) => e.includes('create') || e.includes('update'));
       if (isCreateOrUpdate && response.payload && response.payload.settingType === 'latestActivityLogFlush') {
         callback();
       }
-    }
+    },
+    150
   );
-  return unsub;
 }
 
 export function subscribeToSessions(callback: (session: Session) => void): () => void {
-  const unsub = client.subscribe(
+  return createDeferredSubscription(
     `databases.${DB_ID}.collections.${COL_SESSIONS}.documents`,
     (response: RealtimeResponseEvent<Session>) => {
       if (response.events.some((e) => e.includes('create') || e.includes('update'))) {
         callback(response.payload);
       }
-    }
+    },
+    250
   );
-  return unsub;
 }
 
 export function subscribeToSettings(callback: (blocked: boolean) => void): () => void {
-  const unsub = client.subscribe(
+  return createDeferredSubscription(
     `databases.${DB_ID}.collections.${COL_SETTINGS}.documents`,
     (response: RealtimeResponseEvent<any>) => {
       if (response.events.some((e) => e.includes('update') || e.includes('create'))) {
@@ -570,9 +698,9 @@ export function subscribeToSettings(callback: (blocked: boolean) => void): () =>
           callback(payload.settingValue === 'true');
         }
       }
-    }
+    },
+    350
   );
-  return unsub;
 }
 
 export { client, databases };

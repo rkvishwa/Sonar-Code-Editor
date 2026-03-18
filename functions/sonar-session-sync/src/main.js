@@ -6,16 +6,25 @@ module.exports = async (context) => {
 
   try {
     const { teamId, teamName, status, attestation } = JSON.parse(req.body);
+    let buildType = 'unknown';
     
     if (!attestation || typeof attestation !== 'string') {
       return res.json({ success: false, error: 'Missing or invalid attestation token' }, 403);
     }
+
+    if (attestation === 'DEV_MODE') {
+      buildType = 'dev';
+    } else {
+      try {
+        JSON.parse(attestation);
+        buildType = 'official';
+      } catch {
+        buildType = 'unknown';
+      }
+    }
     
     const signingKey = process.env.BUILD_SIGNING_KEY;
-    if (signingKey) {
-      if (attestation === 'DEV_MODE') {
-        return res.json({ success: false, error: 'Unofficial DEV client build not permitted.' }, 403);
-      }
+    if (signingKey && attestation !== 'DEV_MODE') {
       try {
         const attData = JSON.parse(attestation);
         const crypto = require('crypto');
@@ -47,23 +56,41 @@ module.exports = async (context) => {
     const dbId = process.env.DB_ID;
     const colSessions = process.env.COL_SESSIONS;
 
-    await databases.updateDocument(dbId, colSessions, teamId, {
+    const sessionData = {
+      teamId,
       teamName,
       status,
-      lastSeen: new Date().toISOString()
-    }).catch(async () => {
-      // Create if it doesn't exist
-      await databases.createDocument(dbId, colSessions, teamId, {
+      lastSeen: new Date().toISOString(),
+      buildType,
+    };
+
+    const upsertSessionDoc = async (data) => {
+      await databases.updateDocument(dbId, colSessions, teamId, data).catch(async () => {
+        // Create if it doesn't exist
+        await databases.createDocument(dbId, colSessions, teamId, data);
+      });
+    };
+
+    try {
+      await upsertSessionDoc(sessionData);
+    } catch (writeErr) {
+      const msg = String(writeErr?.message || '').toLowerCase();
+      const schemaMismatch = msg.includes('buildtype') || msg.includes('unknown attribute') || msg.includes('document structure');
+      if (!schemaMismatch) throw writeErr;
+
+      // Backward compatible write for projects where sessions schema is not migrated yet.
+      await upsertSessionDoc({
+        teamId,
         teamName,
         status,
-        lastSeen: new Date().toISOString()
+        lastSeen: sessionData.lastSeen,
       });
-    });
+    }
 
     return res.json({ success: true });
 
   } catch (err) {
     error(err.message);
-    return res.json({ success: false, error: 'Internal Server Error' }, 500);
+    return res.json({ success: false, error: 'Internal Server Error: ' + err.message }, 500);
   }
 };
