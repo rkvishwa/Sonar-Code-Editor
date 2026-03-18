@@ -6,7 +6,7 @@ import { verifyAsarIntegrity } from './integrityCheck';
 
 dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', '.env') });
 import { execSync } from 'child_process';
-import { registerFsHandlers } from './ipcHandlers';
+import { registerFsHandlers, enforceTrustedPath } from './ipcHandlers';
 import { MonitoringService } from './monitoring';
 import { IPC_CHANNELS } from '../shared/constants';
 import { stopStaticServer } from './staticServer';
@@ -156,8 +156,8 @@ ipcMain.handle(IPC_CHANNELS.SECURITY_GET_LOG, () => {
   return getSecurityLog();
 });
 
-ipcMain.handle(IPC_CHANNELS.SECURITY_GET_ATTESTATION, () => {
-  return getAttestationToken();
+ipcMain.handle(IPC_CHANNELS.SECURITY_GET_ATTESTATION, (_event, nonce?: string) => {
+  return getAttestationToken(nonce);
 });
 
 ipcMain.handle(IPC_CHANNELS.SECURITY_UPSERT_SESSION, async (_event, teamId: string, teamName: string, status: 'online' | 'offline') => {
@@ -337,6 +337,13 @@ app.whenReady().then(async () => {
     if (!filePath) {
       return new Response('Missing path parameter', { status: 400 });
     }
+    
+    try {
+      enforceTrustedPath(filePath);
+    } catch (error) {
+      return new Response('Security Error: Access Denied', { status: 403 });
+    }
+
     const ext = path.extname(filePath).toLowerCase();
     const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp', '.ico'];
     if (!imageExts.includes(ext)) {
@@ -363,7 +370,7 @@ app.whenReady().then(async () => {
         responseHeaders: {
           ...details.responseHeaders,
           'Content-Security-Policy': [
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: file: local-file: http://127.0.0.1:* ws://127.0.0.1:* ws://*:1234; img-src 'self' data: file: blob: local-file: http://127.0.0.1:*; connect-src 'self' https://*.appwrite.io wss://*.appwrite.io http://127.0.0.1:* ws://127.0.0.1:* ws://*:1234; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-src http://127.0.0.1:*",
+            "default-src 'self' data: blob: file: local-file: http://127.0.0.1:* ws://127.0.0.1:* ws://*:1234; img-src 'self' data: file: blob: local-file: http://127.0.0.1:*; connect-src 'self' https://*.appwrite.io wss://*.appwrite.io http://127.0.0.1:* ws://127.0.0.1:* ws://*:1234; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-src http://127.0.0.1:*",
           ],
         },
       });

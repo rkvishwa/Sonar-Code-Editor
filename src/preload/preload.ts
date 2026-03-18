@@ -59,7 +59,7 @@ const api: ElectronAPI = {
     sendHeartbeat: (nonce) => ipcRenderer.send(IPC_CHANNELS.SECURITY_HEARTBEAT_PING, nonce),
     getSecurityLog: () => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_GET_LOG),
     upsertSession: (teamId, teamName, status) => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_UPSERT_SESSION, teamId, teamName, status),
-    getAttestationToken: () => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_GET_ATTESTATION),
+    getAttestationToken: (nonce?: string) => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_GET_ATTESTATION, nonce),
   },
   clipboard: {
     readText: () => ipcRenderer.invoke(IPC_CHANNELS.CLIPBOARD_READ_TEXT),
@@ -92,6 +92,11 @@ contextBridge.exposeInMainWorld('electronEvents', {
     ipcRenderer.on('monitoring:flushQueue', (_event, queue) => callback(queue));
   },
   removeAllListeners: (channel: string) => {
-    ipcRenderer.removeAllListeners(channel);
+    // Only allow specific channels to be cleared to prevent DoS attacks
+    if (['monitoring:heartbeat', 'monitoring:flushQueue'].includes(channel)) {
+      ipcRenderer.removeAllListeners(channel);
+    } else {
+      console.warn(`Attempted to remove listeners for unauthorized channel: ${channel}`);
+    }
   },
 });

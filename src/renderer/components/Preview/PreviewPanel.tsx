@@ -376,10 +376,12 @@ export default function PreviewPanel({ workspaceRoot, activeFilePath, initialUrl
         {isLoading && <div className="preview-loading-bar" />}
         <PanelGroup direction="vertical">
           <Panel id="webview-panel" minSize={10} style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* @ts-ignore - 'sandbox' is a valid electron webview attribute but React doesn't typify it */}
             <webview
               ref={webviewRef}
               className="preview-webview"
               webpreferences="allowRunningInsecureContent=no"
+              {...{ sandbox: true }}
             />
           </Panel>
           {devtoolsOpen && <PanelResizeHandle className="resize-handle horizontal" />}

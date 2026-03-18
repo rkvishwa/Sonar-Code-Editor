@@ -155,12 +155,8 @@ export default function SettingsModal({
 
   // Refresh members when opening Account tab
   useEffect(() => {
-    if (isOpen && activeTab === "Account" && user?.$id) {
-      getTeamById(user.$id)
-        .then((team) => {
-          if (team?.studentIds) setMembers(team.studentIds);
-        })
-        .catch(() => { });
+    if (isOpen && activeTab === "Account" && user?.studentIds) {
+      setMembers(user.studentIds);
     }
   }, [isOpen, activeTab, user]);
 

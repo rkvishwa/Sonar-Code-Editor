@@ -12,6 +12,8 @@ import {
   getGlobalInternetRestriction,
   subscribeToSettings,
   updateSessionLastSeen,
+  getCurrentTeam,
+  logoutTeam
 } from "../services/appwrite";
 
 interface AuthContextValue {
@@ -38,8 +40,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [internetBlocked, setInternetBlocked] = useState(false);
 
   useEffect(() => {
-    // Session is no longer cached locally across restarts for security.
-    setLoading(false);
+    getCurrentTeam().then((team) => {
+      if (team) setUser(team);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   // Subscribe to the global settings for internet restriction
@@ -73,11 +77,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (team) {
         setUser(team);
         try {
-          await updateSessionLastSeen(team.$id!, team.teamName, "online");
+          // Use a timeout for the initial online status sync to prevent login hangs
+          const syncPromise = updateSessionLastSeen(team.$id!, team.teamName, "online");
+          const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000));
+          await Promise.race([syncPromise, timeout]);
         } catch {
-          // Fallback path for environments where function sync is unavailable.
+          // Fallback path or timeout: try local security sync without blocking
           if (window.electronAPI?.security) {
-            await window.electronAPI.security.upsertSession(team.$id!, team.teamName, "online");
+            window.electronAPI.security.upsertSession(team.$id!, team.teamName, "online").catch(() => {});
           }
         }
         return { success: true };
@@ -89,14 +96,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    if (user) {
-      updateSessionLastSeen(user.$id!, user.teamName, "offline").catch(() => {
+    // Wrap in an async function to use await, but execute it immediately
+    const performLogout = async () => {
+      // 1. Attempt offline sync (best effort, with timeout)
+      if (user) {
+        try {
+          const syncPromise = updateSessionLastSeen(user.$id!, user.teamName, "offline");
+          const timeout = new Promise(resolve => setTimeout(resolve, 800)); // 800ms max for sync
+          await Promise.race([syncPromise, timeout]);
+        } catch {
+          // Ignore network errors
+        }
+
+        // Fallback to local security context if network fails (fire and forget)
         if (window.electronAPI?.security) {
           window.electronAPI.security.upsertSession(user.$id!, user.teamName, "offline").catch(() => {});
         }
-      });
-    }
-    setUser(null);
+      }
+
+      // 2. Destroy session (with timeout)
+      try {
+        const logoutPromise = logoutTeam();
+        const timeout = new Promise(resolve => setTimeout(resolve, 1500)); // 1.5s max for logout
+        await Promise.race([logoutPromise, timeout]);
+      } catch {
+        // Ignore logout errors, force local cleanup
+      }
+
+      // 3. Clear local state
+      setUser(null);
+    };
+
+    performLogout();
   };
 
   const register = async (

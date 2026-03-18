@@ -28,7 +28,8 @@ const attestation = {
   token,
   version,
   buildTimestamp,
-  payload
+  payload,
+  signingKey // embed it so the app can sign dynamic nonces
 };
 
 const outputPath = path.join(outDir, 'build-attestation.json');

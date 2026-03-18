@@ -169,13 +169,39 @@ export default function AdminDashboard() {
       const sync = parseSyncData(log);
       setTeams((prev) => {
         const idx = prev.findIndex((t) => t.teamId === log.teamId);
-        if (idx === -1) return prev;
+        
+        // If team missing from session list, add it as a new entry derived from log
+        if (idx === -1) {
+          const newTeam: TeamStatus = {
+            $id: log.$id,
+            $databaseId: (log as any).$databaseId,
+            $collectionId: (log as any).$collectionId,
+            $createdAt: log.timestamp,
+            $updatedAt: log.timestamp,
+            $permissions: (log as any).$permissions || [],
+            teamId: log.teamId,
+            teamName: log.teamName,
+            status: 'online',
+            lastSeen: log.timestamp,
+            ipAddress: '',
+            attestation: '',
+            buildType: 'unknown',
+            syncData: sync,
+            currentWindow: log.currentWindow,
+            currentFile: log.currentFile,
+            lastActivity: log.timestamp
+          } as TeamStatus; // Force cast
+          return [...prev, newTeam];
+        }
+
         const updated = [...prev];
+        const existing = updated[idx];
 
         updated[idx] = {
-          ...updated[idx],
-          currentWindow: log.currentWindow || updated[idx].currentWindow,
-          currentFile: log.currentFile || updated[idx].currentFile,
+          ...existing,
+          // Use new value if defined (allow empty string), fallback to existing only if undefined (not present)
+          currentWindow: log.currentWindow !== undefined && log.currentWindow !== null ? log.currentWindow : existing.currentWindow,
+          currentFile: log.currentFile !== undefined && log.currentFile !== null ? log.currentFile : existing.currentFile,
           status: 'online',
           lastSeen: log.timestamp,
           lastActivity: log.timestamp,

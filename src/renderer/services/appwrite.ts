@@ -1,4 +1,4 @@
-import { Client, Databases, Functions, ExecutionMethod, Query, ID, RealtimeResponseEvent } from 'appwrite';
+import { Client, Databases, Functions, ExecutionMethod, Query, ID, RealtimeResponseEvent, Account } from 'appwrite';
 import { APP_CONFIG } from '../../shared/constants';
 import { Team, Session, ActivityLog, ActivitySyncData, Report, HeartbeatPayload } from '../../shared/types';
 
@@ -9,11 +9,12 @@ const client = new Client()
   .setEndpoint(APPWRITE_ENDPOINT)
   .setProject(APPWRITE_PROJECT_ID);
 
+const account = new Account(client);
 const databases = new Databases(client);
 const functions = new Functions(client);
 
 const DB_ID = import.meta.env.VITE_APPWRITE_DB_NAME || 'devwatch_db';
-const COL_TEAMS = import.meta.env.VITE_APPWRITE_COLLECTION_TEAMS || 'teams';
+// COL_TEAMS removed - fully migrated to Appwrite Users and sonar-settings
 const COL_SESSIONS = import.meta.env.VITE_APPWRITE_COLLECTION_SESSIONS || 'sessions';
 const COL_ACTIVITY_LOGS = import.meta.env.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS || 'activityLogs';
 const COL_REPORTS = import.meta.env.VITE_APPWRITE_COLLECTION_REPORTS || 'reports';
@@ -81,30 +82,7 @@ async function fallbackListDocuments(
   colId: string,
   queries?: any[]
 ): Promise<any> {
-  if (knownRestrictedCollections.has(colId)) {
-    try {
-      return await _listDocumentsViaFunction(colId, queries);
-    } catch (err: any) {
-      if (isTimeoutOrNetworkError(err)) {
-        try {
-          return await databases.listDocuments(dbId, colId, queries);
-        } catch {
-          return { total: 0, documents: [] };
-        }
-      }
-      throw err;
-    }
-  }
-
-  try {
-    return await databases.listDocuments(dbId, colId, queries);
-  } catch (err: any) {
-    if (isUnauthorizedAppwriteError(err)) {
-      knownRestrictedCollections.add(colId);
-      return _listDocumentsViaFunction(colId, queries);
-    }
-    throw err;
-  }
+  return await _listDocumentsViaFunction(colId, queries);
 }
 
 async function _listDocumentsViaFunction(colId: string, queries?: any[]): Promise<any> {
@@ -127,30 +105,7 @@ async function fallbackGetDocument(
   colId: string,
   docId: string
 ): Promise<any> {
-  if (knownRestrictedCollections.has(colId)) {
-    try {
-      return await _getDocumentViaFunction(colId, docId);
-    } catch (err: any) {
-      if (isTimeoutOrNetworkError(err)) {
-        try {
-          return await databases.getDocument(dbId, colId, docId);
-        } catch {
-          return null;
-        }
-      }
-      throw err;
-    }
-  }
-
-  try {
-    return await databases.getDocument(dbId, colId, docId);
-  } catch (err: any) {
-    if (isUnauthorizedAppwriteError(err)) {
-      knownRestrictedCollections.add(colId);
-      return _getDocumentViaFunction(colId, docId);
-    }
-    throw err;
-  }
+  return await _getDocumentViaFunction(colId, docId);
 }
 
 async function _getDocumentViaFunction(colId: string, docId: string): Promise<any> {
@@ -245,32 +200,63 @@ async function executeFunctionAndRequireSuccess(functionId: string, payload: Rec
   }
 }
 
-// ---- Teams ----
+// ---- Teams (Migrated to Appwrite Users) ----
 export async function getTeamByName(teamName: string): Promise<Team | null> {
+  // Deprecated: Only used during migration. New logic uses account.createEmailPasswordSession
+  // Or check against existing users if needed via admin function
+  console.warn('getTeamByName is deprecated and will be removed.');
+  return null;
+}
+
+// ... other helpers ...
+const getEmail = (teamName: string) => {
+  if (teamName.includes('@')) return teamName;
+  return `${teamName.replace(/[^a-zA-Z0-9]/g, '.').toLowerCase()}@sonar.local`;
+};
+
+const mapUserToTeam = (user: any): Team => {
+  let role = user.prefs?.role || 'team';
+  if (user.labels && Array.isArray(user.labels)) {
+    if (user.labels.includes('admin')) role = 'admin';
+  }
+  
+  return {
+    $id: user.$id,
+    teamName: user.name,
+    role: role,
+    studentIds: user.prefs?.studentIds || [],
+    createdAt: user.$createdAt
+  };
+};
+
+export async function getCurrentTeam(): Promise<Team | null> {
   try {
-    const res = await fallbackListDocuments(DB_ID, COL_TEAMS, [
-      Query.limit(500),
-    ]);
-    const match = res.documents.find(
-      (d: any) => d.teamName.toLowerCase() === teamName.toLowerCase()
-    );
-    if (!match) return null;
-    return match as unknown as Team;
+    const user = await account.get();
+    return mapUserToTeam(user);
   } catch {
     return null;
   }
 }
 
+export async function logoutTeam(): Promise<void> {
+  try {
+    await account.deleteSession('current');
+  } catch {}
+}
+
 export async function validateTeamCredentials(teamName: string, password: string): Promise<Team | null> {
   try {
-    const res = await functions.createExecution('sonar-auth', JSON.stringify({ teamName, password }), false, '/', ExecutionMethod.POST);
-    const data = JSON.parse(res.responseBody);
-    if (data.success) {
-      return { $id: data.teamId, teamName, password, studentIds: data.studentIds, role: data.role || 'team', createdAt: new Date().toISOString() } as Team;
+    // Clean up existing session if any (heuristic to minimize 401 noise)
+    const hasSessionParams = Object.keys(localStorage).some(k => k.startsWith('cookieFallback'));
+    if (hasSessionParams) {
+       try { await account.deleteSession('current'); } catch {}
     }
-    return null;
+
+    await account.createEmailPasswordSession(getEmail(teamName), password);
+    const user = await account.get();
+    return mapUserToTeam(user);
   } catch (err) {
-    console.error('Auth error:', err);
+    console.error('Login failed:', err);
     return null;
   }
 }
@@ -281,8 +267,14 @@ export async function registerTeam(
   studentIds: string[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await functions.createExecution('sonar-teams', JSON.stringify({ action: 'register', teamName, password, studentIds }), false, '/', ExecutionMethod.POST);
-    const data = JSON.parse(res.responseBody);
+    const res = await functions.createExecution(
+      'sonar-auth', 
+      JSON.stringify({ action: 'register', teamName, password, studentIds }), 
+      false, 
+      '/', 
+      ExecutionMethod.POST
+    );
+    const data = JSON.parse(res.responseBody || '{}');
     if (data.success) {
       return { success: true };
     }
@@ -297,12 +289,18 @@ export async function addTeamMember(
   studentId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await functions.createExecution('sonar-teams', JSON.stringify({ action: 'addMember', teamId, studentId }), false, '/', ExecutionMethod.POST);
-    const data = JSON.parse(res.responseBody);
-    if (data.success) {
-      return { success: true };
+    const user = await account.get();
+    // Verify we are adding to our own team, or we are admin (logic could be expanded)
+    if (user.$id !== teamId) {
+       // If admin, maybe allow? For now strict check provided we are using team context
     }
-    return { success: false, error: data.error || 'Failed to add member' };
+    
+    // We can only manage our own team via this method commonly
+    const currentIds = user.prefs.studentIds || [];
+    if (!currentIds.includes(studentId)) {
+        await account.updatePrefs({ ...user.prefs, studentIds: [...currentIds, studentId] });
+    }
+    return { success: true };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Failed to add member' };
   }
@@ -314,44 +312,24 @@ export async function changeTeamPassword(
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await functions.createExecution('sonar-teams', JSON.stringify({ action: 'changePassword', teamId, oldPassword, newPassword }), false, '/', ExecutionMethod.POST);
-    const data = JSON.parse(res.responseBody);
-    if (data.success) {
-      return { success: true };
-    }
-    return { success: false, error: data.error || 'Failed to change password' };
+    await account.updatePassword(newPassword, oldPassword);
+    return { success: true };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Failed to change password' };
   }
 }
 
 export async function getTeamById(teamId: string): Promise<Team | null> {
-  try {
-    const res = await fallbackGetDocument(DB_ID, COL_TEAMS, teamId);
-    return res as unknown as Team;
-  } catch {
-    return null;
-  }
+  // Deprecated: Use AuthContext user object directly
+  console.warn('getTeamById is deprecated.');
+  return null;
 }
 
 export async function updateTeamName(
   teamId: string,
   newName: string
 ): Promise<{ success: boolean; error?: string }> {
-  try {
-    const existing = await getTeamByName(newName);
-    if (existing && existing.$id !== teamId) {
-      return { success: false, error: 'Team name already exists' };
-    }
-    const res = await functions.createExecution('sonar-teams', JSON.stringify({ action: 'updateTeamName', teamId, newName }), false, '/', ExecutionMethod.POST);
-    const data = JSON.parse(res.responseBody || '{}');
-    if (data.success) {
-      return { success: true };
-    }
-    return { success: false, error: data.error || 'Failed to update team name' };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Failed to update team name' };
-  }
+   return { success: false, error: "Team name updates are disabled." };
 }
 
 export async function updateTeamPassword(
@@ -376,25 +354,43 @@ export async function updateTeamPassword(
 // ---- Teams ----
 export async function getAdminTeamIds(): Promise<Set<string>> {
   try {
-    const res = await fallbackListDocuments(DB_ID, COL_TEAMS, [
-      Query.equal('role', 'admin'),
-      Query.limit(100),
-    ]);
-    return new Set(res.documents.map((d: any) => d.$id));
-  } catch {
+    const res = await executeSettingsFunction({ action: 'listAdmins' });
+    const data = JSON.parse(res.responseBody || '{}');
+    if (data.success && Array.isArray(data.adminIds)) {
+      return new Set(data.adminIds);
+    }
+    return new Set();
+  } catch (err) {
+    console.error('Failed to list admins:', err);
     return new Set();
   }
 }
 
 // ---- Sessions ----
+async function getNoncePayload(): Promise<{ nonce: string, nonceToken: string } | null> {
+  try {
+    const res = await functions.createExecution('sonar-auth', JSON.stringify({ action: 'getNonce' }), false, '/', ExecutionMethod.POST);
+    const data = JSON.parse(res.responseBody || '{}');
+    if (data.success) {
+      return { nonce: data.nonce, nonceToken: data.nonceToken };
+    }
+  } catch (err) {
+    // console.warn('Failed to get nonce payload:', err);
+  }
+  return null;
+}
+
 export async function updateSessionLastSeen(teamId: string, teamName?: string, status: string = 'online'): Promise<void> {
   try {
-    const token = await window.electronAPI.security!.getAttestationToken();
+    const nonceData = await getNoncePayload();
+    const token = await window.electronAPI.security!.getAttestationToken(nonceData?.nonce);
+    
     await executeFunctionAndRequireSuccess('sonar-session-sync', {
       teamId, 
       teamName: teamName || 'Unknown', 
       status, 
-      attestation: token
+      attestation: token,
+      ...(nonceData ? { nonceToken: nonceData.nonceToken } : {})
     });
   } catch (err) {
     console.error('Session sync error:', err);
@@ -443,11 +439,13 @@ const HEARTBEAT_SEC = APP_CONFIG.HEARTBEAT_INTERVAL_MS / 1000;
 
 export async function upsertActivityLog(payload: HeartbeatPayload): Promise<void> {
   try {
-    const token = await window.electronAPI.security!.getAttestationToken();
+    const nonceData = await getNoncePayload();
+    const token = await window.electronAPI.security!.getAttestationToken(nonceData?.nonce);
     await executeFunctionAndRequireSuccess('sonar-activity-sync', {
       teamId: payload.teamId,
       payload: [payload],
-      attestation: token
+      attestation: token,
+      ...(nonceData ? { nonceToken: nonceData.nonceToken } : {})
     });
   } catch (err) {
     console.error('Activity sync error:', err);
@@ -472,7 +470,8 @@ export async function mergeOfflineSyncData(
   summary: OfflineSyncSummary,
 ): Promise<void> {
   try {
-    const token = await window.electronAPI.security!.getAttestationToken();
+    const nonceData = await getNoncePayload();
+    const token = await window.electronAPI.security!.getAttestationToken(nonceData?.nonce);
     const payload = Array.from({ length: summary.logCount }).map(() => ({
       teamId,
       teamName,
@@ -484,7 +483,8 @@ export async function mergeOfflineSyncData(
     await executeFunctionAndRequireSuccess('sonar-activity-sync', {
       teamId,
       payload,
-      attestation: token
+      attestation: token,
+      ...(nonceData ? { nonceToken: nonceData.nonceToken } : {})
     });
   } catch (err) {
     console.error('Offline sync error:', err);

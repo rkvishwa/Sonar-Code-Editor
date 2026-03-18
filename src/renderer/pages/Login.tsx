@@ -239,7 +239,7 @@ export default function Login() {
                   type="text"
                   value={loginTeam}
                   onChange={(e) => setLoginTeam(e.target.value)}
-                  placeholder="Enter your username or team name"
+                  placeholder="Enter your team name"
                   autoComplete="username"
                   autoFocus
                   disabled={loading}
@@ -287,7 +287,7 @@ export default function Login() {
                   type="text"
                   value={regTeam}
                   onChange={(e) => setRegTeam(e.target.value)}
-                  placeholder="Choose a username or team name"
+                  placeholder="Choose a team name"
                   autoComplete="off"
                   autoFocus
                   disabled={loading}

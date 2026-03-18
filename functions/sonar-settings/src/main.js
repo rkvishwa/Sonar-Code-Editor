@@ -1,4 +1,5 @@
-const { Client, Databases, Query } = require('node-appwrite');
+const { Client, Databases, Query, Users } = require('node-appwrite');
+const jwt = require('jsonwebtoken');
 
 module.exports = async (context) => {
   const { req, res, log, error } = context;
@@ -13,13 +14,41 @@ module.exports = async (context) => {
     }
     const { action, settingType } = bodyObj || {};
 
+    const apiKey =
+      (context.variables && context.variables['APPWRITE_FUNCTION_API_KEY']) ||
+      process.env.APPWRITE_FUNCTION_API_KEY ||
+      (context.variables && context.variables['APPWRITE_API_KEY']) ||
+      process.env.APPWRITE_API_KEY;
+    
+    if (!apiKey) {
+       error('API Key not found.');
+       return res.json({ success: false, error: 'Internal Server Error' }, 500);
+    }
+
     const client = new Client()
       .setEndpoint(process.env.APPWRITE_ENDPOINT)
       .setProject(process.env.APPWRITE_PROJECT_ID)
-      .setKey(context.variables && context.variables['APPWRITE_API_KEY'] ? context.variables['APPWRITE_API_KEY'] : process.env.APPWRITE_API_KEY);
+      .setKey(apiKey);
     const databases = new Databases(client);
     
     const dbId = process.env.DB_ID;
+
+    if (action === 'updateSetting' || action === 'flushActivityLogs' || action === 'listDocuments' || action === 'getSetting') {
+      const userId = req.headers['x-appwrite-user-id'];
+      if (!userId) {
+         // No user context - 401
+         return res.json({ success: false, error: 'Unauthorized: missing user context' }, 401);
+      }
+
+      const users = new Users(client);
+      const user = await users.get(userId);
+      const role = user.prefs && user.prefs.role ? user.prefs.role : 'team';
+      const labels = user.labels || [];
+
+      if (role !== 'admin' && !labels.includes('admin')) {
+         return res.json({ success: false, error: 'Forbidden: admin only' }, 403);
+      }
+    }
 
     if (action === 'updateSetting') {
       const colSettings = process.env.COL_SETTINGS || 'settings';
@@ -60,46 +89,26 @@ module.exports = async (context) => {
       return res.json({ success: true, value });
     }
 
-
-    if (action === 'flushActivityLogs') {
-      const colLogs = process.env.COL_ACTIVITY_LOGS || 'activity_logs';
-      let hasMore = true;
-      while (hasMore) {
-        const resList = await databases.listDocuments(dbId, colLogs, [
-          Query.limit(100)
-        ]);
-        if (resList.documents.length === 0) {
-          hasMore = false;
-          break;
-        }
-        for (const doc of resList.documents) {
-          await databases.deleteDocument(dbId, colLogs, doc.$id);
-        }
-      }
-
+    if (action === 'listAdmins') {
+      // Return list of user IDs who are admins
+      // This allows the dashboard to filter out admin sessions without needing a 'teams' collection
       try {
-        const colSettings = process.env.COL_SETTINGS || 'settings';
-        const flushDocs = await databases.listDocuments(dbId, colSettings, [
-          Query.equal('settingType', 'latestActivityLogFlush'),
-          Query.limit(1)
+        const users = new Users(client);
+        // Note: Querying users by label might require specific Appwrite version
+        // Fallback: list users and filter by label in memory if query not supported or limited
+        const result = await users.list([
+          // Query.equal('labels', 'admin') // Ideally this works
         ]);
-        const now = new Date().toISOString();
-        if (flushDocs.documents.length > 0) {
-          await databases.updateDocument(dbId, colSettings, flushDocs.documents[0].$id, {
-            settingValue: now
-          });
-        } else {
-          const { ID } = require('node-appwrite');
-          await databases.createDocument(dbId, colSettings, ID.unique(), {
-            settingType: 'latestActivityLogFlush',
-            settingValue: now
-          });
-        }
+        
+        // Manual filter to be safe across versions
+        const adminIds = result.users
+          .filter(u => u.labels && u.labels.includes('admin') || (u.prefs && u.prefs.role === 'admin'))
+          .map(u => u.$id);
+          
+        return res.json({ success: true, adminIds });
       } catch (err) {
-        console.error('Failed to notify clients of flush:', err);
+        return res.json({ success: false, error: err.message }, 500);
       }
-
-      return res.json({ success: true });
     }
 
 
@@ -143,6 +152,7 @@ module.exports = async (context) => {
 
       return res.json({ success: true });
     }
+
 
     if (action === 'listDocuments') {
       const { collectionId, queries } = bodyObj;

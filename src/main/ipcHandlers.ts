@@ -9,7 +9,7 @@ import { startStaticServer, stopStaticServer, getServerUrl } from './staticServe
 
 const trustedRoots = new Set<string>();
 
-function enforceTrustedPath(targetPath: string) {
+export function enforceTrustedPath(targetPath: string) {
   if (!targetPath) return;
   const absTarget = path.resolve(targetPath);
   let isTrusted = false;
@@ -535,6 +535,10 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
     if (!win) return;
     const previewContents = webContents.fromId(previewId);
     if (!previewContents) return;
+
+    if (previewContents.hostWebContents?.id !== event.sender.id) {
+      throw new Error('Unauthorized DevTools access');
+    }
 
     // Clean up existing
     if (devtoolsView) {
