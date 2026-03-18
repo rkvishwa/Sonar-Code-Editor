@@ -32,6 +32,7 @@ export function addActivityEvent(event: ActivityEvent): void {
 
 export function clearActivityLog(): void {
   localStorage.removeItem(ACTIVITY_LOG_KEY);
+  window.dispatchEvent(new Event('activityLogCleared'));
 }
 
 function extractAppName(details?: string): string | null {

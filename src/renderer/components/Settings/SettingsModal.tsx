@@ -145,6 +145,14 @@ export default function SettingsModal({
     }
   }, [isOpen, activeTab, searchQuery]);
 
+  useEffect(() => {
+    const handleLogCleared = () => {
+      setActivityLog([]);
+    };
+    window.addEventListener('activityLogCleared', handleLogCleared);
+    return () => window.removeEventListener('activityLogCleared', handleLogCleared);
+  }, []);
+
   // Refresh members when opening Account tab
   useEffect(() => {
     if (isOpen && activeTab === "Account" && user?.$id) {
@@ -216,6 +224,10 @@ export default function SettingsModal({
     }
     if (newPassword.length < 4) {
       setPasswordError("New password must be at least 4 characters");
+      return;
+    }
+    if (newPassword === oldPassword) {
+      setPasswordError("New password cannot be the same as current password");
       return;
     }
     if (newPassword !== confirmPassword) {

@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Fetch initial value
-    getGlobalInternetRestriction().then(setInternetBlocked).catch(() => setInternetBlocked(false));
+    getGlobalInternetRestriction(true).then(setInternetBlocked).catch(() => setInternetBlocked(false));
 
     // Subscribe to realtime changes
     const unsub = subscribeToSettings((blocked) => {

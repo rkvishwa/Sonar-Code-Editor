@@ -156,6 +156,10 @@ ipcMain.handle(IPC_CHANNELS.SECURITY_GET_LOG, () => {
   return getSecurityLog();
 });
 
+ipcMain.handle(IPC_CHANNELS.SECURITY_GET_ATTESTATION, () => {
+  return getAttestationToken();
+});
+
 ipcMain.handle(IPC_CHANNELS.SECURITY_UPSERT_SESSION, async (_event, teamId: string, teamName: string, status: 'online' | 'offline') => {
   try {
     const endpoint = process.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';

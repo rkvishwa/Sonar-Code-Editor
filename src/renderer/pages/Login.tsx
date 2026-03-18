@@ -119,7 +119,7 @@ export default function Login() {
     const ids = studentIds.map((s) => s.trim()).filter(Boolean);
 
     if (!name || !pass) {
-      showToast("Team name and password are required", "error");
+      showToast("Username/Team name and password are required", "error");
       return;
     }
     if (ids.length === 0) {
@@ -208,8 +208,8 @@ export default function Login() {
             <h2>{tab === "login" ? "Welcome back" : "Create an account"}</h2>
             <p>
               {tab === "login"
-                ? "Sign in to your team account to continue"
-                : "Register a new team to get started"}
+                ? "Sign in to your account to continue"
+                : "Register a new account or team to get started"}
             </p>
           </div>
 
@@ -239,7 +239,7 @@ export default function Login() {
                   type="text"
                   value={loginTeam}
                   onChange={(e) => setLoginTeam(e.target.value)}
-                  placeholder="Enter your team name"
+                  placeholder="Enter your username or team name"
                   autoComplete="username"
                   autoFocus
                   disabled={loading}
@@ -287,7 +287,7 @@ export default function Login() {
                   type="text"
                   value={regTeam}
                   onChange={(e) => setRegTeam(e.target.value)}
-                  placeholder="Choose a team name"
+                  placeholder="Choose a username or team name"
                   autoComplete="off"
                   autoFocus
                   disabled={loading}
@@ -357,7 +357,7 @@ export default function Login() {
                 </div>
               </div>
               <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? "Registering..." : "Register Team"}
+                {loading ? "Registering..." : "Register"}
               </button>
             </form>
           )}

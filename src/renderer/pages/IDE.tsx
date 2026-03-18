@@ -1484,7 +1484,7 @@ function IDEContent() {
     if (result) {
       try {
         const stats = await window.electronAPI.fs.getWorkspaceStats(result.path);
-        const blockNonEmpty = await getGlobalBlockNonEmptyWorkspace();
+        const blockNonEmpty = await getGlobalBlockNonEmptyWorkspace(user?.role !== 'admin');
         
         if (blockNonEmpty && (stats.totalFiles > 0 || stats.totalFolders > 0)) {
           console.warn("Blocked opening non-empty workspace.");

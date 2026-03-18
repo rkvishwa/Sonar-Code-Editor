@@ -175,6 +175,7 @@ export interface ElectronAPI {
     sendHeartbeat: (nonce: string) => void;
     getSecurityLog: () => Promise<any[]>;
     upsertSession: (teamId: string, teamName: string, status: 'online' | 'offline') => Promise<void>;
+    getAttestationToken: () => Promise<string>;
   };
   clipboard: {
     readText: () => Promise<string>;

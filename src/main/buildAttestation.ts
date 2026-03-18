@@ -12,7 +12,7 @@ export function getAttestationToken(): string {
       const data = JSON.parse(fs.readFileSync(attestationPath, 'utf8'));
       if (data && data.token) {
         logSecurityEvent('BUILD_ATTESTED', `Version: ${data.version}, Timestamp: ${data.buildTimestamp}`);
-        return data.token;
+        return JSON.stringify(data);
       }
     }
   } catch (err) {

@@ -177,6 +177,7 @@ export default function AdminSettingsModal({
     if (!oldPassword) { setPasswordError('Please enter your current password'); return; }
     if (!newPassword) { setPasswordError('Please enter a new password'); return; }
     if (newPassword.length < 4) { setPasswordError('New password must be at least 4 characters'); return; }
+    if (newPassword === oldPassword) { setPasswordError('New password cannot be the same as current password'); return; }
     if (newPassword !== confirmPassword) { setPasswordError('New passwords do not match'); return; }
     if (!user?.$id) return;
 
