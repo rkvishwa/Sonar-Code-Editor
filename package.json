@@ -20,7 +20,9 @@
     "package": "npm run build && electron-builder",
     "package:mac": "npm run build && electron-builder --mac",
     "package:win": "set CSC_IDENTITY_AUTO_DISCOVERY=false && npm run build && electron-builder --win",
-    "package:linux": "npm run build && electron-builder --linux"
+    "package:linux": "npm run build && electron-builder --linux",
+    "appwrite:init": "cp appwrite.config.json appwrite.json && appwrite init project",
+    "appwrite:push": "appwrite push all"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
