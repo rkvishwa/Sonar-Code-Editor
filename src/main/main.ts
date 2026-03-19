@@ -156,8 +156,8 @@ ipcMain.handle(IPC_CHANNELS.SECURITY_GET_LOG, () => {
   return getSecurityLog();
 });
 
-ipcMain.handle(IPC_CHANNELS.SECURITY_GET_ATTESTATION, (_event, nonce?: string) => {
-  return getAttestationToken(nonce);
+ipcMain.handle(IPC_CHANNELS.SECURITY_GET_ATTESTATION, (_event) => {
+  return getAttestationToken();
 });
 
 ipcMain.handle(IPC_CHANNELS.SECURITY_UPSERT_SESSION, async (_event, teamId: string, teamName: string, status: 'online' | 'offline') => {
@@ -384,7 +384,7 @@ app.whenReady().then(async () => {
   // Set the dock icon for macOS during dev mode
   if (process.platform === 'darwin') {
     try {
-      app.dock.setIcon(path.join(__dirname, '../../../assets/mac_icon.png'));
+      app.dock?.setIcon(path.join(__dirname, '../../../assets/mac_icon.png'));
     } catch (e) {
       console.log('Could not set dock icon', e);
     }
