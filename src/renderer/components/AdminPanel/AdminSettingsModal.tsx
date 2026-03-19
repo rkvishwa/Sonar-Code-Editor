@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ArrowLeft, X, Users, LogOut, Settings, Key, CheckCircle2, Eye, EyeOff, Trash2, Github, Globe, ExternalLink, Code2, User, Activity, Shield, Palette, Info } from 'lucide-react';
-import { updateTeamName, updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction, getGlobalBlockNonEmptyWorkspace, setGlobalBlockNonEmptyWorkspace, subscribeGlobalBlockNonEmptyWorkspace } from '../../services/appwrite';
+import { updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction, getGlobalBlockNonEmptyWorkspace, setGlobalBlockNonEmptyWorkspace, subscribeGlobalBlockNonEmptyWorkspace } from '../../services/appwrite';
 import appIcon from '../../assets/icon.png';
 import { Team } from '../../../shared/types';
 import '../Settings/SettingsModal.css';
@@ -14,7 +14,6 @@ interface AdminSettingsModalProps {
   onThemeChange: (val: string) => void;
   accentColor: string;
   onAccentColorChange: (val: string) => void;
-  onTeamNameUpdated: (newName: string) => void;
 }
 
 export default function AdminSettingsModal({
@@ -26,17 +25,9 @@ export default function AdminSettingsModal({
   onThemeChange,
   accentColor,
   onAccentColorChange,
-  onTeamNameUpdated,
 }: AdminSettingsModalProps) {
   const [activeTab, setActiveTab] = useState('Account');
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Team name state
-  const [editingName, setEditingName] = useState(false);
-  const [newTeamName, setNewTeamName] = useState('');
-  const [nameError, setNameError] = useState('');
-  const [nameSuccess, setNameSuccess] = useState('');
-  const [savingName, setSavingName] = useState(false);
 
   // Password state
   const [oldPassword, setOldPassword] = useState('');
@@ -78,10 +69,6 @@ export default function AdminSettingsModal({
     if (isOpen) {
       setActiveTab('Account');
       setSearchQuery('');
-      setNewTeamName(user?.teamName || '');
-      setEditingName(false);
-      setNameError('');
-      setNameSuccess('');
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -113,8 +100,6 @@ export default function AdminSettingsModal({
   useEffect(() => {
     setPasswordError('');
     setPasswordSuccess('');
-    setNameError('');
-    setNameSuccess('');
     setFlushError('');
     setFlushSuccess('');
     setRestrictionError('');
@@ -132,7 +117,7 @@ export default function AdminSettingsModal({
 
   const showAccount = !isSearching
     ? activeTab === 'Account'
-    : matchesSearch('Account') || matchesSearch('Team') || matchesSearch('Name') || matchesSearch('Password') || matchesSearch('Sign Out');
+    : matchesSearch('Account') || matchesSearch('Email') || matchesSearch('Password') || matchesSearch('Sign Out');
 
   const showActivityLogs = !isSearching
     ? activeTab === 'Activity Logs'
@@ -149,26 +134,6 @@ export default function AdminSettingsModal({
   const showAbout = !isSearching
     ? activeTab === 'About'
     : matchesSearch('About') || matchesSearch('Version') || matchesSearch('Knurdz');
-
-  const handleSaveName = async () => {
-    const trimmed = newTeamName.trim();
-    if (!trimmed) { setNameError('Team name cannot be empty'); return; }
-    if (!user?.$id) return;
-    if (trimmed === user.teamName) { setEditingName(false); return; }
-
-    setSavingName(true);
-    setNameError('');
-    setNameSuccess('');
-    const result = await updateTeamName(user.$id, trimmed);
-    if (result.success) {
-      setNameSuccess('Team name updated successfully');
-      setEditingName(false);
-      onTeamNameUpdated(trimmed);
-    } else {
-      setNameError(result.error || 'Failed to update team name');
-    }
-    setSavingName(false);
-  };
 
   const handleChangePassword = async () => {
     setPasswordError('');
@@ -574,52 +539,17 @@ export default function AdminSettingsModal({
               <h2 className="vscode-settings-section-title">Account</h2>
 
               <div className="account-card">
-                {/* Team Name */}
+                {/* Email */}
                 <div className="account-members-section">
                   <div className="account-members-header">
-                    <span className="vscode-setting-title"><span className="highlight">Team Name</span></span>
+                    <span className="vscode-setting-title"><span className="highlight">Email</span></span>
                   </div>
-
-                  {!editingName ? (
-                    <div className="account-team-name" style={{ justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Users size={16} />
-                        <span>{user?.teamName || 'Admin'}</span>
-                      </div>
-                      <button
-                        className="activity-log-btn secondary"
-                        onClick={() => { setEditingName(true); setNewTeamName(user?.teamName || ''); setNameError(''); setNameSuccess(''); }}
-                      >
-                        Edit
-                      </button>
+                  <div className="account-team-name" style={{ justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Users size={16} />
+                      <span>{user?.email || 'No email set'}</span>
                     </div>
-                  ) : (
-                    <div className="account-add-member">
-                      <input
-                        type="text"
-                        className="vscode-search-input account-member-input"
-                        placeholder="Enter new team name"
-                        value={newTeamName}
-                        onChange={(e) => { setNewTeamName(e.target.value); setNameError(''); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); }}
-                      />
-                      <button
-                        className="activity-log-btn primary"
-                        onClick={handleSaveName}
-                        disabled={savingName}
-                      >
-                        {savingName ? 'Saving...' : 'Save'}
-                      </button>
-                      <button
-                        className="activity-log-btn secondary"
-                        onClick={() => { setEditingName(false); setNameError(''); }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-                  {nameError && <div className="account-error">{nameError}</div>}
-                  {nameSuccess && <div className="account-success"><CheckCircle2 size={12} /> {nameSuccess}</div>}
+                  </div>
                 </div>
 
                 {/* Change Password */}

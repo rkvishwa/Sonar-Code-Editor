@@ -9,6 +9,7 @@ export interface FileNode {
 export interface Team {
   $id?: string;
   teamName: string;
+  email?: string;
   password?: string;
   role: 'team' | 'admin';
   studentIds?: string[];
@@ -171,6 +172,7 @@ export interface ElectronAPI {
     getActiveWindow: () => Promise<string | null>;
     checkPermission: () => Promise<boolean>;
     openPrivacyPrefs: () => Promise<void>;
+    getAppVersion: () => Promise<string>;
   };
   security?: {
     requestNonce: () => Promise<string>;

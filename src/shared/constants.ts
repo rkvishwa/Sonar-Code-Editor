@@ -43,6 +43,7 @@ export const IPC_CHANNELS = {
   // System Permission
   SYSTEM_CHECK_PERMISSION: 'system:checkPermission',
   SYSTEM_OPEN_PREFS: 'system:openPrivacyPrefs',
+  APP_GET_VERSION: 'app:getVersion',
   // Clipboard
   CLIPBOARD_READ_TEXT: 'clipboard:readText',
   // Collaboration (P2P)

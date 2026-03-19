@@ -36,12 +36,56 @@ import {
 import appIcon from "../../assets/icon.png";
 import {
   addTeamMember,
-  getTeamById,
+  getCurrentTeam,
+  getTeamMembers,
   changeTeamPassword,
 } from "../../services/appwrite";
+import { useAuth } from "../../context/AuthContext";
 import { Team } from "../../../shared/types";
 import { formatKey, isMac } from "../../utils/shortcut";
 import "./SettingsModal.css";
+
+function normalizeMembers(raw: unknown): string[] {
+  let value: unknown = raw;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        value = JSON.parse(trimmed);
+      } catch {
+        value = trimmed;
+      }
+    }
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item.trim();
+        if (typeof item === "number") return String(item);
+        if (item && typeof item === "object") {
+          const rec = item as Record<string, unknown>;
+          const candidate = rec.studentId ?? rec.id ?? rec.value;
+          if (typeof candidate === "string") return candidate.trim();
+          if (typeof candidate === "number") return String(candidate);
+        }
+        return "";
+      })
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(/[\n,]/)
+      .map((id) => id.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -86,10 +130,12 @@ export default function SettingsModal({
   user,
   onLogout,
 }: SettingsModalProps) {
+  const { refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState("Text Editor");
   const [searchQuery, setSearchQuery] = useState("");
   const [activityLog, setActivityLog] = useState<ActivityEvent[]>([]);
-  const [members, setMembers] = useState<string[]>(user?.studentIds || []);
+  // Ensure members is always an array
+  const [members, setMembers] = useState<string[]>(normalizeMembers(user?.studentIds));
   const [newMember, setNewMember] = useState("");
   const [addMemberError, setAddMemberError] = useState("");
   const [addingMember, setAddingMember] = useState(false);
@@ -153,11 +199,35 @@ export default function SettingsModal({
     return () => window.removeEventListener('activityLogCleared', handleLogCleared);
   }, []);
 
-  // Refresh members when opening Account tab
+  // Refresh members when opening Account tab.
+  // We fetch current team data to avoid stale context values.
   useEffect(() => {
-    if (isOpen && activeTab === "Account" && user?.studentIds) {
-      setMembers(user.studentIds);
-    }
+    if (!isOpen || activeTab !== "Account") return;
+
+    let cancelled = false;
+    (async () => {
+      const localMembers = normalizeMembers(user?.studentIds);
+      if (!cancelled) {
+        setMembers(localMembers);
+      }
+
+      if (user?.$id) {
+        const remoteMembers = await getTeamMembers(user.$id);
+        if (!cancelled && remoteMembers.length > 0) {
+          setMembers(normalizeMembers(remoteMembers));
+          return;
+        }
+      }
+
+      const freshTeam = await getCurrentTeam();
+      if (!cancelled && freshTeam) {
+        setMembers(normalizeMembers(freshTeam.studentIds));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, activeTab, user]);
 
   if (!isOpen) return null;
@@ -254,6 +324,7 @@ export default function SettingsModal({
     if (result.success) {
       setMembers((prev) => [...prev, trimmed]);
       setNewMember("");
+      refreshUser();
     } else {
       setAddMemberError(result.error || "Failed to add member");
     }

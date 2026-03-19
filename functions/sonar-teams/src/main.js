@@ -1,5 +1,46 @@
 const { Client, Users } = require('node-appwrite');
 
+function normalizeMemberIds(raw) {
+  let value = raw;
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        value = JSON.parse(trimmed);
+      } catch {
+        value = trimmed;
+      }
+    }
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === 'string') return item.trim();
+        if (typeof item === 'number') return String(item);
+        if (item && typeof item === 'object') {
+          const candidate = item.studentId ?? item.id ?? item.value;
+          if (typeof candidate === 'string') return candidate.trim();
+          if (typeof candidate === 'number') return String(candidate);
+        }
+        return '';
+      })
+      .filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(/[\n,]/)
+      .map((id) => id.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 module.exports = async (context) => {
   const { req, res, log, error } = context;
 
@@ -19,7 +60,32 @@ module.exports = async (context) => {
     } else {
       bodyObj = req.body;
     }
-    const { action, teamId, studentId, oldPassword, newPassword } = bodyObj || {};
+    const { action, teamId, studentId, oldPassword, newPassword, attestation, devKey } = bodyObj || {};
+
+    // SECURITY: Verify Access
+    const signingKey = process.env.BUILD_SIGNING_KEY;
+    let accessGranted = false;
+    
+    // 1. Developer Override
+    if (signingKey && devKey && devKey === signingKey) {
+       accessGranted = true;
+    } 
+    // 2. Official Build Verification
+    else if (attestation && attestation.token && attestation.payload) {
+       if (signingKey) {
+          const crypto = require('crypto');
+          const expectedToken = crypto.createHmac('sha256', signingKey)
+             .update(attestation.payload)
+             .digest('hex');
+          if (attestation.token === expectedToken) {
+             accessGranted = true;
+          }
+       }
+    }
+
+    if (!accessGranted) {
+       return res.json({ success: false, error: 'Forbidden: Invalid Build Attestation or Developer Key' }, 403);
+    }
 
     const apiKey = 
       (context.variables && context.variables['APPWRITE_FUNCTION_API_KEY']) ||
@@ -68,18 +134,22 @@ module.exports = async (context) => {
       try {
         const targetUser = await users.get(targetUserId);
         const prefs = targetUser.prefs || {};
-        const currentIds = prefs.studentIds || [];
+        const currentIds = normalizeMemberIds(prefs.studentIds);
+        const newId = String(studentId).trim();
         
         if (currentIds.length >= 5) {
             return res.json({ success: false, error: 'Team already has 5 members' }, 400);
         }
-        if (currentIds.includes(studentId)) {
+        if (!newId) {
+            return res.json({ success: false, error: 'Missing studentId' }, 400);
+        }
+        if (currentIds.includes(newId)) {
             return res.json({ success: false, error: 'Member already exists' }, 400);
         }
 
         await users.updatePrefs(targetUserId, {
             ...prefs,
-            studentIds: [...currentIds, studentId]
+            studentIds: [...currentIds, newId]
         });
         return res.json({ success: true });
       } catch (e) {
@@ -87,12 +157,24 @@ module.exports = async (context) => {
       }
     }
 
-    if (action === 'updateTeamName') {
-       if (!bodyObj.newName) return res.json({ success: false, error: 'Missing newName' }, 400);
-       
-       await users.updateName(targetUserId, bodyObj.newName);
-       return res.json({ success: true });
+    if (action === 'getMembers') {
+      try {
+        const targetUser = await users.get(targetUserId);
+        const prefs = targetUser.prefs || {};
+        return res.json({ success: true, members: normalizeMemberIds(prefs.studentIds) });
+      } catch (e) {
+        return res.json({ success: false, error: e.message }, 500);
+      }
     }
+
+     if (action === 'updateTeamEmail') {
+       const normalizedEmail = typeof bodyObj.newEmail === 'string' ? bodyObj.newEmail.trim().toLowerCase() : '';
+       if (!normalizedEmail) return res.json({ success: false, error: 'Missing newEmail' }, 400);
+       if (!normalizedEmail.includes('@')) return res.json({ success: false, error: 'Invalid email format' }, 400);
+
+       await users.updateEmail(targetUserId, normalizedEmail);
+       return res.json({ success: true });
+     }
 
     if (action === 'changePassword') {
       if (!newPassword) {

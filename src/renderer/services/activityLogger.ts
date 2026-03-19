@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import packageJson from '../../../package.json';
 
 export interface ActivityEvent {
   type: 'status_online' | 'status_offline' | 'app_focus' | 'app_blur' | 'clipboard_copy' | 'clipboard_paste_external' | 'workspace_opened';
@@ -9,6 +10,49 @@ export interface ActivityEvent {
 
 const ACTIVITY_LOG_KEY = 'sonar_activity_log';
 const MAX_LOG_ENTRIES = 5000;
+
+type PackageJsonMeta = {
+  version?: string;
+  author?: string | { name?: string };
+  build?: {
+    appx?: {
+      publisherDisplayName?: string;
+      publisher?: string;
+    };
+  };
+};
+
+function getPublisherName(): string {
+  const pkg = packageJson as PackageJsonMeta;
+  const fromBuild = String(pkg.build?.appx?.publisherDisplayName || '').trim();
+  if (fromBuild) return fromBuild;
+
+  const fromAuthor =
+    typeof pkg.author === 'string'
+      ? pkg.author.trim()
+      : String(pkg.author?.name || '').trim();
+  return fromAuthor || 'Unknown Publisher';
+}
+
+async function getReportAppVersion(): Promise<string> {
+  try {
+    const version = await window.electronAPI?.system?.getAppVersion?.();
+    if (typeof version === 'string' && version.trim()) {
+      return version.trim();
+    }
+  } catch {
+    // Fall back to package version if IPC access fails.
+  }
+
+  const pkgVersion = String((packageJson as PackageJsonMeta).version || '').trim();
+  return pkgVersion || '0.0.0-unknown';
+}
+
+function getBuildInfoLabel(attestationStatus?: string): string {
+  if (attestationStatus === 'VALID') return 'Official';
+  if (attestationStatus) return 'Dev / Unofficial';
+  return import.meta.env.DEV ? 'Dev' : 'Unknown';
+}
 
 export function getActivityLog(): ActivityEvent[] {
   const raw = localStorage.getItem(ACTIVITY_LOG_KEY);
@@ -65,8 +109,11 @@ function formatTimestamp(iso: string): string {
   return d.toLocaleString();
 }
 
-export function generateActivityLogPDF(teamName: string, attestationStatus?: string): void {
+export async function generateActivityLogPDF(teamName: string, attestationStatus?: string): Promise<void> {
   const log = getActivityLog();
+  const appVersion = await getReportAppVersion();
+  const publisherName = getPublisherName();
+  const buildInfo = getBuildInfoLabel(attestationStatus);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 14;
@@ -150,6 +197,9 @@ export function generateActivityLogPDF(teamName: string, attestationStatus?: str
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(180, 190, 210);
   doc.text('Sonar Code Editor — Activity Monitoring System', margin, 22);
+  doc.text(`Version: ${appVersion}`, pageW - margin, 13, { align: 'right' });
+  doc.text(`Publisher: ${publisherName}`, pageW - margin, 17, { align: 'right' });
+  doc.text(`Build: ${buildInfo}`, pageW - margin, 22, { align: 'right' });
 
   let y = 38;
 

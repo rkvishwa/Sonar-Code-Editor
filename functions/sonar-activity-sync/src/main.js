@@ -6,41 +6,44 @@ module.exports = async (context) => {
   if (req.method !== 'POST') return res.send('Method not allowed', 405);
 
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { teamId, payload, attestation, nonceToken } = body;
+    let bodyObj;
+    if (typeof req.body === 'string') {
+      try { bodyObj = JSON.parse(req.body); } catch (e) { bodyObj = JSON.parse(req.bodyRaw || '{}'); }
+    } else {
+      bodyObj = req.body;
+    }
+    const { teamId, payload, attestation, devKey } = bodyObj || {};
+
+    // SECURITY: Verify Access
+    const signingKey = process.env.BUILD_SIGNING_KEY;
+    let accessGranted = false;
     
-    if (!attestation || typeof attestation !== 'string') {
-      return res.json({ success: false, error: 'Missing or invalid attestation token' }, 403);
+    // 1. Developer Override
+    if (signingKey && devKey && devKey === signingKey) {
+       accessGranted = true;
+    } 
+    // 2. Official Build Verification
+    else if (attestation && attestation.token && attestation.payload) {
+       if (signingKey) {
+          const crypto = require('crypto');
+          const expectedToken = crypto.createHmac('sha256', signingKey)
+             .update(attestation.payload)
+             .digest('hex');
+          if (attestation.token === expectedToken) {
+             accessGranted = true;
+          }
+       }
     }
 
-    const signingKey = process.env.BUILD_SIGNING_KEY;
+    if (!accessGranted) {
+       return res.json({ success: false, error: 'Forbidden: Invalid Build Attestation or Developer Key' }, 403);
+    }
+    
     const apiKey =
       (context.variables && context.variables['APPWRITE_FUNCTION_API_KEY']) ||
       (context.variables && context.variables['APPWRITE_API_KEY']) ||
       process.env.APPWRITE_FUNCTION_API_KEY ||
       process.env.APPWRITE_API_KEY;
-
-    if (signingKey) {
-      if (!nonceToken) {
-        return res.json({ success: false, error: 'Missing nonce token. Replay attacks are blocked.' }, 403);
-      }
-      try {
-        const decodedNonce = jwt.verify(nonceToken, apiKey);
-        if (!decodedNonce.nonce) throw new Error('Invalid nonce token payload');
-        
-        if (attestation === 'DEV_MODE') throw new Error('Dev builds blocked by server security policy');
-        const attData = JSON.parse(attestation);
-        const crypto = require('crypto');
-        const expectedPayload = `${attData.version}|${attData.buildTimestamp}|sonar-official|${decodedNonce.nonce}`;
-        const expectedToken = crypto.createHmac('sha256', signingKey).update(expectedPayload).digest('hex');
-        
-        if (expectedToken !== attData.token) {
-          return res.json({ success: false, error: 'Invalid build attestation signature. Unofficial build detected.' }, 403);
-        }
-      } catch (err) {
-        return res.json({ success: false, error: 'Attestation parsing or verification failed: ' + err.message }, 403);
-      }
-    }
 
     if (!apiKey) {
       return res.json({ success: false, error: 'Missing APPWRITE function API key' }, 500);

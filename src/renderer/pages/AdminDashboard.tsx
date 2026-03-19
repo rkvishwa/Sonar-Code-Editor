@@ -787,11 +787,6 @@ export default function AdminDashboard() {
         onThemeChange={setTheme}
         accentColor={accentColor}
         onAccentColorChange={setAccentColor}
-        onTeamNameUpdated={(newName) => {
-          const updated = { ...user!, teamName: newName };
-          localStorage.setItem('sonar_session', JSON.stringify(updated));
-          window.location.reload();
-        }}
       />
     </div>
   );

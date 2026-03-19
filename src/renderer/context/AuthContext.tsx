@@ -11,9 +11,13 @@ import {
   registerTeam,
   getGlobalInternetRestriction,
   subscribeToSettings,
+  checkLatestVersionGate,
+  getLocalAppVersion,
   updateSessionLastSeen,
   getCurrentTeam,
-  logoutTeam
+  logoutTeam,
+  closeSessionOnAppClose,
+  resetSessionOnAppLaunch
 } from "../services/appwrite";
 
 interface AuthContextValue {
@@ -30,6 +34,7 @@ interface AuthContextValue {
     studentIds: string[],
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -39,12 +44,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [internetBlocked, setInternetBlocked] = useState(false);
 
-  useEffect(() => {
-    getCurrentTeam().then((team) => {
+  const refreshUser = async () => {
+    try {
+      const team = await getCurrentTeam();
       if (team) setUser(team);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    } catch (e) {
+      console.error("Failed to refresh user:", e);
+    }
+  };
+
+  useEffect(() => {
+    resetSessionOnAppLaunch()
+      .catch(() => {})
+      .finally(() => {
+        setUser(null);
+        setLoading(false);
+      });
   }, []);
+
+  useEffect(() => {
+    const handleAppClose = () => {
+      closeSessionOnAppClose();
+
+      if (user && window.electronAPI?.security) {
+        window.electronAPI.security
+          .upsertSession(user.$id!, user.teamName, "offline")
+          .catch(() => {});
+      }
+    };
+
+    window.addEventListener("beforeunload", handleAppClose);
+    window.addEventListener("unload", handleAppClose);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleAppClose);
+      window.removeEventListener("unload", handleAppClose);
+    };
+  }, [user?.$id, user?.teamName]);
 
   // Subscribe to the global settings for internet restriction
   useEffect(() => {
@@ -70,6 +106,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     teamName: string,
     password: string,
   ): Promise<{ success: boolean; error?: string }> => {
+    const isOnline = await window.electronAPI?.network?.getStatus?.().catch(() => navigator.onLine) ?? navigator.onLine;
+    if (!isOnline) {
+      return {
+        success: false,
+        error: 'No internet connection. Connect to the internet and try again.',
+      };
+    }
+
+    try {
+      const versionGate = await checkLatestVersionGate();
+      if (!versionGate.upToDate) {
+        window.dispatchEvent(
+          new CustomEvent('version-gate-blocked', {
+            detail: {
+              message: versionGate.message || `Update required. Please install ${versionGate.latestVersion} to continue.`,
+              currentVersion: versionGate.currentVersion,
+              latestVersion: versionGate.latestVersion,
+            },
+          })
+        );
+        return {
+          success: false,
+          error: versionGate.message || `Update required. Please install ${versionGate.latestVersion} to continue.`,
+        };
+      }
+    } catch {
+      const onlineNow = await window.electronAPI?.network?.getStatus?.().catch(() => navigator.onLine) ?? navigator.onLine;
+      if (!onlineNow) {
+        return {
+          success: false,
+          error: 'No internet connection. Connect to the internet and try again.',
+        };
+      }
+
+      const localVersion = await getLocalAppVersion();
+      window.dispatchEvent(
+        new CustomEvent('version-gate-blocked', {
+          detail: {
+            message: 'Unable to verify app version. Please update or try again later.',
+            currentVersion: localVersion,
+            latestVersion: '',
+          },
+        })
+      );
+      return {
+        success: false,
+        error: 'Unable to verify app version. Please update or try again later.',
+      };
+    }
+
     try {
       // Attestation checking moved to main process
       const team = await validateTeamCredentials(teamName, password);
@@ -139,7 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, internetBlocked, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, internetBlocked, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

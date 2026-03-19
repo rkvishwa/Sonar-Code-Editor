@@ -1,6 +1,7 @@
 import { Client, Databases, Functions, ExecutionMethod, Query, ID, RealtimeResponseEvent, Account } from 'appwrite';
 import { APP_CONFIG } from '../../shared/constants';
 import { Team, Session, ActivityLog, ActivitySyncData, Report, HeartbeatPayload } from '../../shared/types';
+import packageJson from '../../../package.json';
 
 const APPWRITE_ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT;
 const APPWRITE_PROJECT_ID = import.meta.env.VITE_APPWRITE_PROJECT_ID;
@@ -31,6 +32,16 @@ function isUnauthorizedAppwriteError(err: any): boolean {
   return code === 401 || message.includes('unauthorized') || type.includes('unauthorized');
 }
 
+function isActiveSessionError(err: any): boolean {
+  const message = String(err?.message || '').toLowerCase();
+  const type = String(err?.type || '').toLowerCase();
+  return (
+    message.includes('session is active') ||
+    message.includes('creation of a session is prohibited') ||
+    type.includes('session_already_exists')
+  );
+}
+
 function isTimeoutOrNetworkError(err: any): boolean {
   const code = String(err?.code || '').toLowerCase();
   const type = String(err?.type || '').toLowerCase();
@@ -46,15 +57,79 @@ function isTimeoutOrNetworkError(err: any): boolean {
   );
 }
 
+function hasLocalSessionHint(): boolean {
+  try {
+    const projectId = String(APPWRITE_PROJECT_ID || '');
+    return Object.keys(localStorage).some((key) => {
+      if (!key.startsWith('cookieFallback')) return false;
+      // Prefer keys tied to this Appwrite project when possible.
+      return !projectId || key.includes(projectId);
+    });
+  } catch {
+    return false;
+  }
+}
+
+function hasCookieSessionHint(): boolean {
+  try {
+    const projectId = String(APPWRITE_PROJECT_ID || '');
+    if (!projectId || typeof document === 'undefined') return false;
+
+    const cookiePrefix = `a_session_${projectId}=`;
+    return document.cookie
+      .split(';')
+      .map((part) => part.trim())
+      .some((cookie) => cookie.startsWith(cookiePrefix));
+  } catch {
+    return false;
+  }
+}
+
+function hasSessionHint(): boolean {
+  return hasLocalSessionHint() || hasCookieSessionHint();
+}
+
+function clearLocalSessionHints(): void {
+  try {
+    const projectId = String(APPWRITE_PROJECT_ID || '');
+    const keysToRemove = Object.keys(localStorage).filter((key) => {
+      if (!key.startsWith('cookieFallback')) return false;
+      return !projectId || key.includes(projectId);
+    });
+
+    for (const key of keysToRemove) {
+      localStorage.removeItem(key);
+    }
+  } catch {
+    // Ignore local storage cleanup errors.
+  }
+}
+
+async function getSecurityContext() {
+  let attestation = null;
+  try {
+      // @ts-ignore - electronAPI is exposed
+      attestation = await window.electronAPI?.security.getAttestationToken();
+  } catch (e) {
+      console.warn('Failed to get attestation', e);
+  }
+
+  const devKey = import.meta.env.VITE_DEV_KEY;
+  return { attestation, devKey };
+}
+
 async function executeSettingsFunction(payload: Record<string, unknown>): Promise<any> {
   if (Date.now() < settingsFunctionBlockedUntil) {
     throw new Error('sonar-settings temporarily unavailable');
   }
 
   try {
+    const { attestation, devKey } = await getSecurityContext();
+    const finalPayload = { ...payload, attestation, devKey };
+
     const res = await functions.createExecution(
       SETTINGS_FUNCTION_ID,
-      JSON.stringify(payload),
+      JSON.stringify(finalPayload),
       false,
       '/',
       ExecutionMethod.POST
@@ -136,53 +211,28 @@ async function updateSettingViaFunction(settingType: string, settingValue: boole
       return data;
     }
 
-    const directResult = await upsertSettingDirect(settingType, settingValue);
-    if (directResult.success) {
-      return directResult;
-    }
-
     return {
       success: false,
-      error: data?.error || directResult.error || 'Failed to update setting',
+      error: data?.error || 'Failed to update setting',
     };
   } catch (err: any) {
-    const directResult = await upsertSettingDirect(settingType, settingValue);
-    if (directResult.success) {
-      return directResult;
-    }
-    return { success: false, error: directResult.error || err.message };
+    return { success: false, error: err.message };
   }
 }
 
-async function upsertSettingDirect(settingType: string, settingValue: boolean): Promise<{ success: boolean; error?: string }> {
-  try {
-    const val = String(settingValue);
-    const existing = await databases.listDocuments(DB_ID, COL_SETTINGS, [
-      Query.equal('settingType', settingType),
-      Query.limit(1),
-    ]);
-
-    if (existing.documents.length > 0) {
-      await databases.updateDocument(DB_ID, COL_SETTINGS, existing.documents[0].$id, {
-        settingValue: val,
-      });
-    } else {
-      await databases.createDocument(DB_ID, COL_SETTINGS, ID.unique(), {
-        settingType,
-        settingValue: val,
-      });
-    }
-
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Direct setting update failed' };
-  }
-}
+// upsertSettingDirect REMOVED - Direct DB access blocked.
 
 async function executeFunctionAndRequireSuccess(functionId: string, payload: Record<string, unknown>): Promise<void> {
+  const { attestation, devKey } = await getSecurityContext();
+  const finalPayload = {
+    attestation,
+    devKey,
+    ...payload,
+  };
+
   const res = await functions.createExecution(
     functionId,
-    JSON.stringify(payload),
+    JSON.stringify(finalPayload),
     false,
     '/',
     ExecutionMethod.POST
@@ -200,6 +250,85 @@ async function executeFunctionAndRequireSuccess(functionId: string, payload: Rec
   }
 }
 
+async function verifyBuildAccessForAuth(): Promise<void> {
+  const { attestation, devKey } = await getSecurityContext();
+  const res = await functions.createExecution(
+    'sonar-auth',
+    JSON.stringify({ action: 'verifyAccess', attestation, devKey }),
+    false,
+    '/',
+    ExecutionMethod.POST
+  );
+
+  let data: any = {};
+  try {
+    data = JSON.parse(res.responseBody || '{}');
+  } catch {
+    throw new Error('sonar-auth returned invalid JSON response');
+  }
+
+  if (data?.success !== true) {
+    throw new Error(data?.error || 'Forbidden: Invalid Build Attestation or Developer Key');
+  }
+}
+
+export interface VersionGateResult {
+  upToDate: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  message: string;
+}
+
+export async function getLocalAppVersion(): Promise<string> {
+  try {
+    const version = await window.electronAPI?.system?.getAppVersion?.();
+    if (typeof version === 'string' && version.trim()) {
+      return version.trim();
+    }
+  } catch {
+    // Fall through to dev/package fallback.
+  }
+
+  if (import.meta.env.DEV) {
+    const devVersion = String((packageJson as { version?: string })?.version || '').trim();
+    if (devVersion) {
+      return devVersion;
+    }
+  }
+
+  return '0.0.0-unknown';
+}
+
+export async function checkLatestVersionGate(): Promise<VersionGateResult> {
+  const currentVersion = await getLocalAppVersion();
+  const { attestation, devKey } = await getSecurityContext();
+  const res = await functions.createExecution(
+    'sonar-auth',
+    JSON.stringify({ action: 'checkVersionGate', currentVersion, attestation, devKey }),
+    false,
+    '/',
+    ExecutionMethod.POST
+  );
+
+  let data: any = {};
+  try {
+    data = JSON.parse(res.responseBody || '{}');
+  } catch {
+    throw new Error('sonar-auth returned invalid JSON response');
+  }
+
+  if (data?.success !== true) {
+    throw new Error(data?.error || 'Version check failed');
+  }
+
+  return {
+    upToDate: data.upToDate === true,
+    currentVersion: String(data.currentVersion || currentVersion),
+    latestVersion: String(data.latestVersion || ''),
+    message: String(data.message || ''),
+  };
+}
+
 // ---- Teams (Migrated to Appwrite Users) ----
 export async function getTeamByName(teamName: string): Promise<Team | null> {
   // Deprecated: Only used during migration. New logic uses account.createEmailPasswordSession
@@ -211,20 +340,63 @@ export async function getTeamByName(teamName: string): Promise<Team | null> {
 // ... other helpers ...
 const getEmail = (teamName: string) => {
   if (teamName.includes('@')) return teamName;
-  return `${teamName.replace(/[^a-zA-Z0-9]/g, '.').toLowerCase()}@sonar.local`;
+  return `${teamName.replace(/[^a-zA-Z0-9]/g, '.').toLowerCase()}@sonar.knurdz.org`;
 };
+
+function normalizeStudentIds(raw: unknown): string[] {
+  let value: unknown = raw;
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        value = JSON.parse(trimmed);
+      } catch {
+        value = trimmed;
+      }
+    }
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === 'string') return item.trim();
+        if (typeof item === 'number') return String(item);
+        if (item && typeof item === 'object') {
+          const rec = item as Record<string, unknown>;
+          const candidate = rec.studentId ?? rec.id ?? rec.value;
+          if (typeof candidate === 'string') return candidate.trim();
+          if (typeof candidate === 'number') return String(candidate);
+        }
+        return '';
+      })
+      .filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(/[\n,]/)
+      .map((id) => id.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
 
 const mapUserToTeam = (user: any): Team => {
   let role = user.prefs?.role || 'team';
   if (user.labels && Array.isArray(user.labels)) {
     if (user.labels.includes('admin')) role = 'admin';
   }
-  
+
   return {
     $id: user.$id,
     teamName: user.name,
+    email: user.email,
     role: role,
-    studentIds: user.prefs?.studentIds || [],
+    studentIds: normalizeStudentIds(user.prefs?.studentIds),
     createdAt: user.$createdAt
   };
 };
@@ -239,20 +411,90 @@ export async function getCurrentTeam(): Promise<Team | null> {
 }
 
 export async function logoutTeam(): Promise<void> {
+  if (!hasSessionHint()) return;
+
   try {
     await account.deleteSession('current');
-  } catch {}
+  } catch (err: any) {
+    // Session may already be gone (common in dev/hot-reload flows).
+    if (!isUnauthorizedAppwriteError(err)) {
+      throw err;
+    }
+  }
+}
+
+export async function resetSessionOnAppLaunch(): Promise<void> {
+  try {
+    await account.deleteSession('current');
+  } catch (err: any) {
+    if (!isUnauthorizedAppwriteError(err)) {
+      // Ignore at startup and continue local cleanup.
+    }
+  } finally {
+    clearLocalSessionHints();
+  }
+}
+
+export function closeSessionOnAppClose(): void {
+  if (!hasSessionHint()) return;
+
+  try {
+    if (!APPWRITE_ENDPOINT || !APPWRITE_PROJECT_ID) return;
+
+    const endpoint = String(APPWRITE_ENDPOINT).replace(/\/$/, '');
+    const projectId = String(APPWRITE_PROJECT_ID);
+    const url = `${endpoint}/account/sessions/current`;
+
+    // keepalive helps the request survive page teardown during app close.
+    fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'X-Appwrite-Project': projectId,
+      },
+      credentials: 'include',
+      mode: 'cors',
+      keepalive: true,
+    }).catch(() => {
+      // Best effort only during shutdown.
+    });
+  } catch {
+    // Ignore teardown errors.
+  } finally {
+    clearLocalSessionHints();
+  }
 }
 
 export async function validateTeamCredentials(teamName: string, password: string): Promise<Team | null> {
   try {
-    // Clean up existing session if any (heuristic to minimize 401 noise)
-    const hasSessionParams = Object.keys(localStorage).some(k => k.startsWith('cookieFallback'));
-    if (hasSessionParams) {
-       try { await account.deleteSession('current'); } catch {}
+    await verifyBuildAccessForAuth();
+
+    if (hasSessionHint()) {
+      try {
+        await account.deleteSession('current');
+      } catch (deleteErr: any) {
+        if (!isUnauthorizedAppwriteError(deleteErr)) {
+          throw deleteErr;
+        }
+      }
     }
 
-    await account.createEmailPasswordSession(getEmail(teamName), password);
+    try {
+      await account.createEmailPasswordSession(getEmail(teamName), password);
+    } catch (err: any) {
+      const shouldRotateSession = isActiveSessionError(err);
+      if (!shouldRotateSession) throw err;
+
+      // Session already exists in this browser context. Rotate it, then retry once.
+      try {
+        await account.deleteSession('current');
+      } catch (deleteErr: any) {
+        if (!isUnauthorizedAppwriteError(deleteErr)) {
+          throw deleteErr;
+        }
+      }
+      await account.createEmailPasswordSession(getEmail(teamName), password);
+    }
+
     const user = await account.get();
     return mapUserToTeam(user);
   } catch (err) {
@@ -267,9 +509,10 @@ export async function registerTeam(
   studentIds: string[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const { attestation, devKey } = await getSecurityContext();
     const res = await functions.createExecution(
       'sonar-auth', 
-      JSON.stringify({ action: 'register', teamName, password, studentIds }), 
+      JSON.stringify({ action: 'register', teamName, password, studentIds, attestation, devKey }), 
       false, 
       '/', 
       ExecutionMethod.POST
@@ -289,20 +532,36 @@ export async function addTeamMember(
   studentId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await account.get();
-    // Verify we are adding to our own team, or we are admin (logic could be expanded)
-    if (user.$id !== teamId) {
-       // If admin, maybe allow? For now strict check provided we are using team context
-    }
-    
-    // We can only manage our own team via this method commonly
-    const currentIds = user.prefs.studentIds || [];
-    if (!currentIds.includes(studentId)) {
-        await account.updatePrefs({ ...user.prefs, studentIds: [...currentIds, studentId] });
-    }
+    await executeFunctionAndRequireSuccess('sonar-teams', {
+      action: 'addMember',
+      teamId,
+      studentId,
+    });
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Failed to add member' };
+  }
+}
+
+export async function getTeamMembers(teamId: string): Promise<string[]> {
+  try {
+    const { attestation, devKey } = await getSecurityContext();
+    const payload = { action: 'getMembers', teamId, attestation, devKey };
+    const res = await functions.createExecution(
+      'sonar-teams',
+      JSON.stringify(payload),
+      false,
+      '/',
+      ExecutionMethod.POST
+    );
+
+    const data = JSON.parse(res.responseBody || '{}');
+    if (data?.success === true) {
+      return normalizeStudentIds(data.members);
+    }
+    return [];
+  } catch {
+    return [];
   }
 }
 
@@ -325,11 +584,20 @@ export async function getTeamById(teamId: string): Promise<Team | null> {
   return null;
 }
 
-export async function updateTeamName(
+export async function updateTeamEmail(
   teamId: string,
-  newName: string
+  newEmail: string
 ): Promise<{ success: boolean; error?: string }> {
-   return { success: false, error: "Team name updates are disabled." };
+  try {
+    await executeFunctionAndRequireSuccess('sonar-teams', {
+      action: 'updateTeamEmail',
+      teamId,
+      newEmail,
+    });
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to update email' };
+  }
 }
 
 export async function updateTeamPassword(
@@ -369,7 +637,14 @@ export async function getAdminTeamIds(): Promise<Set<string>> {
 // ---- Sessions ----
 async function getNoncePayload(): Promise<{ nonce: string, nonceToken: string } | null> {
   try {
-    const res = await functions.createExecution('sonar-auth', JSON.stringify({ action: 'getNonce' }), false, '/', ExecutionMethod.POST);
+    const { attestation, devKey } = await getSecurityContext();
+    const res = await functions.createExecution(
+      'sonar-auth',
+      JSON.stringify({ action: 'getNonce', attestation, devKey }),
+      false,
+      '/',
+      ExecutionMethod.POST
+    );
     const data = JSON.parse(res.responseBody || '{}');
     if (data.success) {
       return { nonce: data.nonce, nonceToken: data.nonceToken };

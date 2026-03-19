@@ -28,8 +28,8 @@ const attestation = {
   token,
   version,
   buildTimestamp,
-  payload,
-  signingKey // embed it so the app can sign dynamic nonces
+  payload
+  // signingKey REMOVED for security - implementation should not expose private keys in build artifacts
 };
 
 const outputPath = path.join(outDir, 'build-attestation.json');

@@ -53,6 +53,7 @@ const api: ElectronAPI = {
     getActiveWindow: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ACTIVE_WINDOW),
     checkPermission: () => ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_CHECK_PERMISSION),
     openPrivacyPrefs: () => ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_OPEN_PREFS),
+    getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_VERSION),
   },
   security: {
     requestNonce: () => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_NONCE_REQUEST),

@@ -291,6 +291,10 @@ ipcMain.handle(IPC_CHANNELS.COLLAB_CHECK_LOCAL_NETWORK, async () => {
   return collab.checkLocalNetworkAccess();
 });
 
+ipcMain.handle(IPC_CHANNELS.APP_GET_VERSION, () => {
+  return app.getVersion();
+});
+
 // App lifecycle
 app.whenReady().then(async () => {
   // ── macOS: enforce Automation / System Events permission ─────────────────

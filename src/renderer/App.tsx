@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import IDE from './pages/IDE';
 import AdminDashboard from './pages/AdminDashboard';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
+import { checkLatestVersionGate, getLocalAppVersion } from './services/appwrite';
 
 import { ShieldAlert, WifiOff, RefreshCw, Settings, AlertTriangle } from 'lucide-react';
 
@@ -267,6 +268,107 @@ function InternetRestrictedBlock() {
   );
 }
 
+function VersionBlockedPage({
+  onRetry,
+  checking,
+  currentVersion,
+  latestVersion,
+  message,
+}: {
+  onRetry: () => Promise<void>;
+  checking: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  message: string;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        background: 'linear-gradient(145deg, #171717 0%, #0f172a 100%)',
+        color: '#e5e7eb',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        padding: '40px',
+        textAlign: 'center',
+      }}
+    >
+      <div style={{
+        background: 'rgba(239, 68, 68, 0.1)',
+        padding: '24px',
+        borderRadius: '50%',
+        marginBottom: '24px',
+        border: '1px solid rgba(239, 68, 68, 0.25)'
+      }}>
+        <AlertTriangle size={64} color="#ef4444" />
+      </div>
+
+      <h2 style={{ color: '#ffffff', margin: '0 0 14px', fontSize: '30px', fontWeight: 700 }}>
+        Update Required
+      </h2>
+
+      <p style={{ maxWidth: '520px', lineHeight: '1.7', margin: '0 0 26px', color: '#cbd5e1', fontSize: '15px' }}>
+        This version of Sonar Code Editor is no longer allowed for login.
+        Install the latest approved version before continuing.
+      </p>
+
+      <div style={{
+        width: '100%',
+        maxWidth: '520px',
+        background: 'rgba(255, 255, 255, 0.04)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        borderRadius: '12px',
+        padding: '18px 20px',
+        textAlign: 'left',
+      }}>
+        <div style={{ marginBottom: '8px', color: '#94a3b8', fontSize: '13px' }}>Current Version</div>
+        <div style={{ marginBottom: '14px', color: '#f8fafc', fontSize: '16px', fontWeight: 600 }}>{currentVersion || 'unknown'}</div>
+        <div style={{ marginBottom: '8px', color: '#94a3b8', fontSize: '13px' }}>Required Latest Version</div>
+        <div style={{ marginBottom: '14px', color: '#f8fafc', fontSize: '16px', fontWeight: 600 }}>{latestVersion || 'not available'}</div>
+        <div style={{ color: '#fca5a5', fontSize: '13px' }}>{message}</div>
+      </div>
+
+      <button
+        onClick={onRetry}
+        disabled={checking}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginTop: '28px',
+          padding: '12px 24px',
+          background: '#2563eb',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: checking ? 'not-allowed' : 'pointer',
+          fontSize: '14px',
+          fontWeight: 600,
+          opacity: checking ? 0.75 : 1,
+        }}
+      >
+        <RefreshCw size={16} className={checking ? 'spin' : ''} />
+        {checking ? 'Checking Version...' : 'Retry Version Check'}
+      </button>
+
+      <style>
+        {`
+          @keyframes spin-anim {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          .spin {
+            animation: spin-anim 1s linear infinite;
+          }
+        `}
+      </style>
+    </div>
+  );
+}
+
 function AppRoutes() {
   const { user, loading, internetBlocked } = useAuth();
   const isOnline = useNetworkStatus();
@@ -320,8 +422,21 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const isOnline = useNetworkStatus();
   // null = checking, true = granted, false = denied
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
+  const [versionCheckState, setVersionCheckState] = useState<{
+    status: 'checking' | 'allowed' | 'blocked';
+    message: string;
+    currentVersion: string;
+    latestVersion: string;
+  }>({
+    status: 'checking',
+    message: '',
+    currentVersion: '',
+    latestVersion: '',
+  });
+  const [versionRechecking, setVersionRechecking] = useState(false);
 
   useEffect(() => {
     // Add platform class to body for OS-specific styling globally
@@ -349,8 +464,112 @@ export default function App() {
     }
   }, []);
 
+  const runVersionCheck = useCallback(async () => {
+    if (!isOnline) {
+      const localVersion = await getLocalAppVersion();
+      setVersionCheckState({
+        status: 'allowed',
+        message: '',
+        currentVersion: localVersion,
+        latestVersion: '',
+      });
+      return;
+    }
+
+    setVersionRechecking(true);
+    setVersionCheckState((prev) => ({ ...prev, status: 'checking' }));
+
+    try {
+      const result = await checkLatestVersionGate();
+      if (result.upToDate) {
+        setVersionCheckState({
+          status: 'allowed',
+          message: '',
+          currentVersion: result.currentVersion,
+          latestVersion: result.latestVersion,
+        });
+      } else {
+        setVersionCheckState({
+          status: 'blocked',
+          message: result.message || `Update required. Please install ${result.latestVersion}.`,
+          currentVersion: result.currentVersion,
+          latestVersion: result.latestVersion,
+        });
+      }
+    } catch (err: any) {
+      const onlineNow = await window.electronAPI?.network?.getStatus?.().catch(() => false);
+      if (!onlineNow) {
+        const localVersion = await getLocalAppVersion();
+        setVersionCheckState({
+          status: 'allowed',
+          message: '',
+          currentVersion: localVersion,
+          latestVersion: '',
+        });
+        return;
+      }
+
+      const localVersion = await getLocalAppVersion();
+
+      setVersionCheckState({
+        status: 'blocked',
+        message: err?.message || 'Unable to verify app version. Try again later.',
+        currentVersion: localVersion,
+        latestVersion: '',
+      });
+    } finally {
+      setVersionRechecking(false);
+    }
+  }, [isOnline]);
+
   // Initial check on mount
   useEffect(() => { checkPermission(); }, [checkPermission]);
+  useEffect(() => { runVersionCheck(); }, [runVersionCheck]);
+  useEffect(() => {
+    const handleVersionBlocked = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        message?: string;
+        currentVersion?: string;
+        latestVersion?: string;
+      }>;
+
+      const detail = customEvent.detail || {};
+      if (!isOnline) {
+        return;
+      }
+      setVersionCheckState({
+        status: 'blocked',
+        message: detail.message || 'Update required to continue.',
+        currentVersion: detail.currentVersion || '0.0.0-unknown',
+        latestVersion: detail.latestVersion || '',
+      });
+    };
+
+    window.addEventListener('version-gate-blocked', handleVersionBlocked as EventListener);
+    return () => {
+      window.removeEventListener('version-gate-blocked', handleVersionBlocked as EventListener);
+    };
+  }, [isOnline]);
+
+  if (versionCheckState.status === 'checking') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#1e1e1e', color: '#d4d4d4' }}>
+        <div>Checking app version...</div>
+      </div>
+    );
+  }
+
+  if (versionCheckState.status === 'blocked') {
+    return (
+      <VersionBlockedPage
+        onRetry={runVersionCheck}
+        checking={versionRechecking}
+        currentVersion={versionCheckState.currentVersion}
+        latestVersion={versionCheckState.latestVersion}
+        message={versionCheckState.message}
+      />
+    );
+  }
 
   if (permissionGranted === null) {
     return (

@@ -12,7 +12,32 @@ module.exports = async (context) => {
     } else {
       bodyObj = req.body;
     }
-    const { action, settingType } = bodyObj || {};
+    const { action, settingType, attestation, devKey } = bodyObj || {};
+
+    // SECURITY: Verify Access
+    const signingKey = process.env.BUILD_SIGNING_KEY;
+    let accessGranted = false;
+    
+    // 1. Developer Override
+    if (signingKey && devKey && devKey === signingKey) {
+       accessGranted = true;
+    } 
+    // 2. Official Build Verification
+    else if (attestation && attestation.token && attestation.payload) {
+       if (signingKey) {
+          const crypto = require('crypto');
+          const expectedToken = crypto.createHmac('sha256', signingKey)
+             .update(attestation.payload)
+             .digest('hex');
+          if (attestation.token === expectedToken) {
+             accessGranted = true;
+          }
+       }
+    }
+
+    if (!accessGranted) {
+       return res.json({ success: false, error: 'Forbidden: Invalid Build Attestation or Developer Key' }, 403);
+    }
 
     const apiKey =
       (context.variables && context.variables['APPWRITE_FUNCTION_API_KEY']) ||
