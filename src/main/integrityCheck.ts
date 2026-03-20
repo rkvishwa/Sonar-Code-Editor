@@ -2,6 +2,8 @@ import { app, dialog } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+// @ts-ignore
+import originalFs from 'original-fs';
 import { logSecurityEvent } from './securityLog';
 
 export async function verifyAsarIntegrity(): Promise<void> {
@@ -45,25 +47,25 @@ oQIDAQAB
 
     const actualChecksum = await new Promise<string>((resolve, reject) => {
       const hash = crypto.createHash('sha256');
-      const stream = fs.createReadStream(asarPath);
+      const stream = originalFs.createReadStream(asarPath);
       
-      stream.on('data', (data) => hash.update(data));
+      stream.on('data', (data: any) => hash.update(data));
       stream.on('end', () => resolve(hash.digest('hex')));
       stream.on('error', (err) => reject(err));
     });
 
     if (actualChecksum !== expectedChecksum) {
-      throw new Error('ASAR integrity checksum mismatch.');
+      throw new Error(`ASAR integrity checksum mismatch. Expected: ${expectedChecksum}, Actual: ${actualChecksum}`);
     }
 
     console.log('ASAR integrity check passed.');
     logSecurityEvent('INTEGRITY_CHECK_PASSED');
-  } catch (error) {
+  } catch (error: any) {
     console.error('TAMPERING_DETECTED:', error);
     logSecurityEvent('TAMPERING_DETECTED', String(error));
     dialog.showErrorBox(
       'Security Tampering Detected',
-      'The application files have been modified or corrupted. Unapproved modifications are not allowed. The application will now exit.'
+      `The application files have been modified or corrupted. Unapproved modifications are not allowed. The application will now exit.\n\nError: ${error.message}`
     );
     app.exit(1);
   }

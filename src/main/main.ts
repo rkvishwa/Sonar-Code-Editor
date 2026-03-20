@@ -1,10 +1,9 @@
 import { app, BrowserWindow, ipcMain, dialog, session, protocol, Menu, net, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as dotenv from 'dotenv';
 import { verifyAsarIntegrity } from './integrityCheck';
 
-dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', '.env') });
+// Env variables are injected by esbuild at compile time
 import { execSync } from 'child_process';
 import { registerFsHandlers, enforceTrustedPath } from './ipcHandlers';
 import { MonitoringService } from './monitoring';
