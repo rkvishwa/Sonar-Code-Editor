@@ -82,7 +82,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     backgroundColor: '#1e1e1e',
     webPreferences: {
-      preload: path.join(__dirname, '../../preload/preload/preload.js'),
+      preload: path.join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -91,8 +91,8 @@ function createWindow(): void {
     },
     show: false,
     icon: process.platform === 'win32'
-      ? path.join(__dirname, '../../../assets/win_icon.png')
-      : path.join(__dirname, '../../../assets/mac_icon.png'),
+      ? path.join(__dirname, '../../assets/win_icon.png')
+      : path.join(__dirname, '../../assets/mac_icon.png'),
   });
 
   // Load the app
@@ -383,7 +383,7 @@ app.whenReady().then(async () => {
   // Set the dock icon for macOS during dev mode
   if (process.platform === 'darwin') {
     try {
-      app.dock?.setIcon(path.join(__dirname, '../../../assets/mac_icon.png'));
+      app.dock?.setIcon(path.join(__dirname, '../../assets/mac_icon.png'));
     } catch (e) {
       console.log('Could not set dock icon', e);
     }
