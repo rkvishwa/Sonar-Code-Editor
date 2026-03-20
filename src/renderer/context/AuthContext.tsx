@@ -102,6 +102,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user?.$id, user?.role]);
 
+  // Subscribe to the global settings for internet restriction
+  useEffect(() => {
+    if (!user || user.role === 'admin') {
+      setInternetBlocked(false);
+      return;
+    }
+
+    // Fetch initial value
+    getGlobalInternetRestriction().then(setInternetBlocked).catch(() => setInternetBlocked(false));
+
+    // Subscribe to realtime changes
+    const unsub = subscribeToSettings((blocked) => {
+      setInternetBlocked(blocked);
+    });
+
+    return () => {
+      unsub();
+    };
+  }, [user?.$id, user?.role]);
+
   const login = async (
     teamName: string,
     password: string,
