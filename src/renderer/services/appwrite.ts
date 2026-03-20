@@ -125,7 +125,7 @@ async function hmacSha256(key: string, message: string): Promise<string> {
 }
 
 async function getSecurityContext() {
-  let attestation = null;
+  let attestation: any = null;
   try {
       // @ts-ignore - electronAPI is exposed
       attestation = await window.electronAPI?.security.getAttestationToken();

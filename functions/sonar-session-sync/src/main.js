@@ -45,11 +45,6 @@ module.exports = async (context) => {
     if (!isAccessValid) {
       return res.json({ success: false, error: 'Forbidden: Invalid Build Attestation or Developer Key' }, 403);
     }
-      process.env.APPWRITE_API_KEY;
-
-    if (!apiKey) {
-      return res.json({ success: false, error: 'Missing APPWRITE function API key' }, 500);
-    }
 
     const userId = req.headers['x-appwrite-user-id'];
     if (!userId) {
@@ -76,6 +71,15 @@ module.exports = async (context) => {
     };
 
     const upsertSessionDoc = async (data) => {
+      const isDocumentNotFoundError = (err) => {
+        const msg = String(err?.message || '').toLowerCase();
+        return (
+          msg.includes('not found') ||
+          msg.includes('could not be found') ||
+          msg.includes('requested id')
+        );
+      };
+
       const findExistingByTeamId = async () => {
         const list = await databases.listDocuments(dbId, colSessions, [
           Query.equal('teamId', teamId),
@@ -86,15 +90,23 @@ module.exports = async (context) => {
 
       const existingDocId = await findExistingByTeamId();
       if (existingDocId) {
-        await databases.updateDocument(dbId, colSessions, existingDocId, data);
-        return;
+        try {
+          await databases.updateDocument(dbId, colSessions, existingDocId, data);
+          return;
+        } catch (updateErr) {
+          const notFound = isDocumentNotFoundError(updateErr);
+          if (!notFound) {
+            throw updateErr;
+          }
+          // The found doc is gone (race condition), fallback to create logic
+        }
       }
 
       try {
         await databases.updateDocument(dbId, colSessions, teamId, data);
         return;
       } catch (updateErr) {
-        const notFound = String(updateErr?.message || '').toLowerCase().includes('not found');
+        const notFound = isDocumentNotFoundError(updateErr);
         if (!notFound) {
           throw updateErr;
         }
