@@ -6,7 +6,8 @@ function verifyAccess(req, env) {
   const { attestation, devKey } = req.bodySource || JSON.parse(req.body || '{}');
   
   // 1. Developer Override
-  if (devKey && env.BUILD_SIGNING_KEY && devKey === env.BUILD_SIGNING_KEY) {
+  // Only valid in development environment
+  if (devKey && env.BUILD_SIGNING_KEY && devKey === env.BUILD_SIGNING_KEY && env.NODE_ENV === 'development') {
     return true; // Valid Developer
   }
 
