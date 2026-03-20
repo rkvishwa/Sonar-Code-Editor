@@ -94,15 +94,12 @@
     "win": {
       "icon": "build/icon.png",
       "target": [
-        "appx"
+        "nsis"
       ]
     },
-    "appx": {
-      "applicationId": "SonarCodeEditor",
-      "identityName": "SonarCodeEditor",
-      "publisher": "CN=SonarPublisher",
-      "publisherDisplayName": "Sonar",
-      "displayName": "Sonar Code Editor"
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     },
     "linux": {
       "target": [
