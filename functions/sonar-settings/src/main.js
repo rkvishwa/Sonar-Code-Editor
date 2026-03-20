@@ -39,7 +39,7 @@ module.exports = async (context) => {
        return res.json({ success: false, error: 'Forbidden: Invalid Build Attestation or Developer Key' }, 403);
     }
     
-    const dbId = process.env.DB_ID;
+    const dbId = process.env.DB_ID || 'devwatch_db';
 
     if (action === 'updateSetting' || action === 'flushActivityLogs' || action === 'listDocuments' || action === 'getSetting') {
       const userId = req.headers['x-appwrite-user-id'];
