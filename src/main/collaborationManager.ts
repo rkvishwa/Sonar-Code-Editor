@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import * as dgram from 'dgram';
 import * as net from 'net';
 import WebSocket, { WebSocketServer } from 'ws';
@@ -215,11 +215,11 @@ class CollaborationManager {
     }
 
     try {
-      // Configure the hosted network
-      execSync(`netsh wlan set hostednetwork mode=allow ssid="${ssid}" key="${password}"`, { encoding: 'utf-8' });
+      // Configure the hosted network securely using execFileSync to prevent command injection
+      execFileSync('netsh', ['wlan', 'set', 'hostednetwork', 'mode=allow', `ssid=${ssid}`, `key=${password}`], { encoding: 'utf-8' });
       
       // Start the hosted network
-      execSync('netsh wlan start hostednetwork', { encoding: 'utf-8' });
+      execFileSync('netsh', ['wlan', 'start', 'hostednetwork'], { encoding: 'utf-8' });
       
       this.status.networkName = ssid;
       return { success: true };
@@ -238,7 +238,7 @@ class CollaborationManager {
     if (process.platform !== 'win32') return;
     
     try {
-      execSync('netsh wlan stop hostednetwork', { encoding: 'utf-8' });
+      execFileSync('netsh', ['wlan', 'stop', 'hostednetwork'], { encoding: 'utf-8' });
       this.status.networkName = undefined;
     } catch (error) {
       // Network might not be running, ignore errors

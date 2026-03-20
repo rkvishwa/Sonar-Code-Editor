@@ -1,0 +1,9 @@
+{
+  "name": "sonar-session-sync",
+  "version": "1.0.0",
+  "main": "src/main.js",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.3",
+    "node-appwrite": "^13.0.0"
+  }
+}

@@ -22,18 +22,36 @@ function buildReportData(team: Team & { teamId: string }, sync: ActivitySyncData
     summary: { totalDuration: 0, totalOnlineTime: 0, totalOfflineTime: 0, disconnections: 0, longestOnlineStretch: 0, percentOnline: 0, percentInIDE: 0, appSwitches: 0 }
   };
 
-  if (!sync || sync.heartbeatCount === 0) return emptyReport;
+  if (!sync) return emptyReport;
 
-  const sessionStart = sync.sessionStart;
-  const sessionEnd = sync.lastStatusAt;
-  const totalDuration = sync.totalOnlineSec + sync.totalOfflineSec;
+  const heartbeatCount = Number.isFinite(Number(sync.heartbeatCount)) ? Number(sync.heartbeatCount) : 0;
+  const events = Array.isArray(sync.activityEvents) ? sync.activityEvents : [];
+  const hasEventData = events.length > 0;
+  if (heartbeatCount === 0 && !hasEventData) return emptyReport;
+
+  const apps = sync.apps && typeof sync.apps === 'object' ? sync.apps : {};
+  const offlinePeriods = Array.isArray(sync.offlinePeriods) ? sync.offlinePeriods : [];
+  const totalOnlineSec = Number.isFinite(Number(sync.totalOnlineSec)) ? Number(sync.totalOnlineSec) : 0;
+  const totalOfflineSec = Number.isFinite(Number(sync.totalOfflineSec)) ? Number(sync.totalOfflineSec) : 0;
+
+  const sortedEvents = [...events].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const inferredStart = sortedEvents[0]?.timestamp || '';
+  const inferredEnd = sortedEvents[sortedEvents.length - 1]?.timestamp || inferredStart;
+
+  const sessionStart = sync.sessionStart || inferredStart || '';
+  const sessionEnd = sync.lastStatusAt || inferredEnd || sync.sessionStart || '';
+
+  const inferredTotalDuration = sessionStart && sessionEnd
+    ? Math.max(0, (new Date(sessionEnd).getTime() - new Date(sessionStart).getTime()) / 1000)
+    : 0;
+  const totalDuration = Math.max(totalOnlineSec + totalOfflineSec, inferredTotalDuration);
 
   // Build status timeline from offline periods
   const statusTimeline: StatusEntry[] = [];
   let longestOnline = 0;
   let prevEnd = sessionStart;
 
-  const sortedOffline = [...sync.offlinePeriods].sort((a, b) => new Date(a.from).getTime() - new Date(b.from).getTime());
+  const sortedOffline = [...offlinePeriods].sort((a, b) => new Date(a.from).getTime() - new Date(b.from).getTime());
   for (const period of sortedOffline) {
     // Online period before this offline period
     const onlineDur = (new Date(period.from).getTime() - new Date(prevEnd).getTime()) / 1000;
@@ -56,7 +74,7 @@ function buildReportData(team: Team & { teamId: string }, sync: ActivitySyncData
   }
 
   // Build app usage from sync.apps
-  const appUsage: AppUsageEntry[] = Object.entries(sync.apps)
+  const appUsageFromSync: AppUsageEntry[] = Object.entries(apps)
     .map(([appName, totalSec]) => ({
       appName,
       windowTitle: appName,
@@ -66,9 +84,43 @@ function buildReportData(team: Team & { teamId: string }, sync: ActivitySyncData
     }))
     .sort((a, b) => b.totalTime - a.totalTime);
 
-  const ideTime = appUsage.filter((a) => a.appName === 'Sonar Code Editor').reduce((acc, a) => acc + a.totalTime, 0);
-  const disconnections = sync.offlinePeriods.length;
-  const appSwitches = Object.keys(sync.apps).length > 1 ? sync.heartbeatCount : 0;
+  const fallbackAppCounts = new Map<string, number>();
+  if (appUsageFromSync.length === 0 && sortedEvents.length > 0) {
+    for (const e of sortedEvents) {
+      if (e.type !== 'app_blur' || !e.details) continue;
+      const match = e.details.match(/^(?:Switched to|Active app):\s*(.+)$/i);
+      if (!match) continue;
+      const raw = match[1].trim();
+      const parts = raw.split(' - ');
+      const appName = parts[parts.length - 1].trim() || raw;
+      if (!appName) continue;
+      fallbackAppCounts.set(appName, (fallbackAppCounts.get(appName) || 0) + 1);
+    }
+  }
+
+  const appUsage: AppUsageEntry[] = appUsageFromSync.length > 0
+    ? appUsageFromSync
+    : Array.from(fallbackAppCounts.entries())
+      .map(([appName, count]) => ({
+        appName,
+        windowTitle: appName,
+        firstSeen: sessionStart,
+        lastSeen: sessionEnd,
+        // Fallback metric: count-based pseudo-time to keep UI/report informative.
+        totalTime: count,
+      }))
+      .sort((a, b) => b.totalTime - a.totalTime);
+
+  const ideTime = appUsage
+    .filter((a) => a.appName.toLowerCase() === 'sonar code editor')
+    .reduce((acc, a) => acc + a.totalTime, 0);
+  const disconnections = offlinePeriods.length;
+  const appSwitches = sortedEvents.filter((e) => e.type === 'app_blur').length;
+
+  const onlineEvents = sortedEvents.filter((e) => e.type === 'status_online').length;
+  const offlineEvents = sortedEvents.filter((e) => e.type === 'status_offline').length;
+  const fallbackOnlineTime = totalOnlineSec > 0 ? totalOnlineSec : (onlineEvents > 0 ? inferredTotalDuration : 0);
+  const fallbackOfflineTime = totalOfflineSec > 0 ? totalOfflineSec : (offlineEvents > 0 ? Math.max(0, inferredTotalDuration - fallbackOnlineTime) : 0);
 
   return {
     team,
@@ -78,12 +130,12 @@ function buildReportData(team: Team & { teamId: string }, sync: ActivitySyncData
     appUsage,
     summary: {
       totalDuration,
-      totalOnlineTime: sync.totalOnlineSec,
-      totalOfflineTime: sync.totalOfflineSec,
-      disconnections,
+      totalOnlineTime: fallbackOnlineTime,
+      totalOfflineTime: fallbackOfflineTime,
+      disconnections: Math.max(disconnections, offlineEvents),
       longestOnlineStretch: longestOnline,
-      percentOnline: totalDuration > 0 ? Math.round((sync.totalOnlineSec / totalDuration) * 100) : 0,
-      percentInIDE: sync.totalOnlineSec > 0 ? Math.round((ideTime / sync.totalOnlineSec) * 100) : 0,
+      percentOnline: totalDuration > 0 ? Math.round((fallbackOnlineTime / totalDuration) * 100) : 0,
+      percentInIDE: fallbackOnlineTime > 0 ? Math.round((ideTime / fallbackOnlineTime) * 100) : 0,
       appSwitches,
     }
   };
@@ -169,6 +221,26 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString();
 }
 
+function formatEventDetailsRender(event: any): string {
+  if (event.type === 'workspace_opened' && event.details) {
+    try {
+      const stats = JSON.parse(event.details);
+      const f = stats.totalFiles || 0;
+      const a = stats.authors || {};
+      const users = Object.entries(a).filter(([_, data]: any) => data.count > 0).map(([name, data]: any) => `${name}: ${data.count}`).join(', ');
+      
+      let fileNames = '';
+      const allFiles = (a.user?.files || []).slice(0, 3).map((f: string) => f.split(/[/\\]/).pop());
+      if (allFiles.length > 0) fileNames = ` (e.g. ${allFiles.join(', ')})`;
+      
+      return `Files: ${f}${users ? `, ${users}` : ''}. Folders: ${stats.totalFolders || 0}${fileNames}`;
+    } catch {}
+  }
+  
+  if (!event.details) return '\u2014';
+  return event.details;
+}
+
 function formatEventType(type: string, details?: string): string {
   switch (type) {
     case 'status_online': return 'Went Online';
@@ -188,6 +260,7 @@ function formatEventType(type: string, details?: string): string {
     }
     case 'clipboard_copy': return 'Clipboard Copy';
     case 'clipboard_paste_external': return 'External Copy';
+    case 'workspace_opened': return 'Workspace Opened';
     default: return type;
   }
 }
@@ -751,12 +824,11 @@ export default function ReportModal({ team, onClose }: ReportModalProps) {
                             <span className={`activity-log-type activity-log-type--${event.type}`}>
                               {formatEventType(event.type, event.details)}
                             </span>
-                            <span className="activity-log-details" title={event.details || ''}>
-                              {event.details
-                                ? event.details.length > 60
-                                  ? event.details.substring(0, 60) + '\u2026'
-                                  : event.details
-                                : '\u2014'}
+                            <span className="activity-log-details" title={formatEventDetailsRender(event)}>
+                              {(() => {
+                                const d = formatEventDetailsRender(event);
+                                return d.length > 60 ? d.substring(0, 60) + '\u2026' : d;
+                              })()}
                             </span>
                           </div>
                         ))}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Eye, EyeOff, Radar, Sun, Moon } from "lucide-react";
+import { Eye, EyeOff, Radar, Sun, Moon, Zap } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import "./Login.css";
 
@@ -119,7 +119,7 @@ export default function Login() {
     const ids = studentIds.map((s) => s.trim()).filter(Boolean);
 
     if (!name || !pass) {
-      showToast("Team name and password are required", "error");
+      showToast("Username/Team name and password are required", "error");
       return;
     }
     if (ids.length === 0) {
@@ -208,8 +208,8 @@ export default function Login() {
             <h2>{tab === "login" ? "Welcome back" : "Create an account"}</h2>
             <p>
               {tab === "login"
-                ? "Sign in to your team account to continue"
-                : "Register a new team to get started"}
+                ? "Sign in to your account to continue"
+                : "Register a new account or team to get started"}
             </p>
           </div>
 
@@ -357,20 +357,24 @@ export default function Login() {
                 </div>
               </div>
               <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? "Registering..." : "Register Team"}
+                {loading ? "Registering..." : "Register"}
               </button>
             </form>
           )}
-
+          
           <div className="login-footer">
-            <div className="offline-note">
-              <span
-                className="dot offline"
-                style={{ display: "inline-block", marginRight: 6 }}
-              />
-              Offline mode available with cached credentials
-            </div>
+            <a
+              href="https://knurdz.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="powered-by-link"
+            >
+              <Zap className="knurdz-icon" size={14} strokeWidth={2.5} />
+              <span className="powered-text">Powered by</span>
+              <span className="knurdz-brand">Knurdz</span>
+            </a>
           </div>
+
         </div>
       </div>
     </div>

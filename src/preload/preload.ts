@@ -14,6 +14,7 @@ const api: ElectronAPI = {
     renameItem: (oldPath, newPath) => ipcRenderer.invoke(IPC_CHANNELS.FS_RENAME_ITEM, oldPath, newPath),
     copyItem: (oldPath, newPath) => ipcRenderer.invoke(IPC_CHANNELS.FS_COPY_ITEM, oldPath, newPath),
     search: (dirPath, query) => ipcRenderer.invoke(IPC_CHANNELS.FS_SEARCH, dirPath, query),
+    getWorkspaceStats: (dirPath) => ipcRenderer.invoke(IPC_CHANNELS.FS_GET_WORKSPACE_STATS, dirPath),
     openFolderDialog: () => ipcRenderer.invoke(IPC_CHANNELS.FS_OPEN_FOLDER_DIALOG),
     cancelFolderDialog: () => ipcRenderer.invoke(IPC_CHANNELS.FS_CANCEL_FOLDER_DIALOG),
     openFileDialog: () => ipcRenderer.invoke(IPC_CHANNELS.FS_OPEN_FILE_DIALOG),
@@ -52,6 +53,14 @@ const api: ElectronAPI = {
     getActiveWindow: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ACTIVE_WINDOW),
     checkPermission: () => ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_CHECK_PERMISSION),
     openPrivacyPrefs: () => ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_OPEN_PREFS),
+    getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_VERSION),
+  },
+  security: {
+    requestNonce: () => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_NONCE_REQUEST),
+    sendHeartbeat: (nonce) => ipcRenderer.send(IPC_CHANNELS.SECURITY_HEARTBEAT_PING, nonce),
+    getSecurityLog: () => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_GET_LOG),
+    upsertSession: (teamId, teamName, status) => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_UPSERT_SESSION, teamId, teamName, status),
+    getAttestationToken: (nonce?: string) => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_GET_ATTESTATION, nonce),
   },
   clipboard: {
     readText: () => ipcRenderer.invoke(IPC_CHANNELS.CLIPBOARD_READ_TEXT),
@@ -84,6 +93,11 @@ contextBridge.exposeInMainWorld('electronEvents', {
     ipcRenderer.on('monitoring:flushQueue', (_event, queue) => callback(queue));
   },
   removeAllListeners: (channel: string) => {
-    ipcRenderer.removeAllListeners(channel);
+    // Only allow specific channels to be cleared to prevent DoS attacks
+    if (['monitoring:heartbeat', 'monitoring:flushQueue'].includes(channel)) {
+      ipcRenderer.removeAllListeners(channel);
+    } else {
+      console.warn(`Attempted to remove listeners for unauthorized channel: ${channel}`);
+    }
   },
 });
