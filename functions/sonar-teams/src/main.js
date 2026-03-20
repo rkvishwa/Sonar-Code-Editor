@@ -1,4 +1,5 @@
-const { Client, Users } = require('node-appwrite');
+const { Client, Users, Databases } = require('node-appwrite');
+const { verifyAccess } = require('./verify');
 
 function normalizeMemberIds(raw) {
   let value = raw;
@@ -60,32 +61,7 @@ module.exports = async (context) => {
     } else {
       bodyObj = req.body;
     }
-    const { action, teamId, studentId, oldPassword, newPassword, attestation, devKey } = bodyObj || {};
-
-    // SECURITY: Verify Access
-    const signingKey = process.env.BUILD_SIGNING_KEY;
-    let accessGranted = false;
-    
-    // 1. Developer Override
-    if (signingKey && devKey && devKey === signingKey) {
-       accessGranted = true;
-    } 
-    // 2. Official Build Verification
-    else if (attestation && attestation.token && attestation.payload) {
-       if (signingKey) {
-          const crypto = require('crypto');
-          const expectedToken = crypto.createHmac('sha256', signingKey)
-             .update(attestation.payload)
-             .digest('hex');
-          if (attestation.token === expectedToken) {
-             accessGranted = true;
-          }
-       }
-    }
-
-    if (!accessGranted) {
-       return res.json({ success: false, error: 'Forbidden: Invalid Build Attestation or Developer Key' }, 403);
-    }
+    const { action, teamId, studentId, oldPassword, newPassword } = bodyObj || {};
 
     const apiKey = 
       (context.variables && context.variables['APPWRITE_FUNCTION_API_KEY']) ||
@@ -98,17 +74,24 @@ module.exports = async (context) => {
       return res.json({ success: false, error: 'Internal Server Error: Missing API Key' }, 500);
     }
 
+    // Init Verify Logic
+    const client = new Client()
+        .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1') // Default or env
+        .setProject(process.env.APPWRITE_PROJECT_ID)
+        .setKey(apiKey);
+    const databases = new Databases(client);
+
+    const isAuthorized = await verifyAccess(req, process.env, databases);
+    if (!isAuthorized) {
+       return res.json({ success: false, error: 'Authorization Failed' }, 403);
+    }
+
     const userId = req.headers['x-appwrite-user-id'];
 
     if (!userId) {
        return res.json({ success: false, error: 'Unauthorized: missing user context' }, 401);
     }
 
-    const client = new Client()
-      .setEndpoint(process.env.APPWRITE_ENDPOINT)
-      .setProject(process.env.APPWRITE_PROJECT_ID)
-      .setKey(apiKey);
-    
     const users = new Users(client);
 
     // Verify caller permissions
