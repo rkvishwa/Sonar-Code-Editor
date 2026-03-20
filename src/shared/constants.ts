@@ -10,6 +10,7 @@ export const IPC_CHANNELS = {
   FS_RENAME_ITEM: 'fs:renameItem',
   FS_COPY_ITEM: 'fs:copyItem',
   FS_SEARCH: 'fs:search',
+  FS_GET_WORKSPACE_STATS: 'fs:getWorkspaceStats',
   FS_OPEN_FOLDER_DIALOG: 'fs:openFolderDialog',
   FS_CANCEL_FOLDER_DIALOG: 'fs:cancelFolderDialog',
   FS_OPEN_FILE_DIALOG: 'fs:openFileDialog',
@@ -17,6 +18,13 @@ export const IPC_CHANNELS = {
   MONITORING_START: 'monitoring:start',
   MONITORING_STOP: 'monitoring:stop',
   MONITORING_HEARTBEAT: 'monitoring:heartbeat',
+  // Security
+  SECURITY_HEARTBEAT_PING: 'security:heartbeat-ping',
+  SECURITY_NONCE_REQUEST: 'security:nonce-request',
+  SECURITY_NONCE_RESPONSE: 'security:nonce-response',
+  SECURITY_GET_LOG: 'security:get-log',
+  SECURITY_GET_ATTESTATION: 'security:get-attestation',
+  SECURITY_UPSERT_SESSION: 'security:upsert-session',
   // Network
   NETWORK_STATUS: 'network:status',
   // Static Server
@@ -35,6 +43,7 @@ export const IPC_CHANNELS = {
   // System Permission
   SYSTEM_CHECK_PERMISSION: 'system:checkPermission',
   SYSTEM_OPEN_PREFS: 'system:openPrivacyPrefs',
+  APP_GET_VERSION: 'app:getVersion',
   // Clipboard
   CLIPBOARD_READ_TEXT: 'clipboard:readText',
   // Collaboration (P2P)

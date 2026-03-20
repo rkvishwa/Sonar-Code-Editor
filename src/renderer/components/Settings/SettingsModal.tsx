@@ -36,13 +36,56 @@ import {
 import appIcon from "../../assets/icon.png";
 import {
   addTeamMember,
-  getTeamById,
+  getCurrentTeam,
+  getTeamMembers,
   changeTeamPassword,
 } from "../../services/appwrite";
-import { cacheCredentials } from "../../services/localStore";
+import { useAuth } from "../../context/AuthContext";
 import { Team } from "../../../shared/types";
 import { formatKey, isMac } from "../../utils/shortcut";
 import "./SettingsModal.css";
+
+function normalizeMembers(raw: unknown): string[] {
+  let value: unknown = raw;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        value = JSON.parse(trimmed);
+      } catch {
+        value = trimmed;
+      }
+    }
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item.trim();
+        if (typeof item === "number") return String(item);
+        if (item && typeof item === "object") {
+          const rec = item as Record<string, unknown>;
+          const candidate = rec.studentId ?? rec.id ?? rec.value;
+          if (typeof candidate === "string") return candidate.trim();
+          if (typeof candidate === "number") return String(candidate);
+        }
+        return "";
+      })
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(/[\n,]/)
+      .map((id) => id.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -87,10 +130,12 @@ export default function SettingsModal({
   user,
   onLogout,
 }: SettingsModalProps) {
+  const { refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState("Text Editor");
   const [searchQuery, setSearchQuery] = useState("");
   const [activityLog, setActivityLog] = useState<ActivityEvent[]>([]);
-  const [members, setMembers] = useState<string[]>(user?.studentIds || []);
+  // Ensure members is always an array
+  const [members, setMembers] = useState<string[]>(normalizeMembers(user?.studentIds));
   const [newMember, setNewMember] = useState("");
   const [addMemberError, setAddMemberError] = useState("");
   const [addingMember, setAddingMember] = useState(false);
@@ -146,15 +191,43 @@ export default function SettingsModal({
     }
   }, [isOpen, activeTab, searchQuery]);
 
-  // Refresh members when opening Account tab
   useEffect(() => {
-    if (isOpen && activeTab === "Account" && user?.$id) {
-      getTeamById(user.$id)
-        .then((team) => {
-          if (team?.studentIds) setMembers(team.studentIds);
-        })
-        .catch(() => { });
-    }
+    const handleLogCleared = () => {
+      setActivityLog([]);
+    };
+    window.addEventListener('activityLogCleared', handleLogCleared);
+    return () => window.removeEventListener('activityLogCleared', handleLogCleared);
+  }, []);
+
+  // Refresh members when opening Account tab.
+  // We fetch current team data to avoid stale context values.
+  useEffect(() => {
+    if (!isOpen || activeTab !== "Account") return;
+
+    let cancelled = false;
+    (async () => {
+      const localMembers = normalizeMembers(user?.studentIds);
+      if (!cancelled) {
+        setMembers(localMembers);
+      }
+
+      if (user?.$id) {
+        const remoteMembers = await getTeamMembers(user.$id);
+        if (!cancelled && remoteMembers.length > 0) {
+          setMembers(normalizeMembers(remoteMembers));
+          return;
+        }
+      }
+
+      const freshTeam = await getCurrentTeam();
+      if (!cancelled && freshTeam) {
+        setMembers(normalizeMembers(freshTeam.studentIds));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, activeTab, user]);
 
   if (!isOpen) return null;
@@ -219,6 +292,10 @@ export default function SettingsModal({
       setPasswordError("New password must be at least 4 characters");
       return;
     }
+    if (newPassword === oldPassword) {
+      setPasswordError("New password cannot be the same as current password");
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setPasswordError("Passwords do not match");
       return;
@@ -227,7 +304,6 @@ export default function SettingsModal({
     setChangingPassword(true);
     const result = await changeTeamPassword(user.$id, oldPassword, newPassword);
     if (result.success) {
-      cacheCredentials(user.teamName, newPassword, user.$id, user.role);
       setPasswordSuccess("Password changed successfully");
       setOldPassword("");
       setNewPassword("");
@@ -248,6 +324,7 @@ export default function SettingsModal({
     if (result.success) {
       setMembers((prev) => [...prev, trimmed]);
       setNewMember("");
+      refreshUser();
     } else {
       setAddMemberError(result.error || "Failed to add member");
     }
@@ -292,6 +369,26 @@ export default function SettingsModal({
     matchesSearch("online") ||
     matchesSearch("offline");
 
+  const formatEventDetailsRender = (event: any): string => {
+    if (event.type === 'workspace_opened' && event.details) {
+      try {
+        const stats = JSON.parse(event.details);
+        const f = stats.totalFiles || 0;
+        const a = stats.authors || {};
+        const users = Object.entries(a).filter(([_, data]: any) => data.count > 0).map(([name, data]: any) => `${name}: ${data.count}`).join(', ');
+        
+        let fileNames = '';
+        const allFiles = (a.user?.files || []).slice(0, 3).map((f: string) => f.split(/[/\\]/).pop());
+        if (allFiles.length > 0) fileNames = ` (e.g. ${allFiles.join(', ')})`;
+        
+        return `Files: ${f}${users ? `, ${users}` : ''}. Folders: ${stats.totalFolders || 0}${fileNames}`;
+      } catch {}
+    }
+    
+    if (!event.details) return '\u2014';
+    return event.details;
+  };
+
   const formatEventType = (
     type: ActivityEvent["type"],
     details?: string,
@@ -319,6 +416,10 @@ export default function SettingsModal({
         return "Clipboard Copy";
       case "clipboard_paste_external":
         return "External Copy";
+      case "workspace_opened":
+        return "Workspace Opened";
+      default:
+        return (type as string) || "Unknown Event";
     }
   };
 
@@ -843,13 +944,12 @@ export default function SettingsModal({
                           </span>
                           <span
                             className="activity-log-details"
-                            title={event.details || ""}
+                            title={formatEventDetailsRender(event)}
                           >
-                            {event.details
-                              ? event.details.length > 60
-                                ? event.details.substring(0, 60) + "…"
-                                : event.details
-                              : "—"}
+                            {(() => {
+                              const d = formatEventDetailsRender(event);
+                              return d.length > 60 ? d.substring(0, 60) + "…" : d;
+                            })()}
                           </span>
                         </div>
                       ))}

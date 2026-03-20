@@ -23,6 +23,8 @@ cd Sonar-Code-Editor
 git checkout development
 ```
 
+> **Note:** To run the application locally, you must set up the Appwrite backend. Please refer to [appwrite.md](appwrite.md) for backend configuration and [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions.
+
 ### 🌱 3.⃣ Create a Branch
 
 Create a new branch for your feature or bugfix **based on the `development` branch**:

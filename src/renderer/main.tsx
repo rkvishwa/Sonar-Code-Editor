@@ -20,6 +20,9 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles/global.css';
 
+import { initSecurityHeartbeat } from './services/securityHeartbeat';
+initSecurityHeartbeat();
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

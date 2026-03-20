@@ -9,6 +9,7 @@ export interface FileNode {
 export interface Team {
   $id?: string;
   teamName: string;
+  email?: string;
   password?: string;
   role: 'team' | 'admin';
   studentIds?: string[];
@@ -21,6 +22,7 @@ export interface Session {
   teamName: string;
   status: 'online' | 'offline';
   lastSeen: string;
+  buildType?: 'dev' | 'official' | 'unknown';
   ipAddress?: string;
 }
 
@@ -104,6 +106,7 @@ export interface HeartbeatPayload {
   status: 'online' | 'offline';
   timestamp: string;
   appName?: string;
+  windowTitle?: string;
   activityEvents?: Array<{ type: string; timestamp: string; details?: string }>;
 }
 
@@ -112,6 +115,17 @@ export interface SearchResult {
   name: string;
   line: number;
   text: string;
+}
+
+export interface WorkspaceStats {
+  totalFiles: number;
+  totalFolders: number;
+  authors: {
+    [name: string]: {
+      count: number;
+      files: string[];
+    };
+  };
 }
 
 export interface ElectronAPI {
@@ -126,6 +140,7 @@ export interface ElectronAPI {
     renameItem: (oldPath: string, newPath: string) => Promise<string>;
     copyItem: (oldPath: string, newPath: string) => Promise<string>;
     search: (dirPath: string, query: string) => Promise<SearchResult[]>;
+    getWorkspaceStats: (dirPath: string) => Promise<WorkspaceStats>;
     openFolderDialog: () => Promise<{ path: string; isDirectory: boolean } | null>;
     cancelFolderDialog?: () => Promise<void>;
     openFileDialog: () => Promise<{ path: string; isDirectory: boolean; parentPath: string; name: string } | null>;
@@ -157,6 +172,14 @@ export interface ElectronAPI {
     getActiveWindow: () => Promise<string | null>;
     checkPermission: () => Promise<boolean>;
     openPrivacyPrefs: () => Promise<void>;
+    getAppVersion: () => Promise<string>;
+  };
+  security?: {
+    requestNonce: () => Promise<string>;
+    sendHeartbeat: (nonce: string) => void;
+    getSecurityLog: () => Promise<any[]>;
+    upsertSession: (teamId: string, teamName: string, status: 'online' | 'offline') => Promise<void>;
+    getAttestationToken: (nonce?: string) => Promise<string>;
   };
   clipboard: {
     readText: () => Promise<string>;

@@ -1,3 +1,488 @@
 {
-    "projectId": "${VITE_APPWRITE_PROJECT_ID}"
+    "projectId": "YOUR_PROJECT_ID",
+    "projectName": "Sonar Code Editor",
+    "settings": {
+        "services": {
+            "account": true,
+            "avatars": true,
+            "databases": true,
+            "locale": true,
+            "health": true,
+            "storage": false,
+            "teams": true,
+            "users": true,
+            "sites": false,
+            "functions": true,
+            "graphql": true,
+            "messaging": true
+        },
+        "auth": {
+            "methods": {
+                "jwt": true,
+                "phone": true,
+                "invites": true,
+                "anonymous": true,
+                "email-otp": true,
+                "magic-url": true,
+                "email-password": true
+            },
+            "security": {
+                "duration": 31536000,
+                "limit": 0,
+                "sessionsLimit": 10,
+                "passwordHistory": 0,
+                "passwordDictionary": false,
+                "personalDataCheck": false,
+                "sessionAlerts": false,
+                "mockNumbers": []
+            }
+        }
+    },
+    "functions": [
+        {
+            "$id": "sonar-auth",
+            "name": "sonar-auth",
+            "runtime": "node-18.0",
+            "path": "functions/sonar-auth",
+            "entrypoint": "src/main.js",
+            "execute": [
+                "any",
+                "users",
+                "guests",
+                "users"
+            ],
+            "enabled": true,
+            "logging": true,
+            "events": [],
+            "schedule": "",
+            "timeout": 15,
+            "commands": "",
+            "scopes": [
+                "users.read",
+                "users.write"
+            ]
+        },
+        {
+            "$id": "sonar-session-sync",
+            "name": "sonar-session-sync",
+            "runtime": "node-18.0",
+            "path": "functions/sonar-session-sync",
+            "entrypoint": "src/main.js",
+            "execute": [
+                "any",
+                "users",
+                "guests",
+                "users"
+            ],
+            "enabled": true,
+            "logging": true,
+            "events": [],
+            "schedule": "",
+            "timeout": 15,
+            "commands": "",
+            "scopes": [
+                "documents.read",
+                "documents.write"
+            ]
+        },
+        {
+            "$id": "sonar-activity-sync",
+            "name": "sonar-activity-sync",
+            "runtime": "node-18.0",
+            "path": "functions/sonar-activity-sync",
+            "entrypoint": "src/main.js",
+            "execute": [
+                "any",
+                "users",
+                "guests",
+                "users"
+            ],
+            "enabled": true,
+            "logging": true,
+            "events": [],
+            "schedule": "",
+            "timeout": 15,
+            "commands": "",
+            "scopes": [
+                "documents.read",
+                "documents.write"
+            ]
+        },
+        {
+            "$id": "sonar-settings",
+            "name": "sonar-settings",
+            "runtime": "node-18.0",
+            "path": "functions/sonar-settings",
+            "entrypoint": "src/main.js",
+            "execute": [
+                "any",
+                "users",
+                "guests",
+                "users"
+            ],
+            "enabled": true,
+            "logging": true,
+            "events": [],
+            "schedule": "",
+            "timeout": 15,
+            "commands": "",
+            "scopes": [
+                "documents.read",
+                "documents.write",
+                "users.read"
+            ]
+        },
+        {
+            "$id": "sonar-teams",
+            "name": "sonar-teams",
+            "runtime": "node-18.0",
+            "path": "functions/sonar-teams",
+            "entrypoint": "src/main.js",
+            "execute": [
+                "any",
+                "users",
+                "guests",
+                "users"
+            ],
+            "enabled": true,
+            "logging": true,
+            "events": [],
+            "schedule": "",
+            "timeout": 15,
+            "commands": "",
+            "scopes": [
+                "users.read",
+                "users.write"
+            ]
+        }
+    ],
+    "tablesDB": [
+        {
+            "$id": "sonar_db",
+            "name": "Sonar DB",
+            "enabled": true
+        }
+    ],
+    "tables": [
+        {
+            "$id": "sessions",
+            "$permissions": [],
+            "databaseId": "sonar_db",
+            "name": "Sessions",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "teamId",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "teamName",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "online",
+                        "offline"
+                    ]
+                },
+                {
+                    "key": "lastSeen",
+                    "type": "datetime",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "ipAddress",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 100,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "attestation",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "buildType",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 20,
+                    "default": "unknown",
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "teamId_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "teamId"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "activityLogs",
+            "$permissions": [],
+            "databaseId": "sonar_db",
+            "name": "Activity Logs",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "teamId",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "teamName",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "currentWindow",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "currentFile",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "online",
+                        "offline"
+                    ]
+                },
+                {
+                    "key": "timestamp",
+                    "type": "datetime",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "event",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 50,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "appName",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "windowTitle",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 1000000,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "teamId_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "teamId"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "timestamp_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "timestamp"
+                    ],
+                    "orders": [
+                        "DESC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "reports",
+            "$permissions": [],
+            "databaseId": "sonar_db",
+            "name": "Reports",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "teamId",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "teamName",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "sessionStart",
+                    "type": "datetime",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "sessionEnd",
+                    "type": "datetime",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "generatedAt",
+                    "type": "datetime",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "reportData",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 1000000,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "teamId_idx",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "teamId"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                }
+            ]
+        },
+        {
+            "$id": "settings",
+            "$permissions": [],
+            "databaseId": "sonar_db",
+            "name": "settings",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "settingType",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "settingValue",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "settingTypeIndex",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "settingType"
+                    ],
+                    "orders": []
+                }
+            ]
+        }
+    ],
+    "buckets": [],
+    "teams": []
 }

@@ -1,14 +1,17 @@
 import { app, BrowserWindow, ipcMain, dialog, session, protocol, Menu, net, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as dotenv from 'dotenv';
+import { verifyAsarIntegrity } from './integrityCheck';
 
-dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', '.env') });
+// Env variables are injected by esbuild at compile time
 import { execSync } from 'child_process';
-import { registerFsHandlers } from './ipcHandlers';
+import { registerFsHandlers, enforceTrustedPath } from './ipcHandlers';
 import { MonitoringService } from './monitoring';
 import { IPC_CHANNELS } from '../shared/constants';
 import { stopStaticServer } from './staticServer';
+import { initOfflineHeartbeat, stopOfflineHeartbeat } from './offlineHeartbeat';
+import { initSecurityLog, logSecurityEvent, getSecurityLog } from './securityLog';
+import { getAttestationToken } from './buildAttestation';
 
 // Lazy load collaboration manager to prevent ws import issues on some systems
 let collaborationManager: typeof import('./collaborationManager').collaborationManager | null = null;
@@ -79,17 +82,17 @@ function createWindow(): void {
     autoHideMenuBar: true,
     backgroundColor: '#1e1e1e',
     webPreferences: {
-      preload: path.join(__dirname, '../../preload/preload/preload.js'),
+      preload: path.join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
       webSecurity: true,
       webviewTag: true,
     },
     show: false,
     icon: process.platform === 'win32'
-      ? path.join(__dirname, '../../../assets/win_icon.png')
-      : path.join(__dirname, '../../../assets/mac_icon.png'),
+      ? path.join(__dirname, '../../assets/win_icon.png')
+      : path.join(__dirname, '../../assets/mac_icon.png'),
   });
 
   // Load the app
@@ -105,9 +108,11 @@ function createWindow(): void {
     );
   }
 
+  startNetworkPolling();
+  initOfflineHeartbeat(mainWindow!);
+
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
-    startNetworkPolling();
   });
 
   mainWindow.setMenuBarVisibility(false);
@@ -116,6 +121,13 @@ function createWindow(): void {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  mainWindow.webContents.on('devtools-opened', () => {
+    if (!isDev) {
+      logSecurityEvent('DEVTOOLS_OPENED', 'DevTools was unexpectedly opened in production');
+      mainWindow?.webContents.closeDevTools();
+    }
   });
 }
 
@@ -137,6 +149,94 @@ ipcMain.on(IPC_CHANNELS.MONITORING_STOP, () => {
 
 ipcMain.on('monitoring:setCurrentFile', (_event, filePath: string) => {
   monitoringService?.setCurrentFile(filePath);
+});
+
+ipcMain.handle(IPC_CHANNELS.SECURITY_GET_LOG, () => {
+  return getSecurityLog();
+});
+
+ipcMain.handle(IPC_CHANNELS.SECURITY_GET_ATTESTATION, (_event) => {
+  return getAttestationToken();
+});
+
+ipcMain.handle(IPC_CHANNELS.SECURITY_UPSERT_SESSION, async (_event, teamId: string, teamName: string, status: 'online' | 'offline') => {
+  try {
+    const endpoint = process.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+    const projectId = process.env.VITE_APPWRITE_PROJECT_ID;
+    const dbId = process.env.VITE_APPWRITE_DB_NAME || 'devwatch_db';
+    const colSessions = process.env.VITE_APPWRITE_COLLECTION_SESSIONS || 'sessions';
+
+    if (!projectId) return;
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Appwrite-Project': projectId,
+    };
+
+    const attestation = getAttestationToken();
+    const buildType = attestation === 'DEV_MODE' ? 'dev' : 'official';
+    const dataToSend = {
+      teamId,
+      teamName,
+      status,
+      lastSeen: new Date().toISOString(),
+      attestation,
+      buildType,
+    };
+
+    const legacyDataToSend = {
+      teamId,
+      teamName,
+      status,
+      lastSeen: dataToSend.lastSeen,
+      attestation,
+    };
+
+    // First try to list documents:
+    const listUrl = `${endpoint}/databases/${dbId}/collections/${colSessions}/documents?queries[]=equal("teamId", ["${teamId}"])`;
+    const listRes = await net.fetch(listUrl, { headers });
+    if (!listRes.ok) return;
+
+    const listData = await listRes.json() as any;
+    if (listData.documents && listData.documents.length > 0) {
+      const docId = listData.documents[0].$id;
+      const updateUrl = `${endpoint}/databases/${dbId}/collections/${colSessions}/documents/${docId}`;
+      let updateRes = await net.fetch(updateUrl, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ data: dataToSend }),
+      });
+      if (!updateRes.ok) {
+        updateRes = await net.fetch(updateUrl, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify({ data: legacyDataToSend }),
+        });
+      }
+    } else {
+      const createUrl = `${endpoint}/databases/${dbId}/collections/${colSessions}/documents`;
+      let createRes = await net.fetch(createUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ 
+          documentId: 'unique()',
+          data: dataToSend 
+        }),
+      });
+      if (!createRes.ok) {
+        createRes = await net.fetch(createUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            documentId: 'unique()',
+            data: legacyDataToSend,
+          }),
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Failed to upsert session from main:', err);
+  }
 });
 
 // Register collaboration IPC handlers
@@ -190,6 +290,10 @@ ipcMain.handle(IPC_CHANNELS.COLLAB_CHECK_LOCAL_NETWORK, async () => {
   return collab.checkLocalNetworkAccess();
 });
 
+ipcMain.handle(IPC_CHANNELS.APP_GET_VERSION, () => {
+  return app.getVersion();
+});
+
 // App lifecycle
 app.whenReady().then(async () => {
   // ── macOS: enforce Automation / System Events permission ─────────────────
@@ -236,6 +340,13 @@ app.whenReady().then(async () => {
     if (!filePath) {
       return new Response('Missing path parameter', { status: 400 });
     }
+    
+    try {
+      enforceTrustedPath(filePath);
+    } catch (error) {
+      return new Response('Security Error: Access Denied', { status: 403 });
+    }
+
     const ext = path.extname(filePath).toLowerCase();
     const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp', '.ico'];
     if (!imageExts.includes(ext)) {
@@ -262,7 +373,7 @@ app.whenReady().then(async () => {
         responseHeaders: {
           ...details.responseHeaders,
           'Content-Security-Policy': [
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: file: local-file: http://127.0.0.1:* ws://127.0.0.1:* ws://*:1234; img-src 'self' data: file: blob: local-file: http://127.0.0.1:*; connect-src 'self' https://*.appwrite.io wss://*.appwrite.io http://127.0.0.1:* ws://127.0.0.1:* ws://*:1234; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-src http://127.0.0.1:*",
+            "default-src 'self' data: blob: file: local-file: http://127.0.0.1:* ws://127.0.0.1:* ws://*:1234; img-src 'self' data: file: blob: local-file: http://127.0.0.1:*; connect-src 'self' https://*.appwrite.io wss://*.appwrite.io http://127.0.0.1:* ws://127.0.0.1:* ws://*:1234; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-src http://127.0.0.1:*",
           ],
         },
       });
@@ -272,11 +383,16 @@ app.whenReady().then(async () => {
   // Set the dock icon for macOS during dev mode
   if (process.platform === 'darwin') {
     try {
-      app.dock.setIcon(path.join(__dirname, '../../../assets/mac_icon.png'));
+      app.dock?.setIcon(path.join(__dirname, '../../assets/mac_icon.png'));
     } catch (e) {
       console.log('Could not set dock icon', e);
     }
   }
+
+  initSecurityLog();
+  getAttestationToken(); // Logs the type of attestation we have on startup
+
+  await verifyAsarIntegrity();
 
   createWindow();
 
@@ -286,6 +402,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
+  stopOfflineHeartbeat();
   monitoringService?.stopHeartbeat();
   getCollaborationManager().then(collab => collab?.stopSession());
   stopStaticServer();
@@ -293,8 +410,10 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  stopOfflineHeartbeat();
   monitoringService?.stopHeartbeat();
   getCollaborationManager().then(collab => collab?.stopSession());
+  logSecurityEvent('APP_QUIT');
 });
 
 // Network connectivity check — ping the actual Appwrite endpoint used by the app

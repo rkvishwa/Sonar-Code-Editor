@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ArrowLeft, X, Users, LogOut, Settings, Key, CheckCircle2, Eye, EyeOff, Trash2, Github, Globe, ExternalLink, Code2, User, Activity, Shield, Palette, Info } from 'lucide-react';
-import { updateTeamName, updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction } from '../../services/appwrite';
+import { updateTeamPassword, flushAllActivityLogs, getGlobalInternetRestriction, setGlobalInternetRestriction, getGlobalBlockNonEmptyWorkspace, setGlobalBlockNonEmptyWorkspace, subscribeGlobalBlockNonEmptyWorkspace } from '../../services/appwrite';
 import appIcon from '../../assets/icon.png';
-import { cacheCredentials } from '../../services/localStore';
 import { Team } from '../../../shared/types';
 import '../Settings/SettingsModal.css';
 
@@ -15,7 +14,6 @@ interface AdminSettingsModalProps {
   onThemeChange: (val: string) => void;
   accentColor: string;
   onAccentColorChange: (val: string) => void;
-  onTeamNameUpdated: (newName: string) => void;
 }
 
 export default function AdminSettingsModal({
@@ -27,17 +25,9 @@ export default function AdminSettingsModal({
   onThemeChange,
   accentColor,
   onAccentColorChange,
-  onTeamNameUpdated,
 }: AdminSettingsModalProps) {
   const [activeTab, setActiveTab] = useState('Account');
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Team name state
-  const [editingName, setEditingName] = useState(false);
-  const [newTeamName, setNewTeamName] = useState('');
-  const [nameError, setNameError] = useState('');
-  const [nameSuccess, setNameSuccess] = useState('');
-  const [savingName, setSavingName] = useState(false);
 
   // Password state
   const [oldPassword, setOldPassword] = useState('');
@@ -61,6 +51,12 @@ export default function AdminSettingsModal({
   const [restrictionError, setRestrictionError] = useState('');
   const [restrictionSuccess, setRestrictionSuccess] = useState('');
 
+  // Block non-empty workspace state
+  const [blockNonEmpty, setBlockNonEmpty] = useState(false);
+  const [savingBlockNonEmpty, setSavingBlockNonEmpty] = useState(false);
+  const [blockNonEmptyError, setBlockNonEmptyError] = useState('');
+  const [blockNonEmptySuccess, setBlockNonEmptySuccess] = useState('');
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) onClose();
@@ -73,10 +69,6 @@ export default function AdminSettingsModal({
     if (isOpen) {
       setActiveTab('Account');
       setSearchQuery('');
-      setNewTeamName(user?.teamName || '');
-      setEditingName(false);
-      setNameError('');
-      setNameSuccess('');
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -87,9 +79,20 @@ export default function AdminSettingsModal({
       setGlobalRestriction(false);
       setRestrictionError('');
       setRestrictionSuccess('');
+      setBlockNonEmpty(false);
+      setBlockNonEmptyError('');
+      setBlockNonEmptySuccess('');
+      let unsubBlockNonEmpty: (() => void) | undefined;
+      
       if (user?.role === 'admin') {
         getGlobalInternetRestriction().then(setGlobalRestriction).catch(console.error);
+        getGlobalBlockNonEmptyWorkspace().then(setBlockNonEmpty).catch(console.error);
+        unsubBlockNonEmpty = subscribeGlobalBlockNonEmptyWorkspace(setBlockNonEmpty);
       }
+
+      return () => {
+        if (unsubBlockNonEmpty) unsubBlockNonEmpty();
+      };
     }
   }, [isOpen, user]);
 
@@ -97,12 +100,12 @@ export default function AdminSettingsModal({
   useEffect(() => {
     setPasswordError('');
     setPasswordSuccess('');
-    setNameError('');
-    setNameSuccess('');
     setFlushError('');
     setFlushSuccess('');
     setRestrictionError('');
     setRestrictionSuccess('');
+    setBlockNonEmptyError('');
+    setBlockNonEmptySuccess('');
   }, [activeTab]);
 
   if (!isOpen) return null;
@@ -114,7 +117,7 @@ export default function AdminSettingsModal({
 
   const showAccount = !isSearching
     ? activeTab === 'Account'
-    : matchesSearch('Account') || matchesSearch('Team') || matchesSearch('Name') || matchesSearch('Password') || matchesSearch('Sign Out');
+    : matchesSearch('Account') || matchesSearch('Email') || matchesSearch('Password') || matchesSearch('Sign Out');
 
   const showActivityLogs = !isSearching
     ? activeTab === 'Activity Logs'
@@ -132,26 +135,6 @@ export default function AdminSettingsModal({
     ? activeTab === 'About'
     : matchesSearch('About') || matchesSearch('Version') || matchesSearch('Knurdz');
 
-  const handleSaveName = async () => {
-    const trimmed = newTeamName.trim();
-    if (!trimmed) { setNameError('Team name cannot be empty'); return; }
-    if (!user?.$id) return;
-    if (trimmed === user.teamName) { setEditingName(false); return; }
-
-    setSavingName(true);
-    setNameError('');
-    setNameSuccess('');
-    const result = await updateTeamName(user.$id, trimmed);
-    if (result.success) {
-      setNameSuccess('Team name updated successfully');
-      setEditingName(false);
-      onTeamNameUpdated(trimmed);
-    } else {
-      setNameError(result.error || 'Failed to update team name');
-    }
-    setSavingName(false);
-  };
-
   const handleChangePassword = async () => {
     setPasswordError('');
     setPasswordSuccess('');
@@ -159,13 +142,13 @@ export default function AdminSettingsModal({
     if (!oldPassword) { setPasswordError('Please enter your current password'); return; }
     if (!newPassword) { setPasswordError('Please enter a new password'); return; }
     if (newPassword.length < 4) { setPasswordError('New password must be at least 4 characters'); return; }
+    if (newPassword === oldPassword) { setPasswordError('New password cannot be the same as current password'); return; }
     if (newPassword !== confirmPassword) { setPasswordError('New passwords do not match'); return; }
     if (!user?.$id) return;
 
     setSavingPassword(true);
     const result = await updateTeamPassword(user.$id, oldPassword, newPassword);
     if (result.success) {
-      cacheCredentials(user.teamName, newPassword, user.$id, user.role);
       setPasswordSuccess('Password updated successfully');
       setOldPassword('');
       setNewPassword('');
@@ -203,6 +186,21 @@ export default function AdminSettingsModal({
       setRestrictionError(result.error || 'Failed to update restriction');
     }
     setSavingRestriction(false);
+  };
+
+  const handleToggleBlockNonEmpty = async (checked: boolean) => {
+    setSavingBlockNonEmpty(true);
+    setBlockNonEmptyError('');
+    setBlockNonEmptySuccess('');
+    const result = await setGlobalBlockNonEmptyWorkspace(checked);
+    if (result.success) {
+      setBlockNonEmpty(checked);
+      setBlockNonEmptySuccess(checked ? 'Non-empty workspaces blocked for all teams' : 'Non-empty workspaces allowed for all teams');
+      setTimeout(() => setBlockNonEmptySuccess(''), 3000);
+    } else {
+      setBlockNonEmptyError(result.error || 'Failed to update restriction');
+    }
+    setSavingBlockNonEmpty(false);
   };
 
   const isWindows = navigator.userAgent.toLowerCase().includes('win');
@@ -500,10 +498,39 @@ export default function AdminSettingsModal({
                     </label>
                   </div>
                 </div>
+
+                <div className="editor-setting-row">
+                  <div className="editor-setting-info-wrap">
+                    <div className="editor-setting-icon">
+                      <Shield size={18} />
+                    </div>
+                    <div className="editor-setting-info">
+                      <span className="editor-setting-title">Block Non-Empty Workspaces</span>
+                      <span className="editor-setting-desc">
+                        Prevent users from opening folders that already contain files.
+                      </span>
+                    </div>
+                  </div>
+                  <div className="editor-setting-action">
+                    <label className="vscode-toggle" title="Block Non-Empty Workspaces">
+                      <input
+                        type="checkbox"
+                        checked={blockNonEmpty}
+                        aria-label="Block Non-Empty Workspaces"
+                        title="Block Non-Empty Workspaces"
+                        onChange={(e) => handleToggleBlockNonEmpty(e.target.checked)}
+                        disabled={savingBlockNonEmpty}
+                      />
+                      <span className="vscode-toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
               </div>
               
               {restrictionError && <div className="account-error">{restrictionError}</div>}
               {restrictionSuccess && <div className="account-success"><CheckCircle2 size={12} /> {restrictionSuccess}</div>}
+              {blockNonEmptyError && <div className="account-error">{blockNonEmptyError}</div>}
+              {blockNonEmptySuccess && <div className="account-success"><CheckCircle2 size={12} /> {blockNonEmptySuccess}</div>}
             </div>
           )}
 
@@ -512,52 +539,17 @@ export default function AdminSettingsModal({
               <h2 className="vscode-settings-section-title">Account</h2>
 
               <div className="account-card">
-                {/* Team Name */}
+                {/* Email */}
                 <div className="account-members-section">
                   <div className="account-members-header">
-                    <span className="vscode-setting-title"><span className="highlight">Team Name</span></span>
+                    <span className="vscode-setting-title"><span className="highlight">Email</span></span>
                   </div>
-
-                  {!editingName ? (
-                    <div className="account-team-name" style={{ justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Users size={16} />
-                        <span>{user?.teamName || 'Admin'}</span>
-                      </div>
-                      <button
-                        className="activity-log-btn secondary"
-                        onClick={() => { setEditingName(true); setNewTeamName(user?.teamName || ''); setNameError(''); setNameSuccess(''); }}
-                      >
-                        Edit
-                      </button>
+                  <div className="account-team-name" style={{ justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Users size={16} />
+                      <span>{user?.email || 'No email set'}</span>
                     </div>
-                  ) : (
-                    <div className="account-add-member">
-                      <input
-                        type="text"
-                        className="vscode-search-input account-member-input"
-                        placeholder="Enter new team name"
-                        value={newTeamName}
-                        onChange={(e) => { setNewTeamName(e.target.value); setNameError(''); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); }}
-                      />
-                      <button
-                        className="activity-log-btn primary"
-                        onClick={handleSaveName}
-                        disabled={savingName}
-                      >
-                        {savingName ? 'Saving...' : 'Save'}
-                      </button>
-                      <button
-                        className="activity-log-btn secondary"
-                        onClick={() => { setEditingName(false); setNameError(''); }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-                  {nameError && <div className="account-error">{nameError}</div>}
-                  {nameSuccess && <div className="account-success"><CheckCircle2 size={12} /> {nameSuccess}</div>}
+                  </div>
                 </div>
 
                 {/* Change Password */}

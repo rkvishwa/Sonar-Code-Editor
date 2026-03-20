@@ -8,16 +8,17 @@ import React, {
 import { Team } from "../../shared/types";
 import {
   validateTeamCredentials,
-  upsertSession,
   registerTeam,
   getGlobalInternetRestriction,
   subscribeToSettings,
+  checkLatestVersionGate,
+  getLocalAppVersion,
+  updateSessionLastSeen,
+  getCurrentTeam,
+  logoutTeam,
+  closeSessionOnAppClose,
+  resetSessionOnAppLaunch
 } from "../services/appwrite";
-import {
-  cacheCredentials,
-  validateCachedAuth,
-  clearCache,
-} from "../services/localStore";
 
 interface AuthContextValue {
   user: Team | null;
@@ -33,6 +34,7 @@ interface AuthContextValue {
     studentIds: string[],
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -42,18 +44,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [internetBlocked, setInternetBlocked] = useState(false);
 
-  useEffect(() => {
-    // Attempt to restore session from cache
-    const cached = JSON.parse(localStorage.getItem("sonar_session") || "null");
-    if (cached) {
-      setUser(cached);
-      // Mark session as online in DB on restore (fire-and-forget)
-      if (cached.$id && cached.teamName) {
-        upsertSession(cached.$id, cached.teamName, "online").catch(() => {});
-      }
+  const refreshUser = async () => {
+    try {
+      const team = await getCurrentTeam();
+      if (team) setUser(team);
+    } catch (e) {
+      console.error("Failed to refresh user:", e);
     }
-    setLoading(false);
+  };
+
+  useEffect(() => {
+    resetSessionOnAppLaunch()
+      .catch(() => {})
+      .finally(() => {
+        setUser(null);
+        setLoading(false);
+      });
   }, []);
+
+  useEffect(() => {
+    const handleAppClose = () => {
+      closeSessionOnAppClose();
+
+      if (user && window.electronAPI?.security) {
+        window.electronAPI.security
+          .upsertSession(user.$id!, user.teamName, "offline")
+          .catch(() => {});
+      }
+    };
+
+    window.addEventListener("beforeunload", handleAppClose);
+    window.addEventListener("unload", handleAppClose);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleAppClose);
+      window.removeEventListener("unload", handleAppClose);
+    };
+  }, [user?.$id, user?.teamName]);
+
+  // Subscribe to the global settings for internet restriction
+  useEffect(() => {
+    if (!user || user.role === 'admin') {
+      setInternetBlocked(false);
+      return;
+    }
+
+    // Fetch initial value
+    getGlobalInternetRestriction(true).then(setInternetBlocked).catch(() => setInternetBlocked(false));
+
+    // Subscribe to realtime changes
+    const unsub = subscribeToSettings((blocked) => {
+      setInternetBlocked(blocked);
+    });
+
+    return () => {
+      unsub();
+    };
+  }, [user?.$id, user?.role]);
 
   // Subscribe to the global settings for internet restriction
   useEffect(() => {
@@ -79,41 +126,114 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     teamName: string,
     password: string,
   ): Promise<{ success: boolean; error?: string }> => {
+    const isOnline = await window.electronAPI?.network?.getStatus?.().catch(() => navigator.onLine) ?? navigator.onLine;
+    if (!isOnline) {
+      return {
+        success: false,
+        error: 'No internet connection. Connect to the internet and try again.',
+      };
+    }
+
     try {
-      // Try online auth first
+      const versionGate = await checkLatestVersionGate();
+      if (!versionGate.upToDate) {
+        window.dispatchEvent(
+          new CustomEvent('version-gate-blocked', {
+            detail: {
+              message: versionGate.message || `Update required. Please install ${versionGate.latestVersion} to continue.`,
+              currentVersion: versionGate.currentVersion,
+              latestVersion: versionGate.latestVersion,
+            },
+          })
+        );
+        return {
+          success: false,
+          error: versionGate.message || `Update required. Please install ${versionGate.latestVersion} to continue.`,
+        };
+      }
+    } catch {
+      const onlineNow = await window.electronAPI?.network?.getStatus?.().catch(() => navigator.onLine) ?? navigator.onLine;
+      if (!onlineNow) {
+        return {
+          success: false,
+          error: 'No internet connection. Connect to the internet and try again.',
+        };
+      }
+
+      const localVersion = await getLocalAppVersion();
+      window.dispatchEvent(
+        new CustomEvent('version-gate-blocked', {
+          detail: {
+            message: 'Unable to verify app version. Please update or try again later.',
+            currentVersion: localVersion,
+            latestVersion: '',
+          },
+        })
+      );
+      return {
+        success: false,
+        error: 'Unable to verify app version. Please update or try again later.',
+      };
+    }
+
+    try {
+      // Attestation checking moved to main process
       const team = await validateTeamCredentials(teamName, password);
+      
       if (team) {
         setUser(team);
-        localStorage.setItem("sonar_session", JSON.stringify(team));
-        cacheCredentials(teamName, password, team.$id!, team.role);
-        await upsertSession(team.$id!, teamName, "online");
+        try {
+          // Use a timeout for the initial online status sync to prevent login hangs
+          const syncPromise = updateSessionLastSeen(team.$id!, team.teamName, "online");
+          const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000));
+          await Promise.race([syncPromise, timeout]);
+        } catch {
+          // Fallback path or timeout: try local security sync without blocking
+          if (window.electronAPI?.security) {
+            window.electronAPI.security.upsertSession(team.$id!, team.teamName, "online").catch(() => {});
+          }
+        }
         return { success: true };
       }
-      // Online auth returned null = invalid credentials (server reachable)
       return { success: false, error: "Invalid credentials" };
     } catch (err) {
-      // Network error - try cached login
-      const cached = validateCachedAuth(teamName, password);
-      if (cached) {
-        const offlineUser: Team = {
-          $id: cached.teamId,
-          teamName: cached.teamName,
-          role: cached.role,
-        };
-        setUser(offlineUser);
-        localStorage.setItem("sonar_session", JSON.stringify(offlineUser));
-        return { success: true };
-      }
-      return { success: false, error: "Login failed. Check your connection." };
+      return { success: false, error: "Login failed. Check your connection or server status." };
     }
   };
 
   const logout = () => {
-    if (user) {
-      upsertSession(user.$id!, user.teamName, "offline").catch(() => {});
-    }
-    setUser(null);
-    localStorage.removeItem("sonar_session");
+    // Wrap in an async function to use await, but execute it immediately
+    const performLogout = async () => {
+      // 1. Attempt offline sync (best effort, with timeout)
+      if (user) {
+        try {
+          const syncPromise = updateSessionLastSeen(user.$id!, user.teamName, "offline");
+          const timeout = new Promise(resolve => setTimeout(resolve, 800)); // 800ms max for sync
+          await Promise.race([syncPromise, timeout]);
+        } catch {
+          // Ignore network errors
+        }
+
+        // Fallback to local security context if network fails (fire and forget)
+        if (window.electronAPI?.security) {
+          window.electronAPI.security.upsertSession(user.$id!, user.teamName, "offline").catch(() => {});
+        }
+      }
+
+      // 2. Destroy session (with timeout)
+      try {
+        const logoutPromise = logoutTeam();
+        const timeout = new Promise(resolve => setTimeout(resolve, 1500)); // 1.5s max for logout
+        await Promise.race([logoutPromise, timeout]);
+      } catch {
+        // Ignore logout errors, force local cleanup
+      }
+
+      // 3. Clear local state
+      setUser(null);
+    };
+
+    performLogout();
   };
 
   const register = async (
@@ -125,7 +245,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, internetBlocked, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, internetBlocked, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

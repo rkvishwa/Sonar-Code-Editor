@@ -17,6 +17,9 @@ import CollaborationModal from "../components/Collaboration/CollaborationModal";
 import { useMonitoring } from "../hooks/useMonitoring";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { useActivityLogger } from "../hooks/useActivityLogger";
+import { getGlobalBlockNonEmptyWorkspace } from "../services/appwrite";
+import { addActivityEvent } from "../services/activityLogger";
+import { AlertCircle, X } from "lucide-react";
 import "./IDE.css";
 
 export interface OpenTab {
@@ -139,6 +142,15 @@ function IDEContent() {
   const { user, logout } = useAuth();
   const isOnline = useNetworkStatus();
   const collaboration = useCollaboration();
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
+  }, []);
+
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [activeTabPath, setActiveTabPath] = useState<string | null>(null);
@@ -151,7 +163,7 @@ function IDEContent() {
     () => localStorage.getItem("ide-accent-color") || "#3b82f6",
   );
   const [autoSave, setAutoSave] = useState(
-    () => localStorage.getItem("ide-autosave") === "true",
+    () => localStorage.getItem("ide-autosave") !== "false",
   );
   const [hotReload, setHotReload] = useState(
     () => localStorage.getItem("ide-hotreload") !== "false",
@@ -170,12 +182,20 @@ function IDEContent() {
   const [newFileTrigger, setNewFileTrigger] = useState(0);
   const [fileTreeRefreshKey, setFileTreeRefreshKey] = useState(0);
 
+  const lastActiveFilePathRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeTabPath && activeTabPath !== '__preview__') {
+      lastActiveFilePathRef.current = activeTabPath;
+    }
+  }, [activeTabPath]);
+
   // Refs for stable file-operation subscriber (avoids re-subscription on every render)
   const fileOpQueueRef = useRef<Promise<void>>(Promise.resolve());
   const workspaceRootRef = useRef<string | null>(null);
   // Tracks old paths of files being moved — updated synchronously so auto-save
   // can skip them even before React re-renders the component.
   const recentlyMovedPaths = useRef<Set<string>>(new Set());
+  const shadowSaveHashes = useRef<Map<string, string>>(new Map());
   // Keep the ref in sync with state
   useEffect(() => {
     workspaceRootRef.current = workspaceRoot;
@@ -276,6 +296,9 @@ function IDEContent() {
   }, [wordWrap]);
 
   useEffect(() => {
+    // If we only want "shadow saves" when autoSave is off but hotReload is on:
+    if (!autoSave && !hotReload) return;
+
     const dirtyTabs = tabs.filter(
       (t) => t.isDirty && t.type !== "preview" && t.type !== "image",
     );
@@ -284,13 +307,9 @@ function IDEContent() {
     const timer = setTimeout(async () => {
       let savedAny = false;
       for (const tab of dirtyTabs) {
-        // Guard: skip paths that are currently being moved/renamed.
-        // This Set is updated synchronously when handleFileRenamed runs,
-        // so it's always up-to-date even before React re-renders.
         const tabNorm = tab.path.replace(/\\/g, "/").toLowerCase();
         if (recentlyMovedPaths.current.has(tabNorm)) continue;
 
-        // Also check if the tab path still exists in the latest tabs state.
         const currentTabs = tabsRef.current;
         if (!currentTabs.some((t) => t.path === tab.path)) continue;
 
@@ -298,27 +317,29 @@ function IDEContent() {
           const contentToSave = collabActiveRef.current
             ? (collaboration.getFileContent(tab.path, workspaceRootRef.current ?? undefined) ?? tab.content)
             : tab.content;
-          await window.electronAPI.fs.writeFile(tab.path, contentToSave);
-          if (autoSave) {
+            
+          if (!autoSave) {
+            // Shadow save for hot reload without clearing isDirty
+            if (shadowSaveHashes.current.get(tab.path) !== contentToSave) {
+              await window.electronAPI.fs.writeFile(tab.path, contentToSave);
+              shadowSaveHashes.current.set(tab.path, contentToSave);
+              savedAny = true;
+            }
+          } else {
+            await window.electronAPI.fs.writeFile(tab.path, contentToSave);
+            shadowSaveHashes.current.set(tab.path, contentToSave);
             setTabs((prev) =>
               prev.map((t) =>
                 t.path === tab.path ? { ...t, isDirty: false, isDeleted: false } : t,
               ),
             );
-          } else {
-            setTabs((prev) =>
-              prev.map((t) =>
-                t.path === tab.path ? { ...t, isDeleted: false } : t,
-              ),
-            );
+            savedAny = true;
           }
-          savedAny = true;
         } catch (err) {
           console.error("Failed to auto-save file for live preview:", err);
         }
       }
       if (savedAny && hotReload) {
-        // Dispatch file-saved to trigger hot reload in preview panels once
         window.dispatchEvent(new CustomEvent("file-saved"));
       }
     }, 500);
@@ -1461,6 +1482,25 @@ function IDEContent() {
   const openFolder = useCallback(async () => {
     const result = await window.electronAPI.fs.openFolderDialog();
     if (result) {
+      try {
+        const stats = await window.electronAPI.fs.getWorkspaceStats(result.path);
+        const blockNonEmpty = await getGlobalBlockNonEmptyWorkspace(user?.role !== 'admin');
+        
+        if (blockNonEmpty && (stats.totalFiles > 0 || stats.totalFolders > 0)) {
+          console.warn("Blocked opening non-empty workspace.");
+          showToast("The workspace must be empty.");
+          return;
+        }
+
+        addActivityEvent({
+          type: "workspace_opened",
+          timestamp: new Date().toISOString(),
+          details: JSON.stringify(stats),
+        });
+      } catch (err) {
+        console.error("Failed to verify workspace stats:", err);
+      }
+
       setTabs([]);
       setActiveTabPath(null);
       setWorkspaceRoot(normalizePath(result.path));
@@ -1482,6 +1522,8 @@ function IDEContent() {
       const previewPath = "__preview__";
       if (urlFromPanel) {
         setPreviewInitialUrl(urlFromPanel);
+      } else {
+        setPreviewInitialUrl(null);
       }
       const existing = tabs.find((t) => t.path === previewPath);
       if (existing) {
@@ -1625,6 +1667,7 @@ function IDEContent() {
               onOpenFolder={openFolder}
               theme={theme}
               activeFilePath={activeTabPath}
+              lastActiveFilePath={lastActiveFilePathRef.current}
               previewInitialUrl={previewInitialUrl}
               collaborationActive={collaboration.isActive}
               onEditorMount={collaboration.bindEditor}
@@ -1643,7 +1686,6 @@ function IDEContent() {
                   activeFilePath={activeTabPath}
                   onOpenInTab={openPreviewInTab}
                   onClose={() => setShowPreview(false)}
-                  initialUrl={previewInitialUrl}
                 />
               </Panel>
             </>
@@ -1675,6 +1717,17 @@ function IDEContent() {
         isOpen={isCollaborationOpen}
         onClose={() => setIsCollaborationOpen(false)}
       />
+      {toastMessage && (
+        <div className="ide-toast">
+          <div className="ide-toast-content">
+            <span className="ide-toast-icon"><AlertCircle size={18} /></span>
+            <span className="ide-toast-message">{toastMessage}</span>
+          </div>
+          <button className="ide-toast-close" onClick={() => setToastMessage(null)} aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

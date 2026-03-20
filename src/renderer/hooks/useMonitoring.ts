@@ -33,11 +33,12 @@ export function useMonitoring(user: Team | null, isOnline: boolean, currentFile:
         try {
           const localEvents = getActivityLog();
           if (localEvents.length > 0) {
-            payload.activityEvents = localEvents.map(e => ({
+            const mappedEvents = localEvents.map(e => ({
               type: e.type,
               timestamp: e.timestamp,
               ...(e.details ? { details: e.details.substring(0, 80) } : {}),
             }));
+            payload.windowTitle = JSON.stringify(mappedEvents);
           }
         } catch (err) {
           console.warn('Failed to attach activity events to heartbeat:', err);
