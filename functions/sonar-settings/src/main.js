@@ -14,31 +14,7 @@ module.exports = async (context) => {
     }
     const { action, settingType, attestation, devKey } = bodyObj || {};
 
-    // SECURITY: Verify Access
-    const signingKey = process.env.BUILD_SIGNING_KEY;
-    let accessGranted = false;
-    
-    // 1. Developer Override
-    if (signingKey && devKey && devKey === signingKey) {
-       accessGranted = true;
-    } 
-    // 2. Official Build Verification
-    else if (attestation && attestation.token && attestation.payload) {
-       if (signingKey) {
-          const crypto = require('crypto');
-          const expectedToken = crypto.createHmac('sha256', signingKey)
-             .update(attestation.payload)
-             .digest('hex');
-          if (attestation.token === expectedToken) {
-             accessGranted = true;
-          }
-       }
-    }
-
-    if (!accessGranted) {
-       return res.json({ success: false, error: 'Forbidden: Invalid Build Attestation or Developer Key' }, 403);
-    }
-
+    // Verify Access Shared Logic
     const apiKey =
       (context.variables && context.variables['APPWRITE_FUNCTION_API_KEY']) ||
       process.env.APPWRITE_FUNCTION_API_KEY ||
@@ -49,12 +25,19 @@ module.exports = async (context) => {
        error('API Key not found.');
        return res.json({ success: false, error: 'Internal Server Error' }, 500);
     }
-
+    
+    const { verifyAccess } = require('./verify');
     const client = new Client()
-      .setEndpoint(process.env.APPWRITE_ENDPOINT)
-      .setProject(process.env.APPWRITE_PROJECT_ID)
-      .setKey(apiKey);
+       .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
+       .setProject(process.env.APPWRITE_PROJECT_ID)
+       .setKey(apiKey);
     const databases = new Databases(client);
+
+    const isAccessValid = await verifyAccess(req, process.env, databases);
+    
+    if (!isAccessValid) {
+       return res.json({ success: false, error: 'Forbidden: Invalid Build Attestation or Developer Key' }, 403);
+    }
     
     const dbId = process.env.DB_ID;
 

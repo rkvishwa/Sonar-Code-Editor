@@ -1,6 +1,7 @@
-const { Client, Users, Query, ID } = require('node-appwrite');
+const { Client, Users, Query, ID, Databases } = require('node-appwrite');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { verifyAccess } = require('./verify');
 
 function normalizeTeamName(value) {
   if (typeof value !== 'string') return '';
@@ -128,16 +129,22 @@ module.exports = async (context) => {
       bodyObj = req.body;
     }
 
-    const { action, attestation, devKey } = bodyObj || {};
+    const { action } = bodyObj || {};
 
-    const signingKey = process.env.BUILD_SIGNING_KEY;
     const gatedActions = new Set(['getNonce', 'register', 'verifyAccess', 'checkVersionGate']);
 
     if (gatedActions.has(action)) {
-      const accessGranted = hasValidBuildAccess(signingKey, attestation, devKey);
-      if (!accessGranted) {
-        return res.json({ success: false, error: 'Forbidden: Invalid Build Attestation or Developer Key' }, 403);
-      }
+        // Init Verify
+        const client = new Client()
+            .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
+            .setProject(process.env.APPWRITE_PROJECT_ID)
+            .setKey(process.env.APPWRITE_API_KEY);
+        const databases = new Databases(client);
+
+        const accessGranted = await verifyAccess(req, process.env, databases);
+        if (!accessGranted) {
+           return res.json({ success: false, error: 'Authorization Failed' }, 403);
+        }
 
       if (action === 'verifyAccess') {
         return res.json({ success: true });
