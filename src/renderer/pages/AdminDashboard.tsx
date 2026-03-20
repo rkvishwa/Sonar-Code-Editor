@@ -162,6 +162,45 @@ export default function AdminDashboard() {
   }, [accentColor]);
 
   useEffect(() => {
+    let activeTheme = theme;
+    if (theme === 'system') {
+      activeTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
+
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = (e: MediaQueryListEvent) => {
+        if (theme === 'system') {
+          document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+        }
+      };
+      mediaQuery.addEventListener('change', listener);
+      document.documentElement.setAttribute('data-theme', activeTheme);
+      localStorage.setItem('ide-theme', theme);
+
+      return () => mediaQuery.removeEventListener('change', listener);
+    } else {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('ide-theme', theme);
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem("ide-accent-color", accentColor);
+    const root = document.documentElement;
+    root.style.setProperty("--user-accent", accentColor);
+    root.style.setProperty("--user-accent-hover", accentColor);
+    
+    let r = 59, g = 130, b = 246; // default blue
+    if (accentColor.startsWith('#') && (accentColor.length === 7 || accentColor.length === 9)) {
+      r = parseInt(accentColor.slice(1, 3), 16);
+      g = parseInt(accentColor.slice(3, 5), 16);
+      b = parseInt(accentColor.slice(5, 7), 16);
+    }
+    root.style.setProperty("--user-accent-rgb", `${r}, ${g}, ${b}`);
+  }, [accentColor]);
+
+  useEffect(() => {
     loadSessions();
 
     const unsubActivity = subscribeToActivityLogs((log: ActivityLog) => {
