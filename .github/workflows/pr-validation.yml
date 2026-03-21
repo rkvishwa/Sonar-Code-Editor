@@ -52,14 +52,28 @@ jobs:
       - name: Create .env file
         shell: bash
         run: |
-          echo "VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}" >> .env
-          echo "VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}" >> .env
-          echo "VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}" >> .env
+          cat > .env << 'EOF'
+          VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}
+          VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}
+          VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}
+          VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}
+          VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}
+          VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}
+          VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}
+          VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}
+          BUILD_SIGNING_KEY=${{ secrets.BUILD_SIGNING_KEY }}
+          SEAL_PRIVATE_KEY=${{ secrets.SEAL_PRIVATE_KEY }}
+          SEAL_PUBLIC_KEY=${{ secrets.SEAL_PUBLIC_KEY }}
+          EOF
+          echo ".env file created successfully"
+
+      - name: Verify .env file
+        run: |
+          if [ ! -f .env ]; then
+            echo "Error: .env file was not created"
+            exit 1
+          fi
+          echo ".env file exists and contains $(wc -l < .env) lines"
 
       - name: Build macOS App
         if: matrix.os == 'macos-latest'
@@ -76,20 +90,41 @@ jobs:
           CSC_SKIP_SIGNING: true
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Upload macOS Artifacts
+      - name: Check Build Output (macOS)
         if: matrix.os == 'macos-latest'
+        run: |
+          echo "Checking for build artifacts..."
+          ls -la release/ || echo "Release directory not found"
+          if [ -d "release" ]; then
+            find release -type f -name "*.dmg" -o -name "*.zip" || echo "No DMG or ZIP files found"
+          fi
+
+      - name: Check Build Output (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          echo "Checking for build artifacts..."
+          ls -la release/ || echo "Release directory not found"
+          if [ -d "release" ]; then
+            find release -type f -name "*.exe" || echo "No EXE files found"
+          fi
+
+      - name: Upload macOS Artifacts
+        if: matrix.os == 'macos-latest' && hashFiles('release/*.dmg') != '' || hashFiles('release/*.zip') != ''
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.os }}
           path: |
-            release/**/*.dmg
-            release/**/*.zip
+            release/*.dmg
+            release/*.zip
           retention-days: 3
+          if-no-files-found: warn
 
       - name: Upload Windows Artifacts
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-latest' && hashFiles('release/*.exe') != ''
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.os }}
-          path: release/**/*.exe
+          path: release/*.exe
           retention-days: 3
+          if-no-files-found: warn
