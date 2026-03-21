@@ -36,14 +36,20 @@ jobs:
       - name: Create .env file
         shell: bash
         run: |
-          echo "VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}" >> .env
-          echo "VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}" >> .env
-          echo "VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}" >> .env
+          cat > .env << 'EOF'
+          VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}
+          VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}
+          VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}
+          VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}
+          VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}
+          VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}
+          VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}
+          VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}
+          BUILD_SIGNING_KEY=${{ secrets.BUILD_SIGNING_KEY }}
+          SEAL_PRIVATE_KEY=${{ secrets.SEAL_PRIVATE_KEY }}
+          SEAL_PUBLIC_KEY=${{ secrets.SEAL_PUBLIC_KEY }}
+          EOF
+          echo ".env file created successfully"
 
       - name: Build macOS app (DMG)
         run: npm run build && npx electron-builder --mac --publish never
@@ -83,14 +89,20 @@ jobs:
       - name: Create .env file
         shell: bash
         run: |
-          echo "VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}" >> .env
-          echo "VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}" >> .env
-          echo "VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}" >> .env
-          echo "VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}" >> .env
+          cat > .env << 'EOF'
+          VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}
+          VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}
+          VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}
+          VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}
+          VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}
+          VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}
+          VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}
+          VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}
+          BUILD_SIGNING_KEY=${{ secrets.BUILD_SIGNING_KEY }}
+          SEAL_PRIVATE_KEY=${{ secrets.SEAL_PRIVATE_KEY }}
+          SEAL_PUBLIC_KEY=${{ secrets.SEAL_PUBLIC_KEY }}
+          EOF
+          echo ".env file created successfully"
 
       - name: Build Windows app (MSIX/AppX)
         run: npm run build && npx electron-builder --win --publish never
