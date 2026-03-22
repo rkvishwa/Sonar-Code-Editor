@@ -1112,6 +1112,60 @@ export async function getGlobalInternetRestriction(useFunction = false): Promise
   }
 }
 
+export async function setGlobalInternetRestriction(blocked: boolean): Promise<{ success: boolean; error?: string }> {
+  return await updateSettingViaFunction('blockInternetAccess', blocked);
+}
+
+export async function getGlobalInternetRestriction(): Promise<boolean> {
+  try {
+    const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
+      Query.equal('settingType', 'blockInternetAccess'),
+      Query.limit(1),
+    ]);
+    if (res.documents.length > 0) {
+      return res.documents[0].settingValue === 'true';
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export async function setGlobalInternetRestriction(blocked: boolean): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
+      Query.equal('settingType', 'blockInternetAccess'),
+      Query.limit(1),
+    ]);
+    if (res.documents.length > 0) {
+      await databases.updateDocument(DB_ID, COL_SETTINGS, res.documents[0].$id, {
+        settingValue: String(blocked),
+      });
+    } else {
+      await databases.createDocument(DB_ID, COL_SETTINGS, ID.unique(), {
+        settingType: 'blockInternetAccess',
+        settingValue: String(blocked),
+      });
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to update restriction' };
+  }
+}
+
+export async function flushAllActivityLogs(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await functions.createExecution('sonar-settings', JSON.stringify({ action: 'flushActivityLogs' }), false, '/', ExecutionMethod.POST);
+    const data = JSON.parse(res.responseBody || '{}');
+    if (data.success) {
+      return { success: true };
+    }
+    return { success: false, error: data.error || 'Failed to flush activity logs' };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to flush activity logs' };
+  }
+}
+
 export async function getActivityLogForTeam(teamId: string): Promise<ActivityLog | null> {
   try {
     const res = await fallbackListDocuments(DB_ID, COL_ACTIVITY_LOGS, [
@@ -1242,19 +1296,6 @@ export function subscribeToSettings(callback: (blocked: boolean) => void): () =>
   );
 }
 
-export function subscribeToSettings(callback: (blocked: boolean) => void): () => void {
-  const unsub = client.subscribe(
-    `databases.${DB_ID}.collections.${COL_SETTINGS}.documents`,
-    (response: RealtimeResponseEvent<any>) => {
-      if (response.events.some((e) => e.includes('update') || e.includes('create'))) {
-        const payload = response.payload;
-        if (payload.settingType === 'blockInternetAccess') {
-          callback(payload.settingValue === 'true');
-        }
-      }
-    }
-  );
-  return unsub;
-}
+
 
 export { client, databases };
