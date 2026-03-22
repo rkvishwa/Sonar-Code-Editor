@@ -369,35 +369,7 @@ function VersionBlockedPage({
   );
 }
 
-function InternetRestrictedBlock() {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        background: '#1e1e1e',
-        color: '#d4d4d4',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        padding: '40px',
-        textAlign: 'center',
-        gap: '16px',
-      }}
-    >
-      <div style={{ fontSize: '48px', marginBottom: '8px' }}>🌐</div>
-      <h2 style={{ color: '#f14c4c', margin: 0, fontSize: '22px' }}>
-        Internet Access Restricted
-      </h2>
-      <p style={{ maxWidth: '480px', lineHeight: '1.6', margin: 0, color: '#a0a0a0' }}>
-        Your admin has restricted IDE usage while connected to the internet.
-        <br/><br/>
-        Please disconnect from the internet or disable your network adapter to continue using Sonar Code Editor.
-      </p>
-    </div>
-  );
-}
+
 
 function AppRoutes() {
   const { user, loading, internetBlocked } = useAuth();
