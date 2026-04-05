@@ -24,7 +24,7 @@ brew install --cask rkvishwa/knurdz/sonar-code-editor
 
 **Alternative: Manual Download**  
 You can also download the latest `.dmg` file directly from our [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases) page.
-[Download Mac Beta (.dmg)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.4/Sonar.Code.Editor-1.0.0-beta.4-arm64.dmg)
+[Download Mac Beta (.dmg)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.5/Sonar.Code.Editor-1.0.0-beta.5-arm64.dmg)
 
 > **Note on Mac Installation:** If you manually download the `.dmg`, macOS Gatekeeper may flag the app as damaged or from an unidentified developer because it is not yet signed in the beta phase.
 > 
@@ -35,13 +35,13 @@ You can also download the latest `.dmg` file directly from our [GitHub Releases]
 
 ### <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Logo" align="absmiddle" />
 You can download the latest `.exe` file directly from our [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases) page.
-[Download Windows Beta (.exe)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.4/Sonar.Code.Editor.Setup.1.0.0-beta.4.exe)
+[Download Windows Beta (.exe)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.5/Sonar.Code.Editor.Setup.1.0.0-beta.5.exe)
 
 > **Note on Windows Installation:** The stable version for Windows will be officially released on the Microsoft Store. Since this beta version `.exe` is not yet signed, Windows SmartScreen may show an "Untrusted" or "Windows protected your PC" prompt. 
 > 
 > **To bypass and install:** Click on **"More info"** and then select **"Run anyway"**.
 
-### 🐛 Known Issues in beta version 4
+### 🐛 Known Issues in beta version 5
 If you encounter any bugs or want to see what's currently being worked on, check out our [Known Issues](https://github.com/rkvishwa/Sonar-Code-Editor/issues).
 
 ---
