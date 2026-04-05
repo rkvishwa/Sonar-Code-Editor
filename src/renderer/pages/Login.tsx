@@ -1,67 +1,84 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Eye, EyeOff, Radar, Sun, Moon, Zap } from "lucide-react";
+import {
+  HACKATHON_ID_LENGTH,
+  getHackathonIdValidationError,
+  normalizeHackathonId,
+} from "../../shared/hackathonId";
+import { LoginInvitePrefill } from "../../shared/types";
 import { useAuth } from "../context/AuthContext";
 import "./Login.css";
 
 type Tab = "login" | "register";
 
-export default function Login() {
+interface LoginProps {
+  invitePrefill?: LoginInvitePrefill | null;
+  inviteNotice?: {
+    message: string;
+    type: "error" | "success";
+  } | null;
+}
+
+export default function Login({
+  invitePrefill = null,
+  inviteNotice = null,
+}: LoginProps) {
   const { login, register } = useAuth();
   const [tab, setTab] = useState<Tab>("login");
+  const handledInviteKeyRef = useRef("");
 
-  // Login state
-  const [loginTeam, setLoginTeam] = useState("");
+  const [loginHackathonId, setLoginHackathonId] = useState("");
+  const [loginStudentId, setLoginStudentId] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  // Register state
+  const [regHackathonId, setRegHackathonId] = useState("");
   const [regTeam, setRegTeam] = useState("");
   const [regPassword, setRegPassword] = useState("");
-  const [studentIds, setStudentIds] = useState<string[]>([""]);
+  const [regConfirmPassword, setRegConfirmPassword] = useState("");
+  const [regStudentIds, setRegStudentIds] = useState<string[]>([""]);
 
   const [loading, setLoading] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
 
-  // Toast state
   const [toast, setToast] = useState<{
     message: string;
     type: "error" | "success";
   } | null>(null);
 
-  /** Resolve the effective display theme ("light" or "dark") from an ide-theme value. */
   const resolveTheme = (saved: string | null): "light" | "dark" => {
     if (saved === "light") return "light";
     if (saved === "dark") return "dark";
-    // "system" or null — fall back to OS preference
-    return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
+    return window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: light)").matches
       ? "light"
       : "dark";
   };
 
   const [theme, setTheme] = useState<"light" | "dark">(() =>
-    resolveTheme(localStorage.getItem("ide-theme"))
+    resolveTheme(localStorage.getItem("ide-theme")),
   );
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
-  // Re-sync when the IDE (same window) changes the theme via settings
   useEffect(() => {
     const handleIdeThemeChanged = () => {
       setTheme(resolveTheme(localStorage.getItem("ide-theme")));
     };
     window.addEventListener("ide-theme-changed", handleIdeThemeChanged);
-    return () => window.removeEventListener("ide-theme-changed", handleIdeThemeChanged);
+    return () =>
+      window.removeEventListener("ide-theme-changed", handleIdeThemeChanged);
   }, []);
 
-  // Listen for system theme changes (only relevant when ide-theme is "system" or unset)
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
-    const handleChange = (e: MediaQueryListEvent) => {
+    const handleChange = (event: MediaQueryListEvent) => {
       const saved = localStorage.getItem("ide-theme");
       if (!saved || saved === "system") {
-        setTheme(e.matches ? "light" : "dark");
+        setTheme(event.matches ? "light" : "dark");
       }
     };
     mediaQuery.addEventListener("change", handleChange);
@@ -69,9 +86,8 @@ export default function Login() {
   }, []);
 
   const toggleTheme = () => {
-    setTheme((prev) => {
-      const next = prev === "light" ? "dark" : "light";
-      // Persist to localStorage so the IDE and future sessions pick it up
+    setTheme((previous) => {
+      const next = previous === "light" ? "dark" : "light";
       localStorage.setItem("ide-theme", next);
       return next;
     });
@@ -84,61 +100,159 @@ export default function Login() {
     [],
   );
 
+  const sanitizeHackathonIdInput = (value: string) =>
+    normalizeHackathonId(value).slice(0, HACKATHON_ID_LENGTH);
+
+  const submitInviteLogin = useCallback(
+    async (invite: LoginInvitePrefill) => {
+      if (invite.kind !== "team") {
+        return;
+      }
+
+      setLoading(true);
+      const result = await login({
+        hackathonId: sanitizeHackathonIdInput(invite.hackathonId),
+        studentId: invite.studentId.trim(),
+        password: invite.password,
+      });
+      setLoading(false);
+
+      if (!result.success) {
+        showToast(result.error || "Unable to sign in from this invite", "error");
+      }
+    },
+    [login, showToast],
+  );
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const switchTab = (t: Tab) => {
-    setTab(t);
+  useEffect(() => {
+    if (!inviteNotice) return;
+    showToast(inviteNotice.message, inviteNotice.type);
+  }, [inviteNotice, showToast]);
+
+  useEffect(() => {
+    if (!invitePrefill) return;
+    if (handledInviteKeyRef.current === invitePrefill.inviteKey) return;
+
+    handledInviteKeyRef.current = invitePrefill.inviteKey;
+    setTab("login");
+    setLoginHackathonId(sanitizeHackathonIdInput(invitePrefill.hackathonId));
+    setLoginStudentId(
+      invitePrefill.kind === "team"
+        ? invitePrefill.studentId
+        : invitePrefill.studentId || "",
+    );
+    setLoginPassword(invitePrefill.kind === "team" ? invitePrefill.password : "");
+
+    if (invitePrefill.kind === "team" && invitePrefill.autoSubmit) {
+      void submitInviteLogin(invitePrefill);
+    }
+  }, [invitePrefill, submitInviteLogin]);
+
+  const switchTab = (nextTab: Tab) => {
+    setTab(nextTab);
     setToast(null);
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loginTeam.trim() || !loginPassword.trim()) {
-      showToast("Please fill in all fields", "error");
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (
+      !loginHackathonId.trim() ||
+      !loginStudentId.trim() ||
+      !loginPassword.trim()
+    ) {
+      showToast("Hackathon ID, student ID, and password are required", "error");
       return;
     }
+
+    const normalizedHackathonId = sanitizeHackathonIdInput(loginHackathonId);
+    const hackathonIdError = getHackathonIdValidationError(normalizedHackathonId);
+    if (hackathonIdError) {
+      showToast(hackathonIdError, "error");
+      return;
+    }
+
     setLoading(true);
-    const result = await login(loginTeam.trim(), loginPassword);
+    const result = await login({
+      hackathonId: normalizedHackathonId,
+      studentId: loginStudentId.trim(),
+      password: loginPassword,
+    });
     setLoading(false);
+
     if (!result.success) {
-      showToast(
-        result.error || "Account not found or invalid credentials",
-        "error",
-      );
+      showToast(result.error || "Unable to sign in", "error");
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const name = regTeam.trim();
-    const pass = regPassword.trim();
-    const ids = studentIds.map((s) => s.trim()).filter(Boolean);
+  const handleRegister = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-    if (!name || !pass) {
-      showToast("Username/Team name and password are required", "error");
+    const hackathonId = sanitizeHackathonIdInput(regHackathonId);
+    const teamName = regTeam.trim();
+    const password = regPassword.trim();
+    const confirmPassword = regConfirmPassword.trim();
+    const studentIds = regStudentIds.map((value) => value.trim()).filter(Boolean);
+
+    if (!hackathonId || !teamName || !password || !confirmPassword || studentIds.length === 0) {
+      showToast(
+        "Hackathon ID, team name, at least one student ID, password, and confirm password are required",
+        "error",
+      );
       return;
     }
-    if (ids.length === 0) {
-      showToast("Add at least one student ID", "error");
+
+    const hackathonIdError = getHackathonIdValidationError(hackathonId);
+    if (hackathonIdError) {
+      showToast(hackathonIdError, "error");
       return;
     }
-    const uniqueIds = new Set(ids);
-    if (uniqueIds.size !== ids.length) {
+
+    if (password !== confirmPassword) {
+      showToast("Password and confirm password must match", "error");
+      return;
+    }
+
+    const normalizedIds = studentIds.map((value) => value.toUpperCase());
+    const uniqueIds = new Set(normalizedIds);
+    if (uniqueIds.size !== normalizedIds.length) {
       showToast("Duplicate student IDs are not allowed", "error");
       return;
     }
+
+    if (studentIds.length > 5) {
+      showToast("A team can include at most 5 student IDs", "error");
+      return;
+    }
+
     setLoading(true);
-    const result = await register(name, pass, ids);
+    const result = await register({
+      hackathonId,
+      teamName,
+      password,
+      studentIds,
+    });
     setLoading(false);
+
     if (result.success) {
-      showToast("Registration successful! Please sign in.", "success");
+      showToast(
+        "Registration successful. Sign in with your hackathon ID and one of the registered student IDs.",
+        "success",
+      );
+      setLoginHackathonId(hackathonId);
+      setLoginStudentId("");
+      setLoginPassword("");
+      setRegHackathonId("");
       setRegTeam("");
       setRegPassword("");
-      setStudentIds([""]);
+      setRegConfirmPassword("");
+      setRegStudentIds([""]);
       setTab("login");
     } else {
       showToast(result.error || "Registration failed", "error");
@@ -146,22 +260,26 @@ export default function Login() {
   };
 
   const addStudentId = () => {
-    if (studentIds.length < 5) {
-      setStudentIds([...studentIds, ""]);
+    if (regStudentIds.length < 5) {
+      setRegStudentIds([...regStudentIds, ""]);
     }
   };
 
   const removeStudentId = (index: number) => {
-    if (studentIds.length > 1) {
-      setStudentIds(studentIds.filter((_, i) => i !== index));
+    if (regStudentIds.length > 1) {
+      setRegStudentIds(regStudentIds.filter((_, position) => position !== index));
+    } else {
+      setRegStudentIds([""]);
     }
   };
 
   const updateStudentId = (index: number, value: string) => {
-    const updated = [...studentIds];
+    const updated = [...regStudentIds];
     updated[index] = value;
-    setStudentIds(updated);
+    setRegStudentIds(updated);
   };
+
+  const totalStudentCount = regStudentIds.map((value) => value.trim()).filter(Boolean).length;
 
   return (
     <div className="login-layout">
@@ -192,8 +310,8 @@ export default function Login() {
           </div>
           <h1>Sonar Code Editor</h1>
           <p>
-            The secure, monitored environment for coding exams and team
-            assessments.
+            Join your hackathon with the ID shared by your organizer. Admins now
+            manage hackathons and monitoring from the Sonar web app only.
           </p>
         </div>
         <div className="hero-decoration"></div>
@@ -205,11 +323,11 @@ export default function Login() {
             <div className="login-logo-mobile">
               <Radar size={32} className="radar-icon" />
             </div>
-            <h2>{tab === "login" ? "Welcome back" : "Create an account"}</h2>
+            <h2>{tab === "login" ? "Access your workspace" : "Register your team"}</h2>
             <p>
               {tab === "login"
-                ? "Sign in to your account to continue"
-                : "Register a new account or team to get started"}
+                ? "Sign in with your hackathon ID, student ID, and password."
+                : "Register a team for a specific hackathon with one or more student IDs."}
             </p>
           </div>
 
@@ -226,25 +344,43 @@ export default function Login() {
               onClick={() => switchTab("register")}
               type="button"
             >
-              Register
+              Register Team
             </button>
           </div>
 
           {tab === "login" ? (
             <form onSubmit={handleLogin} className="login-form">
               <div className="form-group">
-                <label htmlFor="loginTeam">Team Name</label>
+                <label htmlFor="loginHackathonId">Hackathon ID</label>
                 <input
-                  id="loginTeam"
+                  id="loginHackathonId"
                   type="text"
-                  value={loginTeam}
-                  onChange={(e) => setLoginTeam(e.target.value)}
-                  placeholder="Enter your team name"
-                  autoComplete="username"
+                  value={loginHackathonId}
+                  onChange={(event) =>
+                    setLoginHackathonId(sanitizeHackathonIdInput(event.target.value))
+                  }
+                  placeholder="Enter the 12-digit hackathon ID"
+                  autoComplete="off"
                   autoFocus
+                  inputMode="numeric"
+                  maxLength={HACKATHON_ID_LENGTH}
                   disabled={loading}
                 />
               </div>
+
+              <div className="form-group">
+                <label htmlFor="loginStudentId">Student ID</label>
+                <input
+                  id="loginStudentId"
+                  type="text"
+                  value={loginStudentId}
+                  onChange={(event) => setLoginStudentId(event.target.value)}
+                  placeholder="Enter a registered student ID"
+                  autoComplete="username"
+                  disabled={loading}
+                />
+              </div>
+
               <div className="form-group">
                 <label htmlFor="loginPassword">Password</label>
                 <div className="password-wrapper">
@@ -252,7 +388,7 @@ export default function Login() {
                     id="loginPassword"
                     type={showLoginPassword ? "text" : "password"}
                     value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
+                    onChange={(event) => setLoginPassword(event.target.value)}
                     placeholder="Enter your password"
                     autoComplete="current-password"
                     disabled={loading}
@@ -266,76 +402,124 @@ export default function Login() {
                       showLoginPassword ? "Hide password" : "Show password"
                     }
                   >
-                    {showLoginPassword ? (
-                      <EyeOff size={16} />
-                    ) : (
-                      <Eye size={16} />
-                    )}
+                    {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
+
               <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? "Signing in..." : "Sign In"}
+                {loading ? "Signing in..." : "Sign In to Hackathon"}
               </button>
             </form>
           ) : (
             <form onSubmit={handleRegister} className="login-form">
+              <div className="form-group">
+                <label htmlFor="regHackathonId">Hackathon ID</label>
+                <input
+                  id="regHackathonId"
+                  type="text"
+                  value={regHackathonId}
+                  onChange={(event) =>
+                    setRegHackathonId(sanitizeHackathonIdInput(event.target.value))
+                  }
+                  placeholder="Enter the 12-digit hackathon ID"
+                  autoComplete="off"
+                  autoFocus
+                  inputMode="numeric"
+                  maxLength={HACKATHON_ID_LENGTH}
+                  disabled={loading}
+                />
+              </div>
+
               <div className="form-group">
                 <label htmlFor="regTeam">Team Name</label>
                 <input
                   id="regTeam"
                   type="text"
                   value={regTeam}
-                  onChange={(e) => setRegTeam(e.target.value)}
+                  onChange={(event) => setRegTeam(event.target.value)}
                   placeholder="Choose a team name"
                   autoComplete="off"
-                  autoFocus
                   disabled={loading}
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="regPassword">Password</label>
-                <div className="password-wrapper">
-                  <input
-                    id="regPassword"
-                    type={showRegPassword ? "text" : "password"}
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="Choose a password"
-                    autoComplete="new-password"
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowRegPassword(!showRegPassword)}
-                    tabIndex={-1}
-                    aria-label={
-                      showRegPassword ? "Hide password" : "Show password"
-                    }
-                  >
-                    {showRegPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+
+              <div className="field-row">
+                <div className="form-group">
+                  <label htmlFor="regPassword">Password</label>
+                  <div className="password-wrapper">
+                    <input
+                      id="regPassword"
+                      type={showRegPassword ? "text" : "password"}
+                      value={regPassword}
+                      onChange={(event) => setRegPassword(event.target.value)}
+                      placeholder="Choose a password"
+                      autoComplete="new-password"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onClick={() => setShowRegPassword(!showRegPassword)}
+                      tabIndex={-1}
+                      aria-label={
+                        showRegPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showRegPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="regConfirmPassword">Confirm Password</label>
+                  <div className="password-wrapper">
+                    <input
+                      id="regConfirmPassword"
+                      type={showRegConfirmPassword ? "text" : "password"}
+                      value={regConfirmPassword}
+                      onChange={(event) => setRegConfirmPassword(event.target.value)}
+                      placeholder="Confirm your password"
+                      autoComplete="new-password"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                      tabIndex={-1}
+                      aria-label={
+                        showRegConfirmPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showRegConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
               </div>
+
               <div className="form-group">
-                <label>Student IDs ({studentIds.length}/5)</label>
+                <div className="student-ids-header">
+                  <label>Student IDs</label>
+                  <span className="student-ids-count">{totalStudentCount}/5 total students</span>
+                </div>
+
                 <div className="student-ids-list">
-                  {studentIds.map((id, i) => (
-                    <div className="student-id-row" key={i}>
+                  {regStudentIds.map((id, index) => (
+                    <div className="student-id-row" key={index}>
                       <input
                         type="text"
                         value={id}
-                        onChange={(e) => updateStudentId(i, e.target.value)}
-                        placeholder={`Student ID #${i + 1}`}
+                        onChange={(event) => updateStudentId(index, event.target.value)}
+                        placeholder={`Student ID #${index + 1}`}
                         autoComplete="off"
                         disabled={loading}
                       />
-                      {studentIds.length > 1 && (
+                      {(regStudentIds.length > 1 || id) && (
                         <button
                           type="button"
                           className="id-remove-btn"
-                          onClick={() => removeStudentId(i)}
+                          onClick={() => removeStudentId(index)}
                           disabled={loading}
                           title="Remove"
                         >
@@ -344,24 +528,31 @@ export default function Login() {
                       )}
                     </div>
                   ))}
-                  {studentIds.length < 5 && (
+
+                  {regStudentIds.length < 5 && (
                     <button
                       type="button"
                       className="id-add-btn"
                       onClick={addStudentId}
                       disabled={loading}
                     >
-                      <span className="plus-icon">+</span> Add Member
+                      <span className="plus-icon">+</span> Add Student ID
                     </button>
                   )}
                 </div>
               </div>
+
+              <p className="form-hint">
+                Add every student ID on the team, including the student who is
+                registering. You can add up to five total.
+              </p>
+
               <button type="submit" className="login-btn" disabled={loading}>
-                {loading ? "Registering..." : "Register"}
+                {loading ? "Registering..." : "Register for Hackathon"}
               </button>
             </form>
           )}
-          
+
           <div className="login-footer">
             <a
               href="https://knurdz.org"
@@ -374,7 +565,6 @@ export default function Login() {
               <span className="knurdz-brand">Knurdz</span>
             </a>
           </div>
-
         </div>
       </div>
     </div>

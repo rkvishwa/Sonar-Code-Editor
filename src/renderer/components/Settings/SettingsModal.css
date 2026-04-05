@@ -729,7 +729,9 @@
 .account-member-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
   padding: 8px 16px;
   font-size: 13px;
   border-bottom: 1px solid var(--divider);
@@ -765,6 +767,21 @@
 .account-error {
   font-size: 12px;
   color: var(--danger);
+}
+
+.account-info {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+}
+
+.security-success {
+  font-size: 12px;
+  color: var(--success);
 }
 
 .account-signout {
@@ -888,6 +905,110 @@
 .security-eye-btn:hover {
   color: var(--text-primary);
   background: var(--bg-hover);
+}
+
+.collaboration-team-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 10px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+}
+
+.collaboration-team-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.collaboration-team-header .editor-setting-title,
+.collaboration-team-header .editor-setting-desc {
+  display: block;
+}
+
+.collaboration-password-wrap {
+  max-width: 420px;
+}
+
+.collaboration-members-list {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.collaboration-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.collaboration-member-row:last-child {
+  border-bottom: none;
+}
+
+.collaboration-member-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.collaboration-invite-btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #ffffff;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 4px rgba(var(--user-accent-rgb, 59, 130, 246), 0.15);
+}
+
+.collaboration-invite-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 85%, #000);
+  border-color: color-mix(in srgb, var(--accent) 85%, #000);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--user-accent-rgb, 59, 130, 246), 0.3);
+}
+
+.collaboration-invite-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(var(--user-accent-rgb, 59, 130, 246), 0.1);
+}
+
+.collaboration-invite-btn:disabled {
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+  color: var(--text-muted);
+  opacity: 0.7;
+  cursor: wait;
+  box-shadow: none;
+}
+
+
+@media (max-width: 720px) {
+  .collaboration-team-header,
+  .collaboration-member-row,
+  .account-member-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .collaboration-invite-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .about-card {
@@ -1025,10 +1146,12 @@
 
 .editor-setting-title {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  display: block;
 }
+
 
 .editor-setting-desc {
   font-size: 13px;
@@ -1041,3 +1164,42 @@
   align-items: center;
   flex-shrink: 0;
 }
+
+.hackathon-id-tag {
+  font-size: 11px;
+  color: var(--accent);
+  background: rgba(var(--user-accent-rgb, 59, 130, 246), 0.1);
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(var(--user-accent-rgb, 59, 130, 246), 0.2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.inline-icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 4px;
+  margin-top: -2px;
+}
+
+.account-info.warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(245, 158, 11, 0.05);
+  border-color: rgba(245, 158, 11, 0.2);
+  color: #d97706;
+}
+
+.account-info.warning span {
+  flex: 1;
+}
+
+.account-info.warning code {
+  background: rgba(245, 158, 11, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+}
+

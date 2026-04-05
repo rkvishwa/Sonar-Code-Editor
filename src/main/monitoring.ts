@@ -5,6 +5,7 @@ import { HeartbeatPayload } from '../shared/types';
 export class MonitoringService {
   private teamName: string = '';
   private teamId: string = '';
+  private hackathonId: string = '';
   private currentFile: string = '';
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private offlineQueue: HeartbeatPayload[] = [];
@@ -15,9 +16,10 @@ export class MonitoringService {
     this.mainWindow = mainWindow;
   }
 
-  init(teamName: string, teamId: string): void {
+  init(teamName: string, teamId: string, hackathonId?: string): void {
     this.teamName = teamName;
     this.teamId = teamId;
+    this.hackathonId = hackathonId || '';
     this.startHeartbeat();
   }
 
@@ -51,6 +53,7 @@ export class MonitoringService {
       const payload: HeartbeatPayload = {
         teamName: this.teamName,
         teamId: this.teamId,
+        ...(this.hackathonId ? { hackathonId: this.hackathonId } : {}),
         currentWindow: 'Sonar Code Editor',
         currentFile: this.currentFile,
         status: 'offline',
@@ -67,6 +70,7 @@ export class MonitoringService {
     const payload: HeartbeatPayload = {
       teamName: this.teamName,
       teamId: this.teamId,
+      ...(this.hackathonId ? { hackathonId: this.hackathonId } : {}),
       currentWindow: 'Sonar Code Editor',
       currentFile: this.currentFile,
       status: 'online',

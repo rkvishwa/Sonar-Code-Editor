@@ -8,6 +8,11 @@ interface ImportMetaEnv {
   readonly VITE_APPWRITE_COLLECTION_SESSIONS: string;
   readonly VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS: string;
   readonly VITE_APPWRITE_COLLECTION_REPORTS: string;
+  readonly VITE_APPWRITE_COLLECTION_SETTINGS: string;
+  readonly VITE_APPWRITE_COLLECTION_HACKATHONS: string;
+  readonly VITE_APPWRITE_COLLECTION_HACKATHON_PARTICIPANTS: string;
+  readonly VITE_SONAR_WEBSITE_URL: string;
+  readonly VITE_SONAR_INVITE_SECRET: string;
 }
 
 interface ImportMeta {

@@ -12,6 +12,8 @@ import { stopStaticServer } from './staticServer';
 import { initOfflineHeartbeat, stopOfflineHeartbeat } from './offlineHeartbeat';
 import { initSecurityLog, logSecurityEvent, getSecurityLog } from './securityLog';
 import { getAttestationToken } from './buildAttestation';
+import { normalizeHackathonId } from '../shared/hackathonId';
+import { IncomingEditorInvite } from '../shared/types';
 
 // Lazy load collaboration manager to prevent ws import issues on some systems
 let collaborationManager: typeof import('./collaborationManager').collaborationManager | null = null;
@@ -36,6 +38,107 @@ protocol.registerSchemesAsPrivileged([
 
 let mainWindow: BrowserWindow | null = null;
 export let monitoringService: MonitoringService | null = null;
+const DEEP_LINK_PROTOCOL = 'sonar-editor';
+let pendingEditorInvite: IncomingEditorInvite | null = null;
+
+function normalizeStudentId(value: string): string {
+  return String(value || '').trim().toUpperCase();
+}
+
+function focusMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function deliverEditorInvite(invite: IncomingEditorInvite | null): void {
+  if (!invite) return;
+
+  pendingEditorInvite = invite;
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(IPC_CHANNELS.INVITE_RECEIVED, invite);
+    focusMainWindow();
+  }
+}
+
+function parseInviteFromUrl(rawUrl: string | null | undefined): IncomingEditorInvite | null {
+  if (!rawUrl) return null;
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== `${DEEP_LINK_PROTOCOL}:`) {
+      return null;
+    }
+
+    const encryptedInvite = parsed.searchParams.get('invite')?.trim();
+    if (encryptedInvite) {
+      return {
+        kind: 'team',
+        payload: encryptedInvite,
+      };
+    }
+
+    const hackathonId = normalizeHackathonId(
+      parsed.searchParams.get('hackathonId') || '',
+    );
+    if (hackathonId) {
+      const studentId = normalizeStudentId(
+        parsed.searchParams.get('studentId') || '',
+      );
+      return {
+        kind: 'hackathon',
+        hackathonId,
+        ...(studentId ? { studentId } : {}),
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function findInviteInArgv(argv: string[]): IncomingEditorInvite | null {
+  for (const arg of argv) {
+    const parsed = parseInviteFromUrl(arg);
+    if (parsed) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function registerDeepLinkProtocol(): void {
+  if (process.defaultApp && process.argv[1]) {
+    app.setAsDefaultProtocolClient(DEEP_LINK_PROTOCOL, process.execPath, [
+      path.resolve(process.argv[1]),
+    ]);
+    return;
+  }
+
+  app.setAsDefaultProtocolClient(DEEP_LINK_PROTOCOL);
+}
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, argv) => {
+    focusMainWindow();
+    deliverEditorInvite(findInviteInArgv(argv));
+  });
+
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    deliverEditorInvite(parseInviteFromUrl(url));
+  });
+}
 
 /**
  * Test whether the app has macOS Automation permission to query System Events.
@@ -135,12 +238,12 @@ function createWindow(): void {
 registerFsHandlers(ipcMain, dialog);
 
 // Register monitoring IPC handlers
-ipcMain.on(IPC_CHANNELS.MONITORING_START, (_event, teamName: string, teamId: string) => {
+ipcMain.on(IPC_CHANNELS.MONITORING_START, (_event, teamName: string, teamId: string, hackathonId?: string) => {
   if (!mainWindow) return;
   if (!monitoringService) {
     monitoringService = new MonitoringService(mainWindow);
   }
-  monitoringService.init(teamName, teamId);
+  monitoringService.init(teamName, teamId, hackathonId);
 });
 
 ipcMain.on(IPC_CHANNELS.MONITORING_STOP, () => {
@@ -159,7 +262,7 @@ ipcMain.handle(IPC_CHANNELS.SECURITY_GET_ATTESTATION, (_event) => {
   return getAttestationToken();
 });
 
-ipcMain.handle(IPC_CHANNELS.SECURITY_UPSERT_SESSION, async (_event, teamId: string, teamName: string, status: 'online' | 'offline') => {
+ipcMain.handle(IPC_CHANNELS.SECURITY_UPSERT_SESSION, async (_event, teamId: string, teamName: string, status: 'online' | 'offline', hackathonId?: string) => {
   try {
     const endpoint = process.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
     const projectId = process.env.VITE_APPWRITE_PROJECT_ID;
@@ -178,6 +281,7 @@ ipcMain.handle(IPC_CHANNELS.SECURITY_UPSERT_SESSION, async (_event, teamId: stri
     const dataToSend = {
       teamId,
       teamName,
+      ...(hackathonId ? { hackathonId } : {}),
       status,
       lastSeen: new Date().toISOString(),
       attestation,
@@ -294,8 +398,17 @@ ipcMain.handle(IPC_CHANNELS.APP_GET_VERSION, () => {
   return app.getVersion();
 });
 
+ipcMain.handle(IPC_CHANNELS.INVITE_CONSUME_PENDING, () => {
+  const invite = pendingEditorInvite;
+  pendingEditorInvite = null;
+  return invite;
+});
+
 // App lifecycle
 app.whenReady().then(async () => {
+  registerDeepLinkProtocol();
+  deliverEditorInvite(findInviteInArgv(process.argv));
+
   // ── macOS: enforce Automation / System Events permission ─────────────────
   // The app uses osascript to detect active window (app-switching monitoring).
   // If the user denied it, block startup entirely. Loop with Retry so the user

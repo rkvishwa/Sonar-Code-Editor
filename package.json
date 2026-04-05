@@ -83,6 +83,14 @@
         "to": "renderer"
       }
     ],
+    "protocols": [
+      {
+        "name": "Sonar Editor Invite",
+        "schemes": [
+          "sonar-editor"
+        ]
+      }
+    ],
     "mac": {
       "icon": "build/icon.icns",
       "category": "public.app-category.developer-tools",
