@@ -1116,42 +1116,7 @@ export async function setGlobalInternetRestriction(blocked: boolean): Promise<{ 
   return await updateSettingViaFunction('blockInternetAccess', blocked);
 }
 
-export async function getGlobalInternetRestriction(): Promise<boolean> {
-  try {
-    const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
-      Query.equal('settingType', 'blockInternetAccess'),
-      Query.limit(1),
-    ]);
-    if (res.documents.length > 0) {
-      return res.documents[0].settingValue === 'true';
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
 
-export async function setGlobalInternetRestriction(blocked: boolean): Promise<{ success: boolean; error?: string }> {
-  try {
-    const res = await databases.listDocuments(DB_ID, COL_SETTINGS, [
-      Query.equal('settingType', 'blockInternetAccess'),
-      Query.limit(1),
-    ]);
-    if (res.documents.length > 0) {
-      await databases.updateDocument(DB_ID, COL_SETTINGS, res.documents[0].$id, {
-        settingValue: String(blocked),
-      });
-    } else {
-      await databases.createDocument(DB_ID, COL_SETTINGS, ID.unique(), {
-        settingType: 'blockInternetAccess',
-        settingValue: String(blocked),
-      });
-    }
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Failed to update restriction' };
-  }
-}
 
 export async function flushAllActivityLogs(): Promise<{ success: boolean; error?: string }> {
   try {
