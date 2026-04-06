@@ -38,20 +38,39 @@ jobs:
 
       - name: Create .env file
         shell: bash
+        env:
+          SECRETS_JSON: ${{ toJson(secrets) }}
         run: |
-          cat > .env << 'EOF'
-          VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}
-          VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}
-          VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}
-          VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}
-          VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}
-          VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}
-          VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}
-          VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}
-          BUILD_SIGNING_KEY=${{ secrets.BUILD_SIGNING_KEY }}
-          SEAL_PRIVATE_KEY=${{ secrets.SEAL_PRIVATE_KEY }}
-          SEAL_PUBLIC_KEY=${{ secrets.SEAL_PUBLIC_KEY }}
-          EOF
+          node <<'NODE'
+          const fs = require('fs');
+          const secrets = JSON.parse(process.env.SECRETS_JSON || '{}');
+          const envExample = fs.readFileSync('.env.example', 'utf8');
+          const missing = [];
+          const output = [];
+
+          envExample.split(/\r?\n/).forEach((line) => {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) {
+              return;
+            }
+
+            const key = trimmed.split('=')[0].trim();
+            if (!secrets[key]) {
+              missing.push(key);
+              return;
+            }
+
+            output.push(`${key}=${secrets[key]}`);
+          });
+
+          if (missing.length > 0) {
+            console.error(`Missing required secrets in GitHub Actions: ${missing.join(', ')}`);
+            process.exit(1);
+          }
+
+          fs.writeFileSync('.env', `${output.join('\n')}\n`);
+          console.log(`.env file created successfully with ${output.length} entries`);
+          NODE
 
       - name: Build macOS app (DMG)
         run: npm run package:mac
@@ -82,20 +101,39 @@ jobs:
 
       - name: Create .env file
         shell: bash
+        env:
+          SECRETS_JSON: ${{ toJson(secrets) }}
         run: |
-          cat > .env << 'EOF'
-          VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}
-          VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}
-          VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}
-          VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}
-          VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}
-          VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}
-          VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}
-          VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}
-          BUILD_SIGNING_KEY=${{ secrets.BUILD_SIGNING_KEY }}
-          SEAL_PRIVATE_KEY=${{ secrets.SEAL_PRIVATE_KEY }}
-          SEAL_PUBLIC_KEY=${{ secrets.SEAL_PUBLIC_KEY }}
-          EOF
+          node <<'NODE'
+          const fs = require('fs');
+          const secrets = JSON.parse(process.env.SECRETS_JSON || '{}');
+          const envExample = fs.readFileSync('.env.example', 'utf8');
+          const missing = [];
+          const output = [];
+
+          envExample.split(/\r?\n/).forEach((line) => {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) {
+              return;
+            }
+
+            const key = trimmed.split('=')[0].trim();
+            if (!secrets[key]) {
+              missing.push(key);
+              return;
+            }
+
+            output.push(`${key}=${secrets[key]}`);
+          });
+
+          if (missing.length > 0) {
+            console.error(`Missing required secrets in GitHub Actions: ${missing.join(', ')}`);
+            process.exit(1);
+          }
+
+          fs.writeFileSync('.env', `${output.join('\n')}\n`);
+          console.log(`.env file created successfully with ${output.length} entries`);
+          NODE
 
       - name: Build Windows app (MSIX/AppX)
         run: npm run package:win
