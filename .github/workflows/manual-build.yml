@@ -192,7 +192,7 @@ jobs:
           console.log(`.env file created successfully with ${output.length} entries`);
           NODE
 
-      - name: Build Windows app (MSIX/AppX)
+      - name: Build Windows app (NSIS)
         run: npm run build && npx electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -201,6 +201,6 @@ jobs:
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Windows-App-MSIX
-          path: release/*.appx
+          name: Windows-App-EXE
+          path: release/*.exe
           retention-days: 7
