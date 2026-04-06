@@ -24,7 +24,7 @@ brew install --cask rkvishwa/knurdz/sonar-code-editor
 
 **Alternative: Manual Download**  
 You can also download the latest `.dmg` file directly from our [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases) page.
-[Download Mac Beta (.dmg)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.5/Sonar.Code.Editor-1.0.0-beta.5-arm64.dmg)
+[Download Mac Beta (.dmg)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.6/Sonar.Code.Editor-1.0.0-beta.6-arm64.dmg)
 
 > **Note on Mac Installation:** If you manually download the `.dmg`, macOS Gatekeeper may flag the app as damaged or from an unidentified developer because it is not yet signed in the beta phase.
 > 
@@ -35,13 +35,13 @@ You can also download the latest `.dmg` file directly from our [GitHub Releases]
 
 ### <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Logo" align="absmiddle" />
 You can download the latest `.exe` file directly from our [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases) page.
-[Download Windows Beta (.exe)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.5/Sonar.Code.Editor.Setup.1.0.0-beta.5.exe)
+[Download Windows Beta (.exe)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.6/Sonar.Code.Editor.Setup.1.0.0-beta.6.exe)
 
 > **Note on Windows Installation:** The stable version for Windows will be officially released on the Microsoft Store. Since this beta version `.exe` is not yet signed, Windows SmartScreen may show an "Untrusted" or "Windows protected your PC" prompt. 
 > 
 > **To bypass and install:** Click on **"More info"** and then select **"Run anyway"**.
 
-### 🐛 Known Issues in beta version 5
+### 🐛 Known Issues in beta version 6
 If you encounter any bugs or want to see what's currently being worked on, check out our [Known Issues](https://github.com/rkvishwa/Sonar-Code-Editor/issues).
 
 ---
@@ -102,15 +102,15 @@ If you encounter any bugs or want to see what's currently being worked on, check
 
 ## 👥 Contributors
 
-A huge thank you to everyone who has contributed to the Sonar Code Editor project. The table below counts **every unique commit** in this repository across **all branches** (same as `git shortlog -sne --all` — **446** commits total). **Kasun Kumara** and **Praveen Ramanathan** each combine every git author line that maps to the same GitHub account; other contributors stay as recorded in history. Counts on [`main`](https://github.com/rkvishwa/Sonar-Code-Editor/commits/main) alone are lower when some commits exist only on other lines of history (for example `website`).
+A huge thank you to everyone who has contributed to the Sonar Code Editor project. The table below counts **every unique commit** in this repository across **all branches** (same as `git shortlog -sne --all` — **474** commits total). **Kasun Kumara** and **Praveen Ramanathan** each combine every git author line that maps to the same GitHub account; other contributors stay as recorded in history. Counts on [`main`](https://github.com/rkvishwa/Sonar-Code-Editor/commits/main) alone are lower when some commits exist only on other lines of history (for example `website`).
 
 | | | | Commits |
 | :---: | :--- | :--- | :---: |
-| <img src="https://github.com/rkvishwa.png?size=40&v=4" width="40" style="border-radius: 50%; margin-top: 15px;" /> | **rkvishwa** | [@rkvishwa](https://github.com/rkvishwa) | 206 |
+| <img src="https://github.com/rkvishwa.png?size=40&v=4" width="40" style="border-radius: 50%; margin-top: 15px;" /> | **rkvishwa** | [@rkvishwa](https://github.com/rkvishwa) | 225 |
 | <img src="https://github.com/Kasun-Kumara.png?size=40&v=4" width="40" style="border-radius: 50%;" /> | **Kasun Kumara** | [@Kasun-Kumara](https://github.com/Kasun-Kumara) | 66 |
 | <img src="https://github.com/SadeepaNHerath.png?size=40&v=4" width="40" style="border-radius: 50%;" /> | **SadeepaNHerath** | [@SadeepaNHerath](https://github.com/SadeepaNHerath) | 53 |
 | <img src="https://github.com/Thesaru-p.png?size=40&v=4" width="40" style="border-radius: 50%;" /> | **Thesaru-p** | [@Thesaru-p](https://github.com/Thesaru-p) | 47 |
-| <img src="https://github.com/rkvishwa.png?size=40&v=4" width="40" style="border-radius: 50%;" /> | **RKK Vishva Kumar** | [@rkvishwa](https://github.com/rkvishwa) | 30 |
+| <img src="https://github.com/rkvishwa.png?size=40&v=4" width="40" style="border-radius: 50%;" /> | **RKK Vishva Kumar** | [@rkvishwa](https://github.com/rkvishwa) | 39 |
 | <img src="https://github.com/Praveen-R-2518.png?size=40&v=4" width="40" style="border-radius: 50%;" /> | **Praveen Ramanathan** | [@Praveen-R-2518](https://github.com/Praveen-R-2518) | 22 |
 | <img src="https://github.com/harshasilva.png?size=40&v=4" width="40" style="border-radius: 50%;" /> | **harshasilva** | [@harshasilva](https://github.com/harshasilva) | 14 |
 | <img src="https://github.com/Senuka-Deneth.png?size=40&v=4" width="40" style="border-radius: 50%;" /> | **Senuka-Deneth** | [@Senuka-Deneth](https://github.com/Senuka-Deneth) | 8 |
