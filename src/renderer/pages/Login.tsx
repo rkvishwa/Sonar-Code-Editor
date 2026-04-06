@@ -310,8 +310,8 @@ export default function Login({
           </div>
           <h1>Sonar Code Editor</h1>
           <p>
-            Join your hackathon with the ID shared by your organizer. Admins now
-            manage hackathons and monitoring from the Sonar web app only.
+            A dedicated workspace for supervised exams, featuring real-time
+            collaborative coding.
           </p>
         </div>
         <div className="hero-decoration"></div>
