@@ -11,15 +11,54 @@ export interface Team {
   teamName: string;
   email?: string;
   password?: string;
-  role: 'team' | 'admin';
+  role: 'team';
   studentIds?: string[];
+  hackathonId?: string;
+  hackathonName?: string;
   createdAt?: string;
 }
+
+export interface IncomingTeamEditorInvite {
+  kind: 'team';
+  payload: string;
+}
+
+export interface IncomingHackathonEditorInvite {
+  kind: 'hackathon';
+  hackathonId: string;
+  studentId?: string;
+}
+
+export type IncomingEditorInvite =
+  | IncomingTeamEditorInvite
+  | IncomingHackathonEditorInvite;
+
+export interface TeamLoginInvitePrefill {
+  inviteKey: string;
+  kind: 'team';
+  hackathonId: string;
+  studentId: string;
+  password: string;
+  autoSubmit: true;
+}
+
+export interface HackathonLoginInvitePrefill {
+  inviteKey: string;
+  kind: 'hackathon';
+  hackathonId: string;
+  studentId?: string;
+  autoSubmit: false;
+}
+
+export type LoginInvitePrefill =
+  | TeamLoginInvitePrefill
+  | HackathonLoginInvitePrefill;
 
 export interface Session {
   $id?: string;
   teamId: string;
   teamName: string;
+  hackathonId?: string;
   status: 'online' | 'offline';
   lastSeen: string;
   buildType?: 'dev' | 'official' | 'unknown';
@@ -30,6 +69,7 @@ export interface ActivityLog {
   $id?: string;
   teamId: string;
   teamName: string;
+  hackathonId?: string;
   currentWindow: string;
   currentFile: string;
   status: 'online' | 'offline';
@@ -74,6 +114,7 @@ export interface Report {
   $id?: string;
   teamId: string;
   teamName: string;
+  hackathonId?: string;
   sessionStart: string;
   sessionEnd: string;
   generatedAt: string;
@@ -101,6 +142,7 @@ export interface ReportData {
 export interface HeartbeatPayload {
   teamName: string;
   teamId: string;
+  hackathonId?: string;
   currentWindow: string;
   currentFile: string;
   status: 'online' | 'offline';
@@ -151,7 +193,7 @@ export interface ElectronAPI {
     getUrl: () => Promise<string | null>;
   };
   monitoring: {
-    start: (teamName: string, teamId: string) => void;
+    start: (teamName: string, teamId: string, hackathonId?: string) => void;
     stop: () => void;
     setCurrentFile: (filePath: string) => void;
   };
@@ -174,11 +216,16 @@ export interface ElectronAPI {
     openPrivacyPrefs: () => Promise<void>;
     getAppVersion: () => Promise<string>;
   };
+  invite: {
+    consumePending: () => Promise<IncomingEditorInvite | null>;
+    ackReceived: (invite: IncomingEditorInvite) => Promise<void>;
+    onReceived: (callback: (invite: IncomingEditorInvite) => void) => () => void;
+  };
   security?: {
     requestNonce: () => Promise<string>;
     sendHeartbeat: (nonce: string) => void;
     getSecurityLog: () => Promise<any[]>;
-    upsertSession: (teamId: string, teamName: string, status: 'online' | 'offline') => Promise<void>;
+    upsertSession: (teamId: string, teamName: string, status: 'online' | 'offline', hackathonId?: string) => Promise<void>;
     getAttestationToken: (nonce?: string) => Promise<string>;
   };
   clipboard: {

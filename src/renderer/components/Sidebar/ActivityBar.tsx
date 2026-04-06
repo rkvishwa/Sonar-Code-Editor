@@ -27,7 +27,7 @@ interface ActivityBarProps {
   onToggleExplorer: () => void;
   showExplorer: boolean;
 
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
   theme?: string;
   onToggleTheme?: () => void;
   onOpenSettings?: () => void;

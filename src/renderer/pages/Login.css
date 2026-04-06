@@ -190,6 +190,18 @@
   gap: 24px;
 }
 
+.field-row {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 640px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -312,11 +324,31 @@
   color: var(--text-primary);
 }
 
+.form-hint {
+  margin: -8px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 /* Student IDs */
 .student-ids-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.student-ids-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.student-ids-count {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .student-id-row {

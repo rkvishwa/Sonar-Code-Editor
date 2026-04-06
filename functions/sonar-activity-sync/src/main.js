@@ -68,6 +68,7 @@ module.exports = async (context) => {
     const activityDoc = {
       teamId,
       teamName: rest.teamName || '',
+      ...(rest.hackathonId ? { hackathonId: String(rest.hackathonId).trim().toLowerCase() } : {}),
       currentWindow: rest.currentWindow || '',
       currentFile: rest.currentFile || '',
       status: rest.status || 'online',
@@ -77,14 +78,36 @@ module.exports = async (context) => {
       ...((rest.windowTitle || activityEvents) ? { windowTitle: rest.windowTitle || JSON.stringify(activityEvents) } : {}),
     };
 
-    await databases.updateDocument(dbId, colActivity, teamId, activityDoc).catch(async () => {
-      // Ensure "users" can read, and owner can update
-      await databases.createDocument(dbId, colActivity, teamId, activityDoc, [
-        Permission.read(Role.users()),
-        Permission.update(Role.user(userId)),
-        Permission.delete(Role.user(userId)),
-      ]);
-    });
+    const legacyActivityDoc = {
+      teamId,
+      teamName: activityDoc.teamName,
+      currentWindow: activityDoc.currentWindow,
+      currentFile: activityDoc.currentFile,
+      status: activityDoc.status,
+      timestamp: activityDoc.timestamp,
+      event: activityDoc.event,
+      appName: activityDoc.appName,
+      ...(activityDoc.windowTitle ? { windowTitle: activityDoc.windowTitle } : {}),
+    };
+
+    const upsertActivityDoc = async (doc) => {
+      await databases.updateDocument(dbId, colActivity, teamId, doc).catch(async () => {
+        await databases.createDocument(dbId, colActivity, teamId, doc, [
+          Permission.read(Role.users()),
+          Permission.update(Role.user(userId)),
+          Permission.delete(Role.user(userId)),
+        ]);
+      });
+    };
+
+    try {
+      await upsertActivityDoc(activityDoc);
+    } catch (writeErr) {
+      const msg = String(writeErr?.message || '').toLowerCase();
+      const schemaMismatch = msg.includes('hackathonid') || msg.includes('unknown attribute') || msg.includes('document structure');
+      if (!schemaMismatch) throw writeErr;
+      await upsertActivityDoc(legacyActivityDoc);
+    }
 
     return res.json({ success: true });
 

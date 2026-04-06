@@ -1,5 +1,9 @@
 import { Client, Databases, Functions, ExecutionMethod, Query, ID, RealtimeResponseEvent, Account } from 'appwrite';
 import { APP_CONFIG } from '../../shared/constants';
+import {
+  getHackathonIdValidationError,
+  normalizeHackathonId,
+} from '../../shared/hackathonId';
 import { Team, Session, ActivityLog, ActivitySyncData, Report, HeartbeatPayload } from '../../shared/types';
 import packageJson from '../../../package.json';
 
@@ -22,6 +26,10 @@ const COL_REPORTS = import.meta.env.VITE_APPWRITE_COLLECTION_REPORTS || 'reports
 const COL_SETTINGS = import.meta.env.VITE_APPWRITE_COLLECTION_SETTINGS || 'settings';
 const SETTINGS_FUNCTION_ID = 'sonar-settings';
 const SETTINGS_FUNCTION_COOLDOWN_MS = 30_000;
+const DEFAULT_HACKATHON_RESTRICTIONS = {
+  blockInternetAccess: true,
+  blockNonEmptyWorkspace: true,
+} as const;
 
 let settingsFunctionBlockedUntil = 0;
 
@@ -259,23 +267,6 @@ async function getSettingViaFunction(settingType: string): Promise<boolean> {
   return data?.success === true ? data.value === true : false;
 }
 
-async function updateSettingViaFunction(settingType: string, settingValue: boolean): Promise<{ success: boolean; error?: string }> {
-  try {
-    const res = await executeSettingsFunction({ action: 'updateSetting', settingType, settingValue });
-    const data = JSON.parse(res.responseBody || '{}');
-    if (data?.success === true) {
-      return data;
-    }
-
-    return {
-      success: false,
-      error: data?.error || 'Failed to update setting',
-    };
-  } catch (err: any) {
-    return { success: false, error: err.message };
-  }
-}
-
 // upsertSettingDirect REMOVED - Direct DB access blocked.
 
 async function executeFunctionAndRequireSuccess(functionId: string, payload: Record<string, unknown>): Promise<void> {
@@ -387,16 +378,85 @@ export async function checkLatestVersionGate(): Promise<VersionGateResult> {
 // ---- Teams (Migrated to Appwrite Users) ----
 export async function getTeamByName(teamName: string): Promise<Team | null> {
   // Deprecated: Only used during migration. New logic uses account.createEmailPasswordSession
-  // Or check against existing users if needed via admin function
+  // Or extend this with a server-side lookup if needed later.
   console.warn('getTeamByName is deprecated and will be removed.');
   return null;
 }
 
-// ... other helpers ...
-const getEmail = (teamName: string) => {
-  if (teamName.includes('@')) return teamName;
-  return `${teamName.replace(/[^a-zA-Z0-9]/g, '.').toLowerCase()}@sonar.knurdz.org`;
+const normalizeStudentId = (studentId: string) =>
+  String(studentId || '')
+    .trim()
+    .toUpperCase();
+
+const getHackathonTeamEmail = (hackathonId: string, teamName: string) => {
+  const normalizedHackathonId = normalizeHackathonId(hackathonId);
+  const normalizedTeamName = teamName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/\.+/g, '.')
+    .replace(/^\.+|\.+$/g, '');
+
+  return `${normalizedTeamName || 'team'}--${normalizedHackathonId}@teams.sonar.knurdz.org`;
 };
+
+export interface TeamLoginPayload {
+  hackathonId: string;
+  studentId: string;
+  password: string;
+}
+
+export interface TeamRegistrationPayload {
+  hackathonId: string;
+  teamName: string;
+  password: string;
+  studentIds: string[];
+}
+
+export interface HackathonParticipantLookup {
+  hackathonId: string;
+  studentId: string;
+  teamId: string;
+  teamName: string;
+}
+
+export interface HackathonSummary {
+  hackathonId: string;
+  name: string;
+  status: 'draft' | 'live' | 'archived';
+  description?: string;
+  startDate?: string;
+  endDate?: string;
+  settings: {
+    blockInternetAccess: boolean;
+    blockNonEmptyWorkspace: boolean;
+  };
+}
+
+function toBooleanSetting(value: unknown, fallback: boolean): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  return fallback;
+}
+
+function mergeHackathonRestrictions(
+  raw?: Partial<HackathonSummary['settings']> | null,
+): HackathonSummary['settings'] {
+  return {
+    blockInternetAccess: toBooleanSetting(
+      raw?.blockInternetAccess,
+      DEFAULT_HACKATHON_RESTRICTIONS.blockInternetAccess,
+    ),
+    blockNonEmptyWorkspace: toBooleanSetting(
+      raw?.blockNonEmptyWorkspace,
+      DEFAULT_HACKATHON_RESTRICTIONS.blockNonEmptyWorkspace,
+    ),
+  };
+}
 
 function normalizeStudentIds(raw: unknown): string[] {
   let value: unknown = raw;
@@ -417,13 +477,13 @@ function normalizeStudentIds(raw: unknown): string[] {
   if (Array.isArray(value)) {
     return value
       .map((item) => {
-        if (typeof item === 'string') return item.trim();
-        if (typeof item === 'number') return String(item);
+        if (typeof item === 'string') return normalizeStudentId(item);
+        if (typeof item === 'number') return normalizeStudentId(String(item));
         if (item && typeof item === 'object') {
           const rec = item as Record<string, unknown>;
           const candidate = rec.studentId ?? rec.id ?? rec.value;
-          if (typeof candidate === 'string') return candidate.trim();
-          if (typeof candidate === 'number') return String(candidate);
+          if (typeof candidate === 'string') return normalizeStudentId(candidate);
+          if (typeof candidate === 'number') return normalizeStudentId(String(candidate));
         }
         return '';
       })
@@ -433,25 +493,42 @@ function normalizeStudentIds(raw: unknown): string[] {
   if (typeof value === 'string') {
     return value
       .split(/[\n,]/)
-      .map((id) => id.trim())
+      .map((id) => normalizeStudentId(id))
       .filter(Boolean);
   }
 
   return [];
 }
 
+function getStoredStudentIds(prefs: Record<string, unknown> | undefined): string[] {
+  const currentIds = normalizeStudentIds(prefs?.studentIds);
+  if (currentIds.length > 0) return currentIds;
+
+  const legacyIds = [
+    prefs?.primaryStudentId,
+    ...(Array.isArray(prefs?.teamMemberIds) ? prefs.teamMemberIds : []),
+  ];
+
+  return normalizeStudentIds(legacyIds);
+}
+
+function isAdminUser(user: any): boolean {
+  const prefsRole = typeof user?.prefs?.role === 'string' ? user.prefs.role.toLowerCase() : '';
+  const labels = Array.isArray(user?.labels) ? user.labels : [];
+  return prefsRole === 'admin' || labels.includes('admin');
+}
+
 const mapUserToTeam = (user: any): Team => {
-  let role = user.prefs?.role || 'team';
-  if (user.labels && Array.isArray(user.labels)) {
-    if (user.labels.includes('admin')) role = 'admin';
-  }
+  const studentIds = getStoredStudentIds(user.prefs);
 
   return {
     $id: user.$id,
     teamName: user.name,
     email: user.email,
-    role: role,
-    studentIds: normalizeStudentIds(user.prefs?.studentIds),
+    role: 'team',
+    studentIds,
+    hackathonId: typeof user.prefs?.hackathonId === 'string' ? user.prefs.hackathonId : undefined,
+    hackathonName: typeof user.prefs?.hackathonName === 'string' ? user.prefs.hackathonName : undefined,
     createdAt: user.$createdAt
   };
 };
@@ -459,6 +536,16 @@ const mapUserToTeam = (user: any): Team => {
 export async function getCurrentTeam(): Promise<Team | null> {
   try {
     const user = await account.get();
+    if (isAdminUser(user)) {
+      try {
+        await account.deleteSession('current');
+      } catch {
+        // Ignore cleanup errors when blocking non-team accounts in the editor.
+      } finally {
+        clearLocalSessionHints();
+      }
+      return null;
+    }
     return mapUserToTeam(user);
   } catch {
     return null;
@@ -519,9 +606,119 @@ export function closeSessionOnAppClose(): void {
   }
 }
 
-export async function validateTeamCredentials(teamName: string, password: string): Promise<Team | null> {
+export async function getHackathonById(hackathonId: string): Promise<HackathonSummary | null> {
   try {
+    if (getHackathonIdValidationError(hackathonId)) {
+      return null;
+    }
+
     await verifyBuildAccessForAuth();
+
+    const normalizedHackathonId = normalizeHackathonId(hackathonId);
+    const securityContext = await getSecurityContext();
+    const res = await functions.createExecution(
+      'sonar-auth',
+      JSON.stringify({
+        action: 'getHackathon',
+        hackathonId: normalizedHackathonId,
+        ...securityContext,
+      }),
+      false,
+      '/',
+      ExecutionMethod.POST
+    );
+
+    const data = JSON.parse(res.responseBody || '{}');
+    if (data?.success === true && data.hackathon) {
+      return {
+        hackathonId: String(data.hackathon.hackathonId || normalizedHackathonId),
+        name: String(data.hackathon.name || normalizedHackathonId),
+        status: data.hackathon.status === 'archived' ? 'archived' : data.hackathon.status === 'live' ? 'live' : 'draft',
+        description: data.hackathon.description ? String(data.hackathon.description) : undefined,
+        startDate: data.hackathon.startDate ? String(data.hackathon.startDate) : undefined,
+        endDate: data.hackathon.endDate ? String(data.hackathon.endDate) : undefined,
+        settings: mergeHackathonRestrictions(data.hackathon.settings),
+      };
+    }
+
+    return null;
+  } catch (err) {
+    console.error('Hackathon lookup failed:', err);
+    return null;
+  }
+}
+
+export async function resolveTeamByStudentId(
+  hackathonId: string,
+  studentId: string,
+): Promise<HackathonParticipantLookup | null> {
+  try {
+    if (getHackathonIdValidationError(hackathonId)) {
+      return null;
+    }
+
+    await verifyBuildAccessForAuth();
+
+    const normalizedHackathonId = normalizeHackathonId(hackathonId);
+    const normalizedStudentId = normalizeStudentId(studentId);
+
+    if (!normalizedHackathonId || !normalizedStudentId) {
+      return null;
+    }
+
+    const securityContext = await getSecurityContext();
+    const res = await functions.createExecution(
+      'sonar-auth',
+      JSON.stringify({
+        action: 'resolveParticipant',
+        hackathonId: normalizedHackathonId,
+        studentId: normalizedStudentId,
+        ...securityContext,
+      }),
+      false,
+      '/',
+      ExecutionMethod.POST
+    );
+
+    const data = JSON.parse(res.responseBody || '{}');
+    if (data?.success === true && data.participant) {
+      return {
+        hackathonId: String(data.participant.hackathonId || normalizedHackathonId),
+        studentId: String(data.participant.studentId || normalizedStudentId),
+        teamId: String(data.participant.teamId || ''),
+        teamName: String(data.participant.teamName || ''),
+      };
+    }
+
+    return null;
+  } catch (err) {
+    console.error('Participant lookup failed:', err);
+    return null;
+  }
+}
+
+export async function validateTeamCredentials(
+  payload: TeamLoginPayload,
+  participant?: HackathonParticipantLookup | null,
+): Promise<Team | null> {
+  try {
+    if (getHackathonIdValidationError(payload.hackathonId)) {
+      return null;
+    }
+
+    await verifyBuildAccessForAuth();
+
+    const normalizedHackathonId = normalizeHackathonId(payload.hackathonId);
+    const normalizedStudentId = normalizeStudentId(payload.studentId);
+
+    if (!normalizedStudentId || !normalizedHackathonId) {
+      return null;
+    }
+
+    const hackathon = await getHackathonById(normalizedHackathonId);
+    if (!hackathon || hackathon.status === 'archived') {
+      return null;
+    }
 
     if (hasSessionHint()) {
       try {
@@ -533,8 +730,17 @@ export async function validateTeamCredentials(teamName: string, password: string
       }
     }
 
+    const resolvedParticipant =
+      participant || await resolveTeamByStudentId(normalizedHackathonId, normalizedStudentId);
+
+    if (!resolvedParticipant?.teamName) {
+      return null;
+    }
+
+    const email = getHackathonTeamEmail(normalizedHackathonId, resolvedParticipant.teamName);
+
     try {
-      await account.createEmailPasswordSession(getEmail(teamName), password);
+      await account.createEmailPasswordSession(email, payload.password);
     } catch (err: any) {
       const shouldRotateSession = isActiveSessionError(err);
       if (!shouldRotateSession) throw err;
@@ -547,10 +753,20 @@ export async function validateTeamCredentials(teamName: string, password: string
           throw deleteErr;
         }
       }
-      await account.createEmailPasswordSession(getEmail(teamName), password);
+      await account.createEmailPasswordSession(email, payload.password);
     }
 
     const user = await account.get();
+    if (isAdminUser(user)) {
+      try {
+        await account.deleteSession('current');
+      } catch {
+        // Ignore cleanup errors when blocking non-team accounts in the editor.
+      } finally {
+        clearLocalSessionHints();
+      }
+      return null;
+    }
     return mapUserToTeam(user);
   } catch (err) {
     console.error('Login failed:', err);
@@ -559,15 +775,26 @@ export async function validateTeamCredentials(teamName: string, password: string
 }
 
 export async function registerTeam(
-  teamName: string,
-  password: string,
-  studentIds: string[]
+  payload: TeamRegistrationPayload
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const hackathonIdError = getHackathonIdValidationError(payload.hackathonId);
+    if (hackathonIdError) {
+      return { success: false, error: hackathonIdError };
+    }
+
+    const normalizedHackathonId = normalizeHackathonId(payload.hackathonId);
     const securityContext = await getSecurityContext();
     const res = await functions.createExecution(
       'sonar-auth', 
-      JSON.stringify({ action: 'register', teamName, password, studentIds, ...securityContext }), 
+      JSON.stringify({
+        action: 'register',
+        hackathonId: normalizedHackathonId,
+        teamName: payload.teamName.trim(),
+        password: payload.password,
+        studentIds: payload.studentIds.map((value) => normalizeStudentId(value)).filter(Boolean),
+        ...securityContext,
+      }), 
       false, 
       '/', 
       ExecutionMethod.POST
@@ -655,40 +882,6 @@ export async function updateTeamEmail(
   }
 }
 
-export async function updateTeamPassword(
-  teamId: string,
-  oldPassword: string,
-  newPassword: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const res = await functions.createExecution('sonar-teams', JSON.stringify({ action: 'changePassword', teamId, oldPassword, newPassword }), false, '/', ExecutionMethod.POST);
-    const data = JSON.parse(res.responseBody || '{}');
-    if (data.success) {
-      return { success: true };
-    }
-    return { success: false, error: data.error || 'Failed to update password' };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Failed to update password' };
-  }
-}
-
-
-
-// ---- Teams ----
-export async function getAdminTeamIds(): Promise<Set<string>> {
-  try {
-    const res = await executeSettingsFunction({ action: 'listAdmins' });
-    const data = JSON.parse(res.responseBody || '{}');
-    if (data.success && Array.isArray(data.adminIds)) {
-      return new Set(data.adminIds);
-    }
-    return new Set();
-  } catch (err) {
-    console.error('Failed to list admins:', err);
-    return new Set();
-  }
-}
-
 // ---- Sessions ----
 async function getNoncePayload(): Promise<{ nonce: string, nonceToken: string } | null> {
   try {
@@ -710,7 +903,7 @@ async function getNoncePayload(): Promise<{ nonce: string, nonceToken: string } 
   return null;
 }
 
-export async function updateSessionLastSeen(teamId: string, teamName?: string, status: string = 'online'): Promise<void> {
+export async function updateSessionLastSeen(teamId: string, teamName?: string, status: string = 'online', hackathonId?: string): Promise<void> {
   try {
     const nonceData = await getNoncePayload();
     const token = await window.electronAPI.security!.getAttestationToken(nonceData?.nonce);
@@ -718,6 +911,7 @@ export async function updateSessionLastSeen(teamId: string, teamName?: string, s
     await executeFunctionAndRequireSuccess('sonar-session-sync', {
       teamId, 
       teamName: teamName || 'Unknown', 
+      ...(hackathonId ? { hackathonId: normalizeHackathonId(hackathonId) } : {}),
       status, 
       attestation: token,
       ...(nonceData ? { nonceToken: nonceData.nonceToken } : {})
@@ -798,6 +992,7 @@ export async function mergeOfflineSyncData(
   teamId: string,
   teamName: string,
   summary: OfflineSyncSummary,
+  hackathonId?: string,
 ): Promise<void> {
   try {
     const nonceData = await getNoncePayload();
@@ -805,6 +1000,7 @@ export async function mergeOfflineSyncData(
     const payload = Array.from({ length: summary.logCount }).map(() => ({
       teamId,
       teamName,
+      ...(hackathonId ? { hackathonId: normalizeHackathonId(hackathonId) } : {}),
       status: 'online',
       timestamp: summary.syncedAt,
       event: 'offline_sync',
@@ -852,8 +1048,25 @@ export async function getGlobalBlockNonEmptyWorkspace(useFunction = false): Prom
   }
 }
 
-export async function setGlobalBlockNonEmptyWorkspace(blocked: boolean): Promise<{ success: boolean; error?: string }> {
-  return await updateSettingViaFunction('blockNonEmptyWorkspace', blocked);
+export async function getEffectiveHackathonRestrictions(
+  hackathonId?: string,
+): Promise<HackathonSummary['settings']> {
+  if (hackathonId && !getHackathonIdValidationError(hackathonId)) {
+    const hackathon = await getHackathonById(hackathonId);
+    if (hackathon) {
+      return mergeHackathonRestrictions(hackathon.settings);
+    }
+  }
+
+  const [blockInternetAccess, blockNonEmptyWorkspace] = await Promise.all([
+    getGlobalInternetRestriction(true).catch(() => DEFAULT_HACKATHON_RESTRICTIONS.blockInternetAccess),
+    getGlobalBlockNonEmptyWorkspace(true).catch(() => DEFAULT_HACKATHON_RESTRICTIONS.blockNonEmptyWorkspace),
+  ]);
+
+  return {
+    blockInternetAccess,
+    blockNonEmptyWorkspace,
+  };
 }
 
 export function subscribeGlobalBlockNonEmptyWorkspace(callback: (blocked: boolean) => void): () => void {
@@ -954,7 +1167,19 @@ export async function getAllActivityLogs(limit = 100): Promise<ActivityLog[]> {
 export async function saveReport(report: Omit<Report, '$id'>): Promise<void> {
   try {
     await databases.createDocument(DB_ID, COL_REPORTS, ID.unique(), report);
-  } catch (err) {
+  } catch (err: any) {
+    const msg = String(err?.message || '').toLowerCase();
+    const schemaMismatch = msg.includes('hackathonid') || msg.includes('unknown attribute') || msg.includes('document structure');
+    if (schemaMismatch) {
+      const { hackathonId, ...legacyReport } = report;
+      try {
+        await databases.createDocument(DB_ID, COL_REPORTS, ID.unique(), legacyReport);
+        return;
+      } catch (legacyErr) {
+        console.error('Failed to save legacy report:', legacyErr);
+        return;
+      }
+    }
     console.error('Failed to save report:', err);
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "sonar-ide",
-  "version": "1.0.0-beta.5",
-  "description": "Sonar Code Editor & Monitoring System",
+  "version": "1.0.0-beta.6",
+  "description": "Sonar Code Editor and Monitoring System",
   "main": "dist/main/main.js",
   "author": "Knurdz",
   "license": "MIT",
@@ -20,6 +20,8 @@
     "package": "npm run build && electron-builder",
     "package:mac": "npm run build && electron-builder --mac",
     "package:win": "set CSC_IDENTITY_AUTO_DISCOVERY=false && npm run build && electron-builder --win",
+    "package:win:all": "set CSC_IDENTITY_AUTO_DISCOVERY=false && npm run build && electron-builder --win nsis appx",
+    "package:win:store": "set CSC_IDENTITY_AUTO_DISCOVERY=false && npm run build && electron-builder --win appx",
     "package:linux": "npm run build && electron-builder --linux",
     "appwrite:init": "cp appwrite.config.json appwrite.json && appwrite init project",
     "appwrite:push": "appwrite push all"
@@ -52,7 +54,6 @@
     "@types/react-dom": "^18.2.18",
     "@vitejs/plugin-react": "^4.2.1",
     "concurrently": "^8.2.2",
-    "crypto": "^1.0.1",
     "electron": "^35.7.5",
     "electron-builder": "^24.9.1",
     "esbuild": "^0.27.4",
@@ -83,6 +84,14 @@
         "to": "renderer"
       }
     ],
+    "protocols": [
+      {
+        "name": "Sonar Editor Invite",
+        "schemes": [
+          "sonar-editor"
+        ]
+      }
+    ],
     "mac": {
       "icon": "build/icon.icns",
       "category": "public.app-category.developer-tools",
@@ -96,6 +105,14 @@
       "target": [
         "nsis"
       ]
+    },
+    "appx": {
+      "identityName": "Knurdz.SonarCodeEditor",
+      "applicationId": "SonarCodeEditor",
+      "publisher": "CN=EE306347-5B00-4BEA-89E0-6455A91EBBDA",
+      "publisherDisplayName": "Knurdz",
+      "displayName": "Sonar Code Editor",
+      "backgroundColor": "#1e1e1e"
     },
     "nsis": {
       "oneClick": false,

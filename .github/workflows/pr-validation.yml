@@ -22,8 +22,34 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Cache Electron Binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
       - name: Install Dependencies
-        run: npm ci
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "npm ci failed after $attempt attempts"
+              exit 1
+            fi
+
+            echo "npm ci failed on attempt $attempt. Retrying in 20 seconds..."
+            sleep 20
+          done
 
       - name: Verify Secrets Against .env.example
         env:
@@ -51,21 +77,39 @@ jobs:
 
       - name: Create .env file
         shell: bash
+        env:
+          SECRETS_JSON: ${{ toJson(secrets) }}
         run: |
-          cat > .env << 'EOF'
-          VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}
-          VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}
-          VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}
-          VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}
-          VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}
-          VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}
-          VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}
-          VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}
-          BUILD_SIGNING_KEY=${{ secrets.BUILD_SIGNING_KEY }}
-          SEAL_PRIVATE_KEY=${{ secrets.SEAL_PRIVATE_KEY }}
-          SEAL_PUBLIC_KEY=${{ secrets.SEAL_PUBLIC_KEY }}
-          EOF
-          echo ".env file created successfully"
+          node <<'NODE'
+          const fs = require("fs");
+          const secrets = JSON.parse(process.env.SECRETS_JSON || "{}");
+          const envExample = fs.readFileSync(".env.example", "utf-8");
+          const missing = [];
+          const output = [];
+
+          envExample.split(/\r?\n/).forEach((line) => {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith("#")) {
+              return;
+            }
+
+            const key = trimmed.split("=")[0].trim();
+            if (!secrets[key]) {
+              missing.push(key);
+              return;
+            }
+
+            output.push(`${key}=${secrets[key]}`);
+          });
+
+          if (missing.length > 0) {
+            console.error(`Missing required secrets in GitHub Actions: ${missing.join(", ")}`);
+            process.exit(1);
+          }
+
+          fs.writeFileSync(".env", `${output.join("\n")}\n`);
+          console.log(`.env file created successfully with ${output.length} entries`);
+          NODE
 
       - name: Verify .env file
         run: |
@@ -82,9 +126,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Build Windows App
+      - name: Build Windows App + Microsoft Store Package
         if: matrix.os == 'windows-latest'
-        run: npm run package:win
+        run: npm run package:win:all
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_SKIP_SIGNING: true
@@ -106,7 +150,7 @@ jobs:
           echo "Checking for build artifacts..."
           ls -la release/ || echo "Release directory not found"
           if [ -d "release" ]; then
-            find release -type f -name "*.exe" || echo "No EXE files found"
+            find release -type f \( -name "*.exe" -o -name "*.appx" \) || echo "No Windows EXE or APPX files found"
           fi
 
       - name: Upload macOS Artifacts
@@ -120,11 +164,20 @@ jobs:
           retention-days: 3
           if-no-files-found: warn
 
-      - name: Upload Windows Artifacts
+      - name: Upload Windows Installer Artifact
         if: matrix.os == 'windows-latest' && hashFiles('release/*.exe') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.os }}
+          name: windows-installer-exe
           path: release/*.exe
+          retention-days: 3
+          if-no-files-found: warn
+
+      - name: Upload Windows Store Artifact
+        if: matrix.os == 'windows-latest' && hashFiles('release/*.appx') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-store-appx
+          path: release/*.appx
           retention-days: 3
           if-no-files-found: warn

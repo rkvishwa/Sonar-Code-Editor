@@ -27,29 +27,73 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: Cache Electron Binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
       - name: Install Dependencies
-        run: npm ci
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "npm ci failed after $attempt attempts"
+              exit 1
+            fi
+
+            echo "npm ci failed on attempt $attempt. Retrying in 20 seconds..."
+            sleep 20
+          done
 
       - name: Set App Version dynamic
         run: npm --no-git-tag-version version 1.0.0-beta-manual.${{ github.run_number }}
 
       - name: Create .env file
         shell: bash
+        env:
+          SECRETS_JSON: ${{ toJson(secrets) }}
         run: |
-          cat > .env << 'EOF'
-          VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}
-          VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}
-          VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}
-          VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}
-          VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}
-          VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}
-          VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}
-          VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}
-          BUILD_SIGNING_KEY=${{ secrets.BUILD_SIGNING_KEY }}
-          SEAL_PRIVATE_KEY=${{ secrets.SEAL_PRIVATE_KEY }}
-          SEAL_PUBLIC_KEY=${{ secrets.SEAL_PUBLIC_KEY }}
-          EOF
-          echo ".env file created successfully"
+          node <<'NODE'
+          const fs = require('fs');
+          const secrets = JSON.parse(process.env.SECRETS_JSON || '{}');
+          const envExample = fs.readFileSync('.env.example', 'utf8');
+          const missing = [];
+          const output = [];
+
+          envExample.split(/\r?\n/).forEach((line) => {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) {
+              return;
+            }
+
+            const key = trimmed.split('=')[0].trim();
+            if (!secrets[key]) {
+              missing.push(key);
+              return;
+            }
+
+            output.push(`${key}=${secrets[key]}`);
+          });
+
+          if (missing.length > 0) {
+            console.error(`Missing required secrets in GitHub Actions: ${missing.join(', ')}`);
+            process.exit(1);
+          }
+
+          fs.writeFileSync('.env', `${output.join('\n')}\n`);
+          console.log(`.env file created successfully with ${output.length} entries`);
+          NODE
 
       - name: Build macOS app (DMG)
         run: npm run build && npx electron-builder --mac --publish never
@@ -80,39 +124,93 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: Cache Electron Binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
       - name: Install Dependencies
-        run: npm ci
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "npm ci failed after $attempt attempts"
+              exit 1
+            fi
+
+            echo "npm ci failed on attempt $attempt. Retrying in 20 seconds..."
+            sleep 20
+          done
 
       - name: Set App Version dynamic
         run: npm --no-git-tag-version version 1.0.0-beta-manual.${{ github.run_number }}
 
       - name: Create .env file
         shell: bash
+        env:
+          SECRETS_JSON: ${{ toJson(secrets) }}
         run: |
-          cat > .env << 'EOF'
-          VITE_APPWRITE_ENDPOINT=${{ secrets.VITE_APPWRITE_ENDPOINT }}
-          VITE_APPWRITE_PROJECT_ID=${{ secrets.VITE_APPWRITE_PROJECT_ID }}
-          VITE_APPWRITE_DB_NAME=${{ secrets.VITE_APPWRITE_DB_NAME }}
-          VITE_APPWRITE_COLLECTION_TEAMS=${{ secrets.VITE_APPWRITE_COLLECTION_TEAMS }}
-          VITE_APPWRITE_COLLECTION_SESSIONS=${{ secrets.VITE_APPWRITE_COLLECTION_SESSIONS }}
-          VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS=${{ secrets.VITE_APPWRITE_COLLECTION_ACTIVITY_LOGS }}
-          VITE_APPWRITE_COLLECTION_REPORTS=${{ secrets.VITE_APPWRITE_COLLECTION_REPORTS }}
-          VITE_APPWRITE_COLLECTION_SETTINGS=${{ secrets.VITE_APPWRITE_COLLECTION_SETTINGS }}
-          BUILD_SIGNING_KEY=${{ secrets.BUILD_SIGNING_KEY }}
-          SEAL_PRIVATE_KEY=${{ secrets.SEAL_PRIVATE_KEY }}
-          SEAL_PUBLIC_KEY=${{ secrets.SEAL_PUBLIC_KEY }}
-          EOF
-          echo ".env file created successfully"
+          node <<'NODE'
+          const fs = require('fs');
+          const secrets = JSON.parse(process.env.SECRETS_JSON || '{}');
+          const envExample = fs.readFileSync('.env.example', 'utf8');
+          const missing = [];
+          const output = [];
 
-      - name: Build Windows app (MSIX/AppX)
-        run: npm run build && npx electron-builder --win --publish never
+          envExample.split(/\r?\n/).forEach((line) => {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) {
+              return;
+            }
+
+            const key = trimmed.split('=')[0].trim();
+            if (!secrets[key]) {
+              missing.push(key);
+              return;
+            }
+
+            output.push(`${key}=${secrets[key]}`);
+          });
+
+          if (missing.length > 0) {
+            console.error(`Missing required secrets in GitHub Actions: ${missing.join(', ')}`);
+            process.exit(1);
+          }
+
+          fs.writeFileSync('.env', `${output.join('\n')}\n`);
+          console.log(`.env file created successfully with ${output.length} entries`);
+          NODE
+
+      - name: Build Windows app + Microsoft Store package
+        run: npm run package:win:all
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_SKIP_SIGNING: true
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Upload Windows Artifact
+      - name: Upload Windows Installer Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Windows-App-MSIX
+          name: windows-installer-exe
+          path: release/*.exe
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload Windows Store Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-store-appx
           path: release/*.appx
           retention-days: 7
+          if-no-files-found: warn

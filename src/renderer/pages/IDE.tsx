@@ -17,9 +17,9 @@ import CollaborationModal from "../components/Collaboration/CollaborationModal";
 import { useMonitoring } from "../hooks/useMonitoring";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { useActivityLogger } from "../hooks/useActivityLogger";
-import { getGlobalBlockNonEmptyWorkspace } from "../services/appwrite";
+import { getEffectiveHackathonRestrictions } from "../services/appwrite";
 import { addActivityEvent } from "../services/activityLogger";
-import { AlertCircle, X } from "lucide-react";
+import { AlertCircle, Info, X } from "lucide-react";
 import "./IDE.css";
 
 export interface OpenTab {
@@ -1484,7 +1484,8 @@ function IDEContent() {
     if (result) {
       try {
         const stats = await window.electronAPI.fs.getWorkspaceStats(result.path);
-        const blockNonEmpty = await getGlobalBlockNonEmptyWorkspace(user?.role !== 'admin');
+        const restrictions = await getEffectiveHackathonRestrictions(user?.hackathonId);
+        const blockNonEmpty = restrictions.blockNonEmptyWorkspace;
         
         if (blockNonEmpty && (stats.totalFiles > 0 || stats.totalFolders > 0)) {
           console.warn("Blocked opening non-empty workspace.");
@@ -1505,7 +1506,7 @@ function IDEContent() {
       setActiveTabPath(null);
       setWorkspaceRoot(normalizePath(result.path));
     }
-  }, []);
+  }, [showToast, user?.hackathonId]);
 
   const [previewInitialUrl, setPreviewInitialUrl] = useState<string | null>(
     null,
@@ -1712,6 +1713,7 @@ function IDEContent() {
         teamName={user?.teamName || ""}
         user={user}
         onLogout={logout}
+        onShowToast={showToast}
       />
       <CollaborationModal
         isOpen={isCollaborationOpen}
@@ -1720,7 +1722,7 @@ function IDEContent() {
       {toastMessage && (
         <div className="ide-toast">
           <div className="ide-toast-content">
-            <span className="ide-toast-icon"><AlertCircle size={18} /></span>
+            <span className="ide-toast-icon"><Info size={18} /></span>
             <span className="ide-toast-message">{toastMessage}</span>
           </div>
           <button className="ide-toast-close" onClick={() => setToastMessage(null)} aria-label="Close">

@@ -12,7 +12,7 @@ module.exports = async (context) => {
     } else {
       bodyObj = req.body;
     }
-    const { teamId, teamName, status, attestation, devKey, buildType } = bodyObj || {};
+    const { teamId, teamName, status, attestation, devKey, buildType, hackathonId } = bodyObj || {};
     const normalizedBuildType = (buildType === 'dev' || buildType === 'official') ? buildType : 'unknown';
 
     if (!teamId) {
@@ -65,6 +65,7 @@ module.exports = async (context) => {
     const sessionData = {
       teamId,
       teamName: teamName || 'Unknown',
+      ...(hackathonId ? { hackathonId: String(hackathonId).trim().toLowerCase() } : {}),
       status: status || 'online',
       lastSeen: new Date().toISOString(),
       buildType: normalizedBuildType,
@@ -124,20 +125,38 @@ module.exports = async (context) => {
       }
     };
 
-    try {
-      await upsertSessionDoc(sessionData);
-    } catch (writeErr) {
-      const msg = String(writeErr?.message || '').toLowerCase();
-      const schemaMismatch = msg.includes('buildtype') || msg.includes('unknown attribute') || msg.includes('document structure');
-      if (!schemaMismatch) throw writeErr;
-
-      // Backward compatible write for projects where sessions schema is not migrated yet.
-      await upsertSessionDoc({
+    const writeAttempts = [
+      sessionData,
+      { ...sessionData, buildType: undefined },
+      {
         teamId,
-        teamName,
-        status,
+        teamName: teamName || 'Unknown',
+        status: status || 'online',
         lastSeen: sessionData.lastSeen,
-      });
+      },
+    ];
+
+    let lastWriteError = null;
+    let writeSucceeded = false;
+    for (const attempt of writeAttempts) {
+      const cleanedAttempt = Object.fromEntries(
+        Object.entries(attempt).filter(([, value]) => value !== undefined)
+      );
+
+      try {
+        await upsertSessionDoc(cleanedAttempt);
+        writeSucceeded = true;
+        break;
+      } catch (writeErr) {
+        const msg = String(writeErr?.message || '').toLowerCase();
+        const schemaMismatch = msg.includes('buildtype') || msg.includes('hackathonid') || msg.includes('unknown attribute') || msg.includes('document structure');
+        if (!schemaMismatch) throw writeErr;
+        lastWriteError = writeErr;
+      }
+    }
+
+    if (!writeSucceeded && lastWriteError) {
+      throw lastWriteError;
     }
 
     return res.json({ success: true });
