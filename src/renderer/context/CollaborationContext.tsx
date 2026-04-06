@@ -50,18 +50,21 @@ function toRelativePath(fullPath: string, wsRoot: string): string {
 
   const fullSegs = normFull.split("/");
   const rootSegs = normRoot.split("/");
-  let matchCount = 0;
-  for (
-    let i = rootSegs.length - 1, j = fullSegs.length - 1;
-    i >= 0 && j >= 0;
-    i--, j--
-  ) {
-    if (rootSegs[i].toLowerCase() !== fullSegs[j].toLowerCase()) break;
-    matchCount++;
-  }
-  if (matchCount > 0 && matchCount === rootSegs.length) {
-    const rel = fullSegs.slice(fullSegs.length - matchCount + rootSegs.length);
-    if (rel.length > 0) return rel.join("/");
+  for (let matchLen = rootSegs.length; matchLen >= 1; matchLen--) {
+    const rootSuffix = rootSegs
+      .slice(rootSegs.length - matchLen)
+      .map((segment) => segment.toLowerCase());
+
+    for (let start = 0; start <= fullSegs.length - matchLen; start++) {
+      const candidate = fullSegs
+        .slice(start, start + matchLen)
+        .map((segment) => segment.toLowerCase());
+
+      if (candidate.every((segment, index) => segment === rootSuffix[index])) {
+        const rel = fullSegs.slice(start + matchLen);
+        if (rel.length > 0) return rel.join("/");
+      }
+    }
   }
 
   return normFull;
@@ -109,6 +112,7 @@ interface CollaborationContextValue {
   getCurrentEditorContent: () => string | null;
   getFileContent: (filePath: string, workspaceRoot?: string) => string | null;
   setFileContent: (filePath: string, content: string, workspaceRoot?: string, forcePurge?: boolean) => void;
+  purgePathContent: (targetPath: string, workspaceRoot?: string) => void;
   renameFile: (oldPath: string, newPath: string, workspaceRoot?: string) => void;
   ydoc: Y.Doc | null;
   provider: WebsocketProvider | null;
@@ -817,25 +821,6 @@ export function CollaborationProvider({
     return model ? model.getValue() : null;
   }, []);
 
-  // Helper to derive a consistent relative path across OSes
-  const toRelativePath = (fullPath: string, rootPath: string): string => {
-    // Normalize paths to use forward slashes and remove trailing slashes
-    const normalizedFullPath = fullPath.replace(/\\/g, "/").replace(/\/+$/, "");
-    const normalizedRootPath = rootPath.replace(/\\/g, "/").replace(/\/+$/, "");
-
-    // Ensure rootPath is a prefix of fullPath (case-insensitive for robustness)
-    if (normalizedFullPath.toLowerCase().startsWith(normalizedRootPath.toLowerCase())) {
-      let relative = normalizedFullPath.substring(normalizedRootPath.length);
-      // Remove any leading slash if present
-      if (relative.startsWith("/")) {
-        relative = relative.substring(1);
-      }
-      return relative;
-    }
-    // If not a sub-path, return the full path as is
-    return fullPath;
-  };
-
   // Get the latest collaborative content for a file from the Yjs document.
   // This is used when an inactive tab becomes active to show the up-to-date
   // content instead of stale React state.
@@ -906,6 +891,34 @@ export function CollaborationProvider({
           });
         }
       }
+    },
+    [],
+  );
+
+  const purgePathContent = useCallback(
+    (targetPath: string, workspaceRoot?: string) => {
+      if (!ydocRef.current) return;
+
+      let relativePath = normalizePath(targetPath);
+      if (workspaceRoot) {
+        relativePath = toRelativePath(targetPath, workspaceRoot);
+      }
+
+      const fileSystem = ydocRef.current.getMap<Y.Text>("file_system");
+      const keysToPurge = Array.from(fileSystem.keys()).filter(
+        (existingKey) =>
+          existingKey === relativePath || existingKey.startsWith(`${relativePath}/`),
+      );
+
+      if (keysToPurge.length === 0) {
+        return;
+      }
+
+      ydocRef.current.transact(() => {
+        for (const key of keysToPurge) {
+          fileSystem.set(key, new Y.Text());
+        }
+      });
     },
     [],
   );
@@ -1173,6 +1186,7 @@ export function CollaborationProvider({
       getCurrentEditorContent,
       getFileContent,
       setFileContent,
+      purgePathContent,
       renameFile,
       ydoc: ydocRef.current,
       provider: providerRef.current,
@@ -1213,6 +1227,7 @@ export function CollaborationProvider({
       getCurrentEditorContent,
       getFileContent,
       setFileContent,
+      purgePathContent,
       renameFile,
       shareFile,
       getSharedFiles,
