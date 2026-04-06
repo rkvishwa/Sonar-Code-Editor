@@ -57,6 +57,8 @@ const api: ElectronAPI = {
   },
   invite: {
     consumePending: () => ipcRenderer.invoke(IPC_CHANNELS.INVITE_CONSUME_PENDING),
+    ackReceived: (invite: IncomingEditorInvite) =>
+      ipcRenderer.invoke(IPC_CHANNELS.INVITE_ACKNOWLEDGE_RECEIVED, invite),
     onReceived: (callback: (invite: IncomingEditorInvite) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, invite: IncomingEditorInvite) =>
         callback(invite);

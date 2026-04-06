@@ -243,6 +243,11 @@
           >
         </p>
         <p>
+          npm run package:win:store &nbsp; <span class="text-zinc-500"
+            ># Microsoft Store AppX package</span
+          >
+        </p>
+        <p>
           npm run package:mac &nbsp; <span class="text-zinc-500"
             ># macOS DMG</span
           >

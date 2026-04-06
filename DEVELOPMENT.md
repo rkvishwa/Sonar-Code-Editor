@@ -78,6 +78,8 @@ npm run build
 
 # 2. Package for your specific OS
 npm run package:win    # For Windows (.exe)
+npm run package:win:all  # For Windows installer + Microsoft Store (.exe + .appx)
+npm run package:win:store  # For Microsoft Store (.appx)
 npm run package:mac    # For macOS (.dmg, .app)
 npm run package:linux  # For Linux (.AppImage)
 ```

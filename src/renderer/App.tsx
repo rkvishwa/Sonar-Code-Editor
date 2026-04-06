@@ -381,13 +381,24 @@ function AppRoutes() {
     message: string;
     type: 'error' | 'success';
   } | null>(null);
+  const userRef = useRef(user);
+  const logoutRef = useRef(logout);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    logoutRef.current = logout;
+  }, [logout]);
 
   const handleIncomingInvite = useCallback(
     async (incomingInvite: Parameters<typeof resolveIncomingInvite>[0]) => {
       const resolvedInvite = await resolveIncomingInvite(incomingInvite);
+      const activeUser = userRef.current;
 
       if (!resolvedInvite) {
-        if (user) {
+        if (activeUser) {
           window.electronAPI?.dialog?.showError(
             'This invite link is invalid or could not be decrypted.',
           );
@@ -402,8 +413,8 @@ function AppRoutes() {
         return;
       }
 
-      if (user) {
-        await logout();
+      if (activeUser) {
+        await logoutRef.current();
       }
 
       setInvitePrefill(resolvedInvite);
@@ -419,7 +430,7 @@ function AppRoutes() {
           : null,
       );
     },
-    [logout, user],
+    [],
   );
 
   useEffect(() => {
@@ -450,6 +461,7 @@ function AppRoutes() {
     void consumePendingInvite();
 
     const unsubscribe = window.electronAPI?.invite?.onReceived?.((incomingInvite) => {
+      void window.electronAPI?.invite?.ackReceived?.(incomingInvite).catch(() => {});
       void handleIncomingInvite(incomingInvite);
     });
 

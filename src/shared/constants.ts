@@ -47,6 +47,7 @@ export const IPC_CHANNELS = {
   // Invite Deep Links
   INVITE_CONSUME_PENDING: 'invite:consumePending',
   INVITE_RECEIVED: 'invite:received',
+  INVITE_ACKNOWLEDGE_RECEIVED: 'invite:ackReceived',
   // Clipboard
   CLIPBOARD_READ_TEXT: 'clipboard:readText',
   // Collaboration (P2P)
