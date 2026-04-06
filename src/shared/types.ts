@@ -176,10 +176,10 @@ export interface ElectronAPI {
     readFile: (path: string) => Promise<string>;
     readFileAsBase64: (path: string) => Promise<string>;
     writeFile: (path: string, content: string) => Promise<void>;
-    createFile: (path: string) => Promise<void>;
-    createFolder: (path: string) => Promise<void>;
+    createFile: (path: string) => Promise<string>;
+    createFolder: (path: string) => Promise<string>;
     deleteItem: (path: string) => Promise<void>;
-    renameItem: (oldPath: string, newPath: string) => Promise<string>;
+    renameItem: (oldPath: string, newPath: string) => Promise<string | void>;
     copyItem: (oldPath: string, newPath: string) => Promise<string>;
     search: (dirPath: string, query: string) => Promise<SearchResult[]>;
     getWorkspaceStats: (dirPath: string) => Promise<WorkspaceStats>;

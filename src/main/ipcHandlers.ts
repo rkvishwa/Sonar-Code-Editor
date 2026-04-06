@@ -42,6 +42,24 @@ function normPath(p: string): string {
   return p.replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/\/+$/, '');
 }
 
+function getUniquePath(targetPath: string): string {
+  const targetDir = path.dirname(targetPath);
+  const ext = path.extname(targetPath);
+  const base = path.basename(targetPath, ext);
+  let finalPath = targetPath;
+  let counter = 1;
+
+  while (fs.existsSync(finalPath)) {
+    finalPath = path.join(
+      targetDir,
+      `${base} copy${counter > 1 ? ` ${counter}` : ''}${ext}`,
+    );
+    counter++;
+  }
+
+  return finalPath;
+}
+
 /**
  * Validate a file/folder name.
  * Returns an error string if invalid, or null if OK.
@@ -84,7 +102,7 @@ function readDirectoryRecursive(dirPath: string, deep = false): FileNode[] {
   }
   const nodes: FileNode[] = [];
   for (const entry of entries) {
-    if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+    if (entry.name === '.git') continue;
     try {
       const fullPath = path.join(dirPath, entry.name);
       if (entry.isDirectory()) {
@@ -118,7 +136,7 @@ function searchFilesRecursive(dirPath: string, query: string, results: any[]) {
   try {
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
     for (const entry of entries) {
-      if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+      if (entry.name === 'node_modules') continue;
       const fullPath = path.join(dirPath, entry.name);
       if (entry.isDirectory()) {
         searchFilesRecursive(fullPath, query, results);
@@ -229,10 +247,11 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
       if (!fs.existsSync(parentDir)) {
         await fsp.mkdir(parentDir, { recursive: true });
       }
-      // Only write if file doesn't already exist (avoid clobbering during collab race)
-      if (!fs.existsSync(filePath)) {
-        await fsp.writeFile(filePath, '', 'utf-8');
+      if (fs.existsSync(filePath)) {
+        throw new Error('An item with this name already exists');
       }
+      await fsp.writeFile(filePath, '', 'utf-8');
+      return filePath;
     } catch (err) {
       throw new Error(`Failed to create file: ${(err as Error).message}`);
     }
@@ -246,10 +265,13 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
       const nameErr = validateName(folderName);
       if (nameErr) throw new Error(nameErr);
 
+      if (fs.existsSync(folderPath)) {
+        throw new Error('An item with this name already exists');
+      }
+
       await fsp.mkdir(folderPath, { recursive: true });
+      return folderPath;
     } catch (err) {
-      // EEXIST is fine — folder was likely created by a collab peer simultaneously
-      if ((err as NodeJS.ErrnoException).code === 'EEXIST') return;
       throw new Error(`Failed to create folder: ${(err as Error).message}`);
     }
   });
@@ -279,9 +301,13 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
       enforceTrustedPath(newPath);
 
       // If source doesn't exist, it may have been renamed/deleted by a collab peer.
-      // Treat as success to avoid blocking remote operations.
+      // If the destination already exists, treat it as an idempotent success.
+      // Otherwise return undefined so callers can skip state migration.
       if (!fs.existsSync(oldPath)) {
         console.warn(`Rename source not found (collab race?): ${oldPath}`);
+        if (fs.existsSync(newPath)) {
+          return newPath;
+        }
         return;
       }
 
@@ -309,14 +335,7 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
       // Case-only renames are exempt (same file, different casing).
       let finalNewPath = newPath;
       if (!isCaseOnlyRename && normPath(oldPath) !== normPath(newPath) && fs.existsSync(newPath)) {
-        const ext = path.extname(newPath);
-        const base = path.basename(newPath, ext);
-        const targetDir = path.dirname(newPath);
-        let counter = 1;
-        while (fs.existsSync(finalNewPath)) {
-          finalNewPath = path.join(targetDir, `${base} copy${counter > 1 ? ` ${counter}` : ''}${ext}`);
-          counter++;
-        }
+        finalNewPath = getUniquePath(newPath);
       }
 
       if (isCaseOnlyRename) {
@@ -332,6 +351,9 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
       // ENOENT during rename is treated as non-fatal (collab race condition)
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         console.warn(`Rename failed (ENOENT, collab race?): ${oldPath} → ${newPath}`);
+        if (fs.existsSync(newPath)) {
+          return newPath;
+        }
         return;
       }
       throw new Error(`Failed to rename item: ${(err as Error).message}`);
@@ -353,13 +375,7 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
 
       let finalDestPath = destPath;
       if (fs.existsSync(finalDestPath)) {
-        const ext = path.extname(finalDestPath);
-        const base = path.basename(finalDestPath, ext);
-        let counter = 1;
-        while (fs.existsSync(finalDestPath)) {
-          finalDestPath = path.join(targetDir, `${base} copy${counter > 1 ? ` ${counter}` : ''}${ext}`);
-          counter++;
-        }
+        finalDestPath = getUniquePath(destPath);
       }
 
       const destBase = path.basename(finalDestPath);
@@ -427,20 +443,10 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
     }
   });
 
-  let activeFolderDialogWin: BrowserWindow | null = null;
-  let activeFolderDialogReject: ((reason?: any) => void) | null = null;
-  let activeFolderDialogResolve: ((value?: any) => void) | null = null;
-
   ipcMain.handle(IPC_CHANNELS.FS_CANCEL_FOLDER_DIALOG, async () => {
-    if (activeFolderDialogResolve) {
-      activeFolderDialogResolve({ canceled: true, customCancel: true });
-    }
-    if (activeFolderDialogWin && !activeFolderDialogWin.isDestroyed()) {
-      activeFolderDialogWin.destroy();
-    }
-    activeFolderDialogWin = null;
-    activeFolderDialogReject = null;
-    activeFolderDialogResolve = null;
+    // Native dialogs cannot be force-dismissed reliably across platforms.
+    // The renderer now queues follow-up prompts instead of depending on this
+    // call to close an already-open folder picker.
   });
 
   ipcMain.handle(IPC_CHANNELS.FS_OPEN_FOLDER_DIALOG, async (event) => {
@@ -450,48 +456,17 @@ export function registerFsHandlers(ipcMain: IpcMain, dialog: Dialog): void {
         properties: ['openDirectory', 'createDirectory'],
         title: 'Open Folder',
       };
-      
-      // Clean up previous if any
-      if (activeFolderDialogWin && !activeFolderDialogWin.isDestroyed()) {
-        activeFolderDialogWin.destroy();
-      }
-      
-      const hiddenWin = new BrowserWindow({ show: false, parent: parentWin || undefined, modal: !!parentWin });
-      activeFolderDialogWin = hiddenWin;
-      
-      const dialogPromise = dialog.showOpenDialog(hiddenWin, options);
-      
-      const p = new Promise<Electron.OpenDialogReturnValue | { canceled: boolean; customCancel: true }>((resolve, reject) => {
-        activeFolderDialogResolve = resolve;
-        activeFolderDialogReject = reject;
-        dialogPromise.then(res => {
-          if (activeFolderDialogResolve === resolve) {
-            resolve(res);
-            if (!hiddenWin.isDestroyed()) hiddenWin.destroy();
-          }
-        }).catch(e => {
-          if (activeFolderDialogReject === reject) {
-            reject(e);
-            if (!hiddenWin.isDestroyed()) hiddenWin.destroy();
-          }
-        });
-      });
+      const result =
+        process.platform === 'darwin'
+          ? await dialog.showOpenDialog(options)
+          : parentWin
+            ? await dialog.showOpenDialog(parentWin, options)
+            : await dialog.showOpenDialog(options);
 
-      const result = await p;
-      activeFolderDialogWin = null;
-      activeFolderDialogResolve = null;
-      activeFolderDialogReject = null;
-
-      if (result.canceled || !('filePaths' in result) || !result.filePaths || result.filePaths.length === 0) return null;
+      if (result.canceled || !result.filePaths || result.filePaths.length === 0) return null;
       trustedRoots.add(result.filePaths[0]);
       return { path: result.filePaths[0], isDirectory: true };
     } catch (err) {
-      if (activeFolderDialogWin && !activeFolderDialogWin.isDestroyed()) {
-        activeFolderDialogWin.destroy();
-      }
-      activeFolderDialogWin = null;
-      activeFolderDialogResolve = null;
-      activeFolderDialogReject = null;
       throw new Error(`Failed to open folder dialog: ${(err as Error).message}`);
     }
   });

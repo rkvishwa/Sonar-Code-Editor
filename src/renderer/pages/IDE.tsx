@@ -44,9 +44,50 @@ const IMAGE_EXTENSIONS = new Set([
   "ico",
 ]);
 
+const DEPENDENCY_TRIGGER_FILES = new Set([
+  "package.json",
+  "package-lock.json",
+  "npm-shrinkwrap.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
+  "bun.lock",
+  "bun.lockb",
+]);
+
 function isImageFile(filename: string): boolean {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   return IMAGE_EXTENSIONS.has(ext);
+}
+
+function getPathBaseName(filePath: string): string {
+  return normalizePath(filePath).split("/").pop()?.toLowerCase() || "";
+}
+
+function isDependencyTriggerPath(filePath: string): boolean {
+  return DEPENDENCY_TRIGGER_FILES.has(getPathBaseName(filePath));
+}
+
+function inferInstallCommand(paths: string[]): string | null {
+  const basenames = new Set(paths.map((filePath) => getPathBaseName(filePath)));
+
+  if (basenames.has("bun.lock") || basenames.has("bun.lockb")) {
+    return "bun install";
+  }
+  if (basenames.has("pnpm-lock.yaml")) {
+    return "pnpm install";
+  }
+  if (basenames.has("yarn.lock")) {
+    return "yarn install";
+  }
+  if (
+    basenames.has("package-lock.json") ||
+    basenames.has("npm-shrinkwrap.json") ||
+    basenames.has("package.json")
+  ) {
+    return "npm install";
+  }
+
+  return null;
 }
 
 const LANGUAGE_MAP: Record<string, string> = {
@@ -103,31 +144,39 @@ function toRelativePath(fullPath: string, wsRoot: string): string {
     return rel;
   }
 
-  // Second attempt: compare just the last N segments (handles different mount
-  // points for the same logical folder, e.g. host has D:/proj, client has
-  // /Users/mac/proj).  Extract a common suffix of path segments.
+  // Second attempt: match the longest trailing segment sequence from the
+  // workspace root somewhere inside the full path. This covers cross-platform
+  // mounts like "D:/proj/src/a.ts" vs "/Users/me/proj".
   const fullSegs = normFull.split("/");
   const rootSegs = normRoot.split("/");
-  // Find how many trailing segments of normRoot match the corresponding segments
-  // in normFull (case-insensitive for cross-platform safety).
-  let matchCount = 0;
-  for (
-    let i = rootSegs.length - 1, j = fullSegs.length - 1;
-    i >= 0 && j >= 0;
-    i--, j--
-  ) {
-    if (rootSegs[i].toLowerCase() !== fullSegs[j].toLowerCase()) break;
-    matchCount++;
-  }
-  if (matchCount > 0 && matchCount === rootSegs.length) {
-    // The entire rootSegs matched a suffix of fullSegs – remaining segments
-    // after that suffix are the relative path.
-    const rel = fullSegs.slice(fullSegs.length - matchCount + rootSegs.length);
-    if (rel.length > 0) return rel.join("/");
+  for (let matchLen = rootSegs.length; matchLen >= 1; matchLen--) {
+    const rootSuffix = rootSegs
+      .slice(rootSegs.length - matchLen)
+      .map((segment) => segment.toLowerCase());
+
+    for (let start = 0; start <= fullSegs.length - matchLen; start++) {
+      const candidate = fullSegs
+        .slice(start, start + matchLen)
+        .map((segment) => segment.toLowerCase());
+
+      if (candidate.every((segment, index) => segment === rootSuffix[index])) {
+        const rel = fullSegs.slice(start + matchLen);
+        if (rel.length > 0) {
+          return rel.join("/");
+        }
+      }
+    }
   }
 
   // Fallback: return the normalized full path (sanitizeRelPath on receiver will strip drive prefix)
   return normFull;
+}
+
+function isAlreadyExistsFsError(error: unknown): boolean {
+  const message =
+    error instanceof Error ? error.message : typeof error === "string" ? error : "";
+
+  return /already exists/i.test(message);
 }
 
 export default function IDE() {
@@ -143,13 +192,65 @@ function IDEContent() {
   const isOnline = useNetworkStatus();
   const collaboration = useCollaboration();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastDependencyPromptAtRef = useRef(0);
+  const dependencyInstallCommandRef = useRef<string | null>(null);
+  const promptedDependencyWorkspaceRef = useRef<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
     setToastMessage(msg);
-    setTimeout(() => {
+    toastTimerRef.current = setTimeout(() => {
       setToastMessage(null);
+      toastTimerRef.current = null;
     }, 4000);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  const showDependencyInstallPrompt = useCallback(
+    (
+      dependencyPaths: string[],
+      variant: "initial-sync" | "changed" = "changed",
+    ) => {
+      const inferredInstallCommand = inferInstallCommand(dependencyPaths);
+      if (inferredInstallCommand) {
+        dependencyInstallCommandRef.current = inferredInstallCommand;
+      }
+
+      const installCommand =
+        inferredInstallCommand || dependencyInstallCommandRef.current;
+      const now = Date.now();
+      if (now - lastDependencyPromptAtRef.current < 5000) {
+        return;
+      }
+      lastDependencyPromptAtRef.current = now;
+
+      if (variant === "initial-sync") {
+        showToast(
+          installCommand
+            ? `This shared workspace does not sync node_modules. Run ${installCommand} locally if you need dependencies.`
+            : "This shared workspace does not sync node_modules. Run your install command locally if you need dependencies.",
+        );
+        return;
+      }
+
+      showToast(
+        installCommand
+          ? `Dependencies changed in the shared workspace. Run ${installCommand} locally to update node_modules.`
+          : "Dependencies changed in the shared workspace. Run your install command locally to update node_modules.",
+      );
+    },
+    [showToast],
+  );
 
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
   const [tabs, setTabs] = useState<OpenTab[]>([]);
@@ -208,13 +309,21 @@ function IDEContent() {
   const collabActiveRef = useRef(collaboration.isActive);
   const broadcastFileOpRef = useRef(collaboration.broadcastFileOp);
   const setFileContentRef = useRef(collaboration.setFileContent);
+  const purgePathContentRef = useRef(collaboration.purgePathContent);
   const renameFileRef = useRef(collaboration.renameFile);
   useEffect(() => {
     collabActiveRef.current = collaboration.isActive;
     broadcastFileOpRef.current = collaboration.broadcastFileOp;
     setFileContentRef.current = collaboration.setFileContent;
+    purgePathContentRef.current = collaboration.purgePathContent;
     renameFileRef.current = collaboration.renameFile;
-  }, [collaboration.isActive, collaboration.broadcastFileOp, collaboration.setFileContent, collaboration.renameFile]);
+  }, [
+    collaboration.isActive,
+    collaboration.broadcastFileOp,
+    collaboration.setFileContent,
+    collaboration.purgePathContent,
+    collaboration.renameFile,
+  ]);
 
   useEffect(() => {
     // Add platform class to body for OS-specific styling
@@ -390,13 +499,16 @@ function IDEContent() {
   }, [collaboration.isActive, collaboration.onRemoteContentChange, autoSave, hotReload]);
 
   // Guard ref: prevents multiple concurrent sync / folder-dialog opens.
-  // Once a sync has started (or the user has picked / cancelled a folder),
-  // subsequent metadata callbacks are ignored.
+  // If new metadata arrives while one is running, we queue the latest payload
+  // and process it after the current pass finishes.
   const isSyncingRef = useRef(false);
   // Track the last synced folder name so we only prompt once per workspace.
   const lastSyncedFolderRef = useRef<string | null>(null);
   // Track the workspace name currently being prompted
   const promptedWorkspaceNameRef = useRef<string | null>(null);
+  // Keep the latest incoming workspace metadata if it arrives while a sync or
+  // folder picker is already in progress.
+  const pendingWorkspaceMetadataRef = useRef<WorkspaceMetadata | null>(null);
 
   // Listen for shared workspace metadata from collaboration (for clients joining)
   useEffect(() => {
@@ -407,145 +519,125 @@ function IDEContent() {
     isSyncingRef.current = false;
     lastSyncedFolderRef.current = null;
     promptedWorkspaceNameRef.current = null;
+    promptedDependencyWorkspaceRef.current = null;
+    pendingWorkspaceMetadataRef.current = null;
 
-    const unsubMetadata = collaboration.onWorkspaceMetadataChange(
-      async (metadata: WorkspaceMetadata | null) => {
-        if (!metadata) return;
+    const processWorkspaceMetadata = async (
+      metadata: WorkspaceMetadata | null,
+    ) => {
+      if (!metadata) return;
 
-        // Prevent opening the folder dialog multiple times for the same workspace
-        if (isSyncingRef.current) {
-          if (promptedWorkspaceNameRef.current !== metadata.folderName) {
-            console.log("Workspace changed during prompt. Canceling previous dialog.");
-            if (window.electronAPI.fs.cancelFolderDialog) {
-               await window.electronAPI.fs.cancelFolderDialog();
+      if (isSyncingRef.current) {
+        pendingWorkspaceMetadataRef.current = metadata;
+        return;
+      }
+
+      isSyncingRef.current = true;
+
+      if (lastSyncedFolderRef.current === metadata.folderName) {
+        // Already synced this workspace — just re-sync files silently
+      }
+
+      console.log(
+        "Received workspace metadata:",
+        metadata.folderName,
+        `(${metadata.files.length} files)`,
+      );
+
+      /**
+       * Synchronise the local workspace so it mirrors the host exactly.
+       * This handles three cases:
+       *  a) folder already exists at hostPath  -> sync in-place
+       *  b) folder doesn't exist at hostPath   -> ask user where to put it, then create+sync
+       */
+      const syncWorkspaceTo = async (targetPath: string) => {
+        const hostRelPaths = new Set<string>();
+        for (const file of metadata.files) {
+          hostRelPaths.add(file.relativePath.replace(/\\/g, "/"));
+        }
+
+        for (const file of metadata.files) {
+          const normalizedRelPath = file.relativePath.replace(/\\/g, "/");
+          const filePath = `${targetPath}/${normalizedRelPath}`;
+
+          if (file.isDirectory) {
+            try {
+              await window.electronAPI.fs.createFolder(filePath);
+            } catch {
+              // Folder may already exist
             }
-            // Yield to event loop to let the old dialog's promise resolve and clear isSyncingRef
-            await new Promise(resolve => setTimeout(resolve, 50));
           } else {
+            const parentDir = filePath.substring(
+              0,
+              filePath.lastIndexOf("/"),
+            );
+            try {
+              await window.electronAPI.fs.createFolder(parentDir);
+            } catch {
+              // Parent might already exist
+            }
+            await window.electronAPI.fs.writeFile(filePath, file.content);
+          }
+        }
+
+        const removeExtras = async (
+          dirPath: string,
+          relPrefix: string,
+        ) => {
+          let entries: { name: string; type: string }[];
+          try {
+            entries = await window.electronAPI.fs.readDirectory(dirPath);
+          } catch {
             return;
           }
-        }
-        
-        // If we are still syncing after cancellation, abort (shouldn't happen with the delay)
-        if (isSyncingRef.current) return;
 
-        if (lastSyncedFolderRef.current === metadata.folderName) {
-          // Already synced this workspace — just re-sync files silently
-        }
-
-        console.log(
-          "Received workspace metadata:",
-          metadata.folderName,
-          `(${metadata.files.length} files)`,
-        );
-
-        /**
-         * Synchronise the local workspace so it mirrors the host exactly.
-         * This handles three cases:
-         *  a) folder already exists at hostPath  → sync in-place
-         *  b) folder doesn't exist at hostPath   → ask user where to put it, then create+sync
-         */
-        const syncWorkspaceTo = async (targetPath: string) => {
-          // Build a set of relative paths the host has (normalised to /)
-          const hostRelPaths = new Set<string>();
-          for (const file of metadata.files) {
-            hostRelPaths.add(file.relativePath.replace(/\\/g, "/"));
-          }
-
-          // --- Create / overwrite files from host ---
-          for (const file of metadata.files) {
-            const normalizedRelPath = file.relativePath.replace(/\\/g, "/");
-            const filePath = `${targetPath}/${normalizedRelPath}`;
-
-            if (file.isDirectory) {
-              try {
-                await window.electronAPI.fs.createFolder(filePath);
-              } catch {
-                // Folder may already exist
-              }
-            } else {
-              // Ensure parent directory exists
-              const parentDir = filePath.substring(
-                0,
-                filePath.lastIndexOf("/"),
-              );
-              try {
-                await window.electronAPI.fs.createFolder(parentDir);
-              } catch {
-                // Parent might already exist
-              }
-              await window.electronAPI.fs.writeFile(filePath, file.content);
+          for (const entry of entries) {
+            if (
+              entry.name === "node_modules" ||
+              entry.name === "dist" ||
+              entry.name === "build" ||
+              entry.name === ".git"
+            ) {
+              continue;
             }
-          }
 
-          // --- Remove local files/folders that the host does NOT have ---
-          // This prevents stale extra files from causing sync mismatches.
-          const removeExtras = async (
-            dirPath: string,
-            relPrefix: string,
-          ) => {
-            let entries: { name: string; type: string }[];
-            try {
-              entries = await window.electronAPI.fs.readDirectory(dirPath);
-            } catch {
-              return;
-            }
-            for (const entry of entries) {
-              if (
-                entry.name.startsWith(".") ||
-                entry.name === "node_modules" ||
-                entry.name === "dist" ||
-                entry.name === "build" ||
-                entry.name === ".git"
-              ) {
-                continue;
-              }
-              const entryRel = relPrefix
-                ? `${relPrefix}/${entry.name}`
-                : entry.name;
-              const entryFull = `${dirPath}/${entry.name}`;
+            const entryRel = relPrefix
+              ? `${relPrefix}/${entry.name}`
+              : entry.name;
+            const entryFull = `${dirPath}/${entry.name}`;
 
-              if (entry.type === "directory") {
-                if (!hostRelPaths.has(entryRel)) {
-                  // Host doesn't have this directory at all — delete it
-                  try {
-                    await window.electronAPI.fs.deleteItem(entryFull);
-                  } catch {
-                    // ignore
-                  }
-                } else {
-                  // Recurse into sub-directory
-                  await removeExtras(entryFull, entryRel);
+            if (entry.type === "directory") {
+              if (!hostRelPaths.has(entryRel)) {
+                try {
+                  await window.electronAPI.fs.deleteItem(entryFull);
+                } catch {
+                  // ignore
                 }
               } else {
-                if (!hostRelPaths.has(entryRel)) {
-                  try {
-                    await window.electronAPI.fs.deleteItem(entryFull);
-                  } catch {
-                    // ignore
-                  }
-                }
+                await removeExtras(entryFull, entryRel);
+              }
+            } else if (!hostRelPaths.has(entryRel)) {
+              try {
+                await window.electronAPI.fs.deleteItem(entryFull);
+              } catch {
+                // ignore
               }
             }
-          };
-
-          await removeExtras(targetPath, "");
-          console.log(
-            `Synced workspace "${metadata.folderName}" — ${metadata.files.length} host files`,
-          );
+          }
         };
 
-        // Check if workspace already exists locally at same path
+        await removeExtras(targetPath, "");
+        console.log(
+          `Synced workspace "${metadata.folderName}" — ${metadata.files.length} host files`,
+        );
+      };
+
+      try {
         let targetPath: string;
         try {
           await window.electronAPI.fs.readDirectory(metadata.hostPath);
-          // Path exists — sync files in-place so local matches host exactly
           targetPath = metadata.hostPath;
         } catch {
-          // Path doesn't exist — ask user where to save
-          // Acquire the syncing lock so no other callback opens another dialog
-          if (isSyncingRef.current) return;
-          isSyncingRef.current = true;
           promptedWorkspaceNameRef.current = metadata.folderName;
 
           let selectedFolder;
@@ -556,19 +648,16 @@ function IDEContent() {
             window.electronAPI.dialog.showError(
               `Failed to open folder dialog: ${dialogErr.message || dialogErr}`
             );
-            isSyncingRef.current = false;
-            promptedWorkspaceNameRef.current = null;
             return;
           }
 
-          // Clear prompted workspace once dialog is handled
           promptedWorkspaceNameRef.current = null;
 
           if (!selectedFolder) {
             console.log("User cancelled workspace download");
-            isSyncingRef.current = false;
             return;
           }
+
           targetPath = `${selectedFolder.path}/${metadata.folderName}`;
           try {
             await window.electronAPI.fs.createFolder(targetPath);
@@ -577,26 +666,46 @@ function IDEContent() {
           }
         }
 
-        try {
-          await syncWorkspaceTo(targetPath);
-          // Normalize the workspace root so path comparisons in
-          // toRelativePath never fail due to double-slashes or
-          // mixed separators.
-          setWorkspaceRoot(
-            targetPath
-              .replace(/\\/g, "/")
-              .replace(/\/{2,}/g, "/")
-              .replace(/\/+$/, ""),
-          );
-          lastSyncedFolderRef.current = metadata.folderName;
-        } catch (err) {
-          console.error("Failed to sync workspace:", err);
-          window.electronAPI.dialog.showError(
-            `Failed to sync workspace: ${err}`,
-          );
-        } finally {
-          isSyncingRef.current = false;
+        await syncWorkspaceTo(targetPath);
+        const dependencyPaths = metadata.files
+          .map((file) => file.relativePath)
+          .filter((filePath) => isDependencyTriggerPath(filePath));
+        const workspacePromptKey = `${metadata.hostPath}::${metadata.folderName}`;
+        if (
+          dependencyPaths.length > 0 &&
+          promptedDependencyWorkspaceRef.current !== workspacePromptKey
+        ) {
+          promptedDependencyWorkspaceRef.current = workspacePromptKey;
+          showDependencyInstallPrompt(dependencyPaths, "initial-sync");
         }
+        setWorkspaceRoot(
+          targetPath
+            .replace(/\\/g, "/")
+            .replace(/\/{2,}/g, "/")
+            .replace(/\/+$/, ""),
+        );
+        lastSyncedFolderRef.current = metadata.folderName;
+      } catch (err) {
+        console.error("Failed to sync workspace:", err);
+        window.electronAPI.dialog.showError(
+          `Failed to sync workspace: ${err}`,
+        );
+      } finally {
+        promptedWorkspaceNameRef.current = null;
+        isSyncingRef.current = false;
+
+        const pendingMetadata = pendingWorkspaceMetadataRef.current;
+        pendingWorkspaceMetadataRef.current = null;
+
+        if (pendingMetadata) {
+          void processWorkspaceMetadata(pendingMetadata);
+        }
+      }
+    };
+
+    const unsubMetadata = collaboration.onWorkspaceMetadataChange(
+      (metadata: WorkspaceMetadata | null) => {
+        void processWorkspaceMetadata(metadata);
       },
     );
 
@@ -607,6 +716,7 @@ function IDEContent() {
     collaboration.isActive,
     collaboration.status?.mode,
     collaboration.onWorkspaceMetadataChange,
+    showDependencyInstallPrompt,
   ]);
 
   // Save collaborative edits to local tabs before the session stops
@@ -648,9 +758,8 @@ function IDEContent() {
           const entries = await window.electronAPI.fs.readDirectory(dirPath);
 
           for (const entry of entries) {
-            // Skip hidden files and common ignored directories
+            // Skip common ignored directories that are intentionally not synced
             if (
-              entry.name.startsWith(".") ||
               entry.name === "node_modules" ||
               entry.name === "dist" ||
               entry.name === "build" ||
@@ -905,13 +1014,9 @@ function IDEContent() {
       try {
         const wsRoot = workspaceRootRef.current;
         if (collabActiveRef.current && wsRoot && !skipBroadcast) {
-          // Clear Y.Text for the deleted file(s) so that stale content is
-          // never returned by getFileContent if the user later undoes the
-          // delete.  Without this, setFileContent in handleFileCreated would
-          // see non-empty Y.Text and skip writing the restored savedContent.
-          if (type === "file") {
-            setFileContentRef.current(deletedPath, "", wsRoot, true);
-          }
+          // Replace the deleted file/folder CRDT docs with fresh empty Y.Text
+          // instances so recreating the same path never resurrects stale content.
+          purgePathContentRef.current(deletedPath, wsRoot);
           const relativePath = toRelativePath(deletedPath, wsRoot);
           broadcastFileOpRef.current({
             type: "delete",
@@ -1273,50 +1378,78 @@ function IDEContent() {
         try {
           switch (op.type) {
             case "create-file": {
+              let actualCreatedPath = fullPath;
+              let fileCreateApplied = false;
+
               try {
-                await window.electronAPI.fs.createFile(fullPath);
-                if (op.content) {
-                  await window.electronAPI.fs.writeFile(fullPath, op.content);
-                }
+                const createdPath = await window.electronAPI.fs.createFile(fullPath);
+                actualCreatedPath = createdPath ? normalizePath(createdPath) : fullPath;
+                fileCreateApplied = true;
               } catch (createErr) {
-                console.warn(`Remote create-file failed: ${relPath}`, createErr);
+                if (isAlreadyExistsFsError(createErr)) {
+                  fileCreateApplied = true;
+                } else {
+                  console.warn(`Remote create-file failed: ${relPath}`, createErr);
+                }
               }
+
+              if (fileCreateApplied && op.content !== undefined) {
+                try {
+                  await window.electronAPI.fs.writeFile(actualCreatedPath, op.content);
+                } catch (writeErr) {
+                  fileCreateApplied = false;
+                  console.warn(`Remote create-file write failed: ${relPath}`, writeErr);
+                }
+              }
+
               // Seed the Yjs Y.Text for the recreated file ONLY if Y.Text is
               // empty.  If it already has content (which it normally will,
               // since Y.Text is never wiped on delete), skip — otherwise the
               // delete+insert in setFileContent destroys all Y.Text items
               // and invalidates cursor RelativePositions in awareness.
-              if (op.content != null) {
-                const existingContent = collaboration.getFileContent(fullPath, wsRoot);
+              if (fileCreateApplied && op.content !== undefined) {
+                const existingContent = collaboration.getFileContent(actualCreatedPath, wsRoot);
                 if (existingContent === null || existingContent !== op.content) {
-                  setFileContentRef.current(fullPath, op.content, wsRoot);
+                  setFileContentRef.current(actualCreatedPath, op.content, wsRoot);
                 }
               }
+
               // Only update existing tabs. If the tab was closed, leave it closed.
               // Y.Text is already seeded above, so collaboration will start
               // automatically when the user opens the file from the file tree.
-              setTabs((prev) => {
-                const fNorm = fullPath.replace(/\\/g, "/").toLowerCase();
-                return prev.map((t) =>
-                  t.path.replace(/\\/g, "/").toLowerCase() === fNorm
-                    ? { ...t, isDeleted: false, content: op.content ?? t.content }
-                    : t
-                );
-              });
+              if (fileCreateApplied) {
+                if (isDependencyTriggerPath(relPath)) {
+                  showDependencyInstallPrompt([relPath]);
+                }
+                setTabs((prev) => {
+                  const fNorm = actualCreatedPath.replace(/\\/g, "/").toLowerCase();
+                  return prev.map((t) =>
+                    t.path.replace(/\\/g, "/").toLowerCase() === fNorm
+                      ? { ...t, isDeleted: false, content: op.content ?? t.content }
+                      : t
+                  );
+                });
+              }
               break;
             }
-            case "create-folder":
+            case "create-folder": {
               try {
                 await window.electronAPI.fs.createFolder(fullPath);
               } catch (folderErr) {
-                console.warn(`Remote create-folder failed: ${relPath}`, folderErr);
+                if (!isAlreadyExistsFsError(folderErr)) {
+                  console.warn(`Remote create-folder failed: ${relPath}`, folderErr);
+                }
               }
               break;
+            }
             case "delete":
               try {
                 await window.electronAPI.fs.deleteItem(fullPath);
               } catch {
                 // File may already be gone (e.g. after a failed rename); treat as success
+              }
+              if (isDependencyTriggerPath(relPath)) {
+                showDependencyInstallPrompt([relPath]);
               }
               // Mark the deleted path so auto-save doesn't recreate it
               {
@@ -1369,14 +1502,29 @@ function IDEContent() {
               // Perform disk rename FIRST to get the actual final path
               // (may differ if auto-renamed due to collision)
               let actualNewPath = newFullPath;
+              let renameApplied = false;
               try {
                 const result = await window.electronAPI.fs.renameItem(fullPath, newFullPath);
-                if (result) actualNewPath = result.replace(/\\/g, "/");
+                if (result) {
+                  actualNewPath = normalizePath(result);
+                  renameApplied = true;
+                }
               } catch (renameErr) {
                 console.warn(
                   `Remote rename failed (${relPath} → ${newRelPath}):`,
                   renameErr,
                 );
+              }
+
+              if (!renameApplied) {
+                break;
+              }
+
+              if (
+                isDependencyTriggerPath(relPath) ||
+                isDependencyTriggerPath(newRelPath)
+              ) {
+                showDependencyInstallPrompt([relPath, newRelPath]);
               }
 
               // Move the CRDT document AFTER disk rename succeeded, using actual path
@@ -1446,6 +1594,9 @@ function IDEContent() {
                 const content = collaboration.getFileContent(fullPath, wsRoot);
                 if (content !== null) {
                   await window.electronAPI.fs.writeFile(fullPath, content);
+                  if (isDependencyTriggerPath(relPath)) {
+                    showDependencyInstallPrompt([relPath]);
+                  }
                   setTabs((prev) =>
                     prev.map((t) => {
                       const tNorm = t.path.replace(/\\/g, "/").toLowerCase();
@@ -1477,7 +1628,7 @@ function IDEContent() {
     });
 
     return unsub;
-  }, [collaboration.isActive, collaboration.onFileOperation]);
+  }, [collaboration.isActive, collaboration.onFileOperation, showDependencyInstallPrompt]);
 
   const openFolder = useCallback(async () => {
     const result = await window.electronAPI.fs.openFolderDialog();
