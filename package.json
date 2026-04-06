@@ -1,7 +1,7 @@
 {
   "name": "sonar-ide",
   "version": "1.0.0-beta.6",
-  "description": "Sonar Code Editor & Monitoring System",
+  "description": "Sonar Code Editor and Monitoring System",
   "main": "dist/main/main.js",
   "author": "Knurdz",
   "license": "MIT",
