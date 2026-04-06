@@ -194,13 +194,19 @@ jobs:
           CSC_SKIP_SIGNING: true
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Upload Windows Artifact
+      - name: Upload Windows Installer Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: win-build
-          path: |
-            release/*.exe
-            release/*.appx
+          name: windows-installer-exe
+          path: release/*.exe
+          if-no-files-found: warn
+
+      - name: Upload Windows Store Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-store-appx
+          path: release/*.appx
+          if-no-files-found: warn
 
   create-release:
     needs: [build-mac, build-win]
@@ -212,11 +218,17 @@ jobs:
           name: mac-build
           path: artifacts
 
-      - name: Download Windows Artifacts
+      - name: Download Windows Installer Artifact
         uses: actions/download-artifact@v4
         with:
-          name: win-build
-          path: artifacts
+          name: windows-installer-exe
+          path: artifacts/windows-exe
+
+      - name: Download Windows Store Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-store-appx
+          path: artifacts/windows-appx
 
       - name: Create Draft Release
         uses: softprops/action-gh-release@v2
@@ -228,5 +240,5 @@ jobs:
           generate_release_notes: true
           files: |
             artifacts/*.dmg
-            artifacts/*.exe
-            artifacts/*.appx
+            artifacts/windows-exe/*.exe
+            artifacts/windows-appx/*.appx
