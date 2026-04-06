@@ -18,9 +18,11 @@ import {
   FileText,
   Palette,
   Keyboard,
+  Link2,
   Share2,
   Activity,
   Shield,
+  ShieldCheck,
   User,
   Info,
   Save,
@@ -43,6 +45,10 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { Team } from "../../../shared/types";
 import { formatKey, isMac } from "../../utils/shortcut";
+import {
+  canGenerateEncryptedTeamInvite,
+  createTeamInviteLink,
+} from "../../services/inviteLinks";
 import "./SettingsModal.css";
 
 function normalizeMembers(raw: unknown): string[] {
@@ -64,13 +70,13 @@ function normalizeMembers(raw: unknown): string[] {
   if (Array.isArray(value)) {
     return value
       .map((item) => {
-        if (typeof item === "string") return item.trim();
-        if (typeof item === "number") return String(item);
+        if (typeof item === "string") return item.trim().toUpperCase();
+        if (typeof item === "number") return String(item).toUpperCase();
         if (item && typeof item === "object") {
           const rec = item as Record<string, unknown>;
           const candidate = rec.studentId ?? rec.id ?? rec.value;
-          if (typeof candidate === "string") return candidate.trim();
-          if (typeof candidate === "number") return String(candidate);
+          if (typeof candidate === "string") return candidate.trim().toUpperCase();
+          if (typeof candidate === "number") return String(candidate).toUpperCase();
         }
         return "";
       })
@@ -80,7 +86,7 @@ function normalizeMembers(raw: unknown): string[] {
   if (typeof value === "string") {
     return value
       .split(/[\n,]/)
-      .map((id) => id.trim())
+      .map((id) => id.trim().toUpperCase())
       .filter(Boolean);
   }
 
@@ -106,7 +112,8 @@ interface SettingsModalProps {
   onCollabUsernameOpacityChange: (val: number) => void;
   teamName: string;
   user: Team | null;
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
+  onShowToast: (msg: string) => void;
 }
 
 export default function SettingsModal({
@@ -129,6 +136,7 @@ export default function SettingsModal({
   teamName,
   user,
   onLogout,
+  onShowToast,
 }: SettingsModalProps) {
   const { refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState("Text Editor");
@@ -148,6 +156,11 @@ export default function SettingsModal({
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [invitePassword, setInvitePassword] = useState("");
+  const [showInvitePassword, setShowInvitePassword] = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const [inviteSuccess, setInviteSuccess] = useState("");
+  const [copyingInviteMember, setCopyingInviteMember] = useState("");
 
   // Close on Escape key
   useEffect(() => {
@@ -171,6 +184,11 @@ export default function SettingsModal({
       setPasswordError("");
       setPasswordSuccess("");
       setAddMemberError("");
+      setInvitePassword("");
+      setShowInvitePassword(false);
+      setInviteError("");
+      setInviteSuccess("");
+      setCopyingInviteMember("");
     }
   }, [isOpen]);
 
@@ -179,6 +197,8 @@ export default function SettingsModal({
     setPasswordError("");
     setPasswordSuccess("");
     setAddMemberError("");
+    setInviteError("");
+    setInviteSuccess("");
   }, [activeTab]);
 
   // Refresh activity log when opening the modal or switching to the Activity Log tab
@@ -202,7 +222,7 @@ export default function SettingsModal({
   // Refresh members when opening Account tab.
   // We fetch current team data to avoid stale context values.
   useEffect(() => {
-    if (!isOpen || activeTab !== "Account") return;
+    if (!isOpen || (activeTab !== "Account" && activeTab !== "Collaboration")) return;
 
     let cancelled = false;
     (async () => {
@@ -267,6 +287,9 @@ export default function SettingsModal({
     : matchesSearch("Account") ||
     matchesSearch("Team") ||
     matchesSearch("Members") ||
+    matchesSearch("Invite") ||
+    matchesSearch("Student IDs") ||
+    matchesSearch("password") ||
     matchesSearch("Sign Out");
 
   const showSecurity = !isSearching
@@ -315,7 +338,7 @@ export default function SettingsModal({
   };
 
   const handleAddMember = async () => {
-    const trimmed = newMember.trim();
+    const trimmed = newMember.trim().toUpperCase();
     if (!trimmed) return;
     if (!user?.$id) return;
     setAddingMember(true);
@@ -326,9 +349,47 @@ export default function SettingsModal({
       setNewMember("");
       refreshUser();
     } else {
-      setAddMemberError(result.error || "Failed to add member");
+      setAddMemberError(result.error || "Failed to add student ID");
     }
     setAddingMember(false);
+  };
+
+  const handleCopyInviteLink = async (memberId: string) => {
+    setInviteError("");
+    setInviteSuccess("");
+
+    if (!user?.hackathonId) {
+      setInviteError("This team is not linked to a hackathon yet.");
+      return;
+    }
+
+    const trimmedPassword = invitePassword.trim();
+    if (trimmedPassword && !canGenerateEncryptedTeamInvite()) {
+      setInviteError(
+        "Set VITE_SONAR_INVITE_SECRET in the editor env file to enable encrypted invite links.",
+      );
+      return;
+    }
+
+    try {
+      setCopyingInviteMember(memberId);
+      const inviteLink = await createTeamInviteLink({
+        hackathonId: user.hackathonId,
+        studentId: memberId,
+        password: trimmedPassword || undefined,
+      });
+      await navigator.clipboard.writeText(inviteLink);
+      
+      const message = trimmedPassword
+        ? `Invite ready! Auto-login link copied for team member ${memberId}.`
+        : `Prefill-only invite copied for ${memberId}. They will need to enter the password.`;
+      
+      onShowToast(message);
+    } catch (err: any) {
+      onShowToast(err?.message || "Failed to generate host invite link.");
+    } finally {
+      setCopyingInviteMember("");
+    }
   };
 
   const shortcuts = [
@@ -439,6 +500,7 @@ export default function SettingsModal({
   const isDev = process.env.NODE_ENV === "development" || !process.env.NODE_ENV;
 
   const isWindows = navigator.userAgent.toLowerCase().includes("win");
+  const canGenerateTeamInvites = canGenerateEncryptedTeamInvite();
 
   const PRESET_COLORS = [
     { name: "Blue", value: "#3b82f6" },
@@ -879,6 +941,7 @@ export default function SettingsModal({
                       </div>
                     </div>
                   )}
+
               </div>
             </div>
           )}
@@ -1101,7 +1164,7 @@ export default function SettingsModal({
 
                 <div className="account-members-section">
                   <div className="account-members-header">
-                    <span className="vscode-setting-title">Team Members</span>
+                    <span className="vscode-setting-title">Student IDs</span>
                     <span className="account-members-count">
                       {members.length} / 5
                     </span>
@@ -1111,16 +1174,28 @@ export default function SettingsModal({
                     <div className="account-members-list">
                       {members.map((member, idx) => (
                         <div className="account-member-row" key={idx}>
-                          <span className="account-member-index">
-                            {idx + 1}.
-                          </span>
-                          <span className="account-member-id">{member}</span>
+                          <div className="collaboration-member-meta">
+                            <span className="account-member-index">
+                              {idx + 1}.
+                            </span>
+                            <span className="account-member-id">{member}</span>
+                          </div>
+                          <button
+                            className="collaboration-invite-btn"
+                            onClick={() => handleCopyInviteLink(member)}
+                            disabled={copyingInviteMember === member}
+                          >
+                            <Link2 size={14} />
+                            {copyingInviteMember === member
+                              ? "Copying..."
+                              : "Copy Link"}
+                          </button>
                         </div>
                       ))}
                     </div>
                   ) : (
                     <div className="vscode-setting-description">
-                      No members added yet.
+                      No student IDs added yet.
                     </div>
                   )}
 
@@ -1129,7 +1204,7 @@ export default function SettingsModal({
                       <input
                         type="text"
                         className="vscode-search-input account-member-input"
-                        placeholder="Enter student ID"
+                        placeholder="Add student ID"
                         value={newMember}
                         onChange={(e) => {
                           setNewMember(e.target.value);
@@ -1153,6 +1228,62 @@ export default function SettingsModal({
                     <div className="account-error">{addMemberError}</div>
                   )}
                 </div>
+
+                <div className="collaboration-team-card">
+                  <div className="collaboration-team-header">
+                    <div>
+                      <span className="editor-setting-title">
+                        Invitation Settings
+                      </span>
+                      <span className="editor-setting-desc">
+                        Generate invites for team members. Entering the team password creates an 
+                        encrypted link that allows them to sign in instantly. Leave it blank to 
+                        copy a prefill-only link.
+                      </span>
+                    </div>
+                    {user?.hackathonId && (
+                      <div className="hackathon-id-tag">
+                        Hackathon {user.hackathonId}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="security-field">
+                    <label className="vscode-setting-title">
+                      <ShieldCheck size={14} className="inline-icon" /> Team Password (Optional)
+                    </label>
+                    <div className="security-input-wrap collaboration-password-wrap">
+                      <input
+                        type={showInvitePassword ? "text" : "password"}
+                        className="vscode-search-input security-input"
+                        placeholder="Enter password for auto-login invite"
+                        value={invitePassword}
+                        onChange={(e) => {
+                          setInvitePassword(e.target.value);
+                          setInviteError("");
+                          setInviteSuccess("");
+                        }}
+                      />
+                      <button
+                        className="security-eye-btn"
+                        onClick={() => setShowInvitePassword(!showInvitePassword)}
+                        type="button"
+                      >
+                        {showInvitePassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {!canGenerateTeamInvites && (
+                    <div className="account-info warning">
+                      <Info size={14} />
+                      <span>
+                        <code>VITE_SONAR_INVITE_SECRET</code> is missing. Only prefill-only invites are available.
+                      </span>
+                    </div>
+                  )}
+
+                  </div>
 
                 <div className="account-signout">
                   <button

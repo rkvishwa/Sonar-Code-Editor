@@ -20,7 +20,7 @@ export function useMonitoring(user: Team | null, isOnline: boolean, currentFile:
 
     // Start monitoring
     if (window.electronAPI?.monitoring) {
-      window.electronAPI.monitoring.start(user.teamName, user.$id!);
+      window.electronAPI.monitoring.start(user.teamName, user.$id!, user.hackathonId);
     }
 
     // Listen to heartbeats from main process
@@ -45,7 +45,7 @@ export function useMonitoring(user: Team | null, isOnline: boolean, currentFile:
         }
         // Upsert single activity log row + update session
         const logResult = upsertActivityLog(payload).catch(() => 'failed');
-        const sessionResult = updateSessionLastSeen(payload.teamId).catch(() => 'failed');
+        const sessionResult = updateSessionLastSeen(payload.teamId, payload.teamName, payload.status, payload.hackathonId).catch(() => 'failed');
         const [logStatus, sessionStatus] = await Promise.all([logResult, sessionResult]);
         if (logStatus === 'failed' && sessionStatus === 'failed') {
           enqueueLog({ type: 'activityLog', payload, queuedAt: new Date().toISOString() });
@@ -71,7 +71,7 @@ export function useMonitoring(user: Team | null, isOnline: boolean, currentFile:
     };
   }, [user]);
 
-  // Subscribe to activity log deletes (admin flush) and clear local logs
+  // Subscribe to activity log deletes and clear local logs when the backend flushes them.
   useEffect(() => {
     if (!user?.$id) return;
     const unsub = subscribeToActivityLogDeletes(() => {
@@ -112,8 +112,8 @@ export function useMonitoring(user: Team | null, isOnline: boolean, currentFile:
         syncedAt: new Date().toISOString(),
       };
 
-      await mergeOfflineSyncData(user.$id!, user.teamName, summary).catch(() => {});
-      await updateSessionLastSeen(user.$id!).catch(() => {});
+      await mergeOfflineSyncData(user.$id!, user.teamName, summary, user.hackathonId).catch(() => {});
+      await updateSessionLastSeen(user.$id!, user.teamName, 'online', user.hackathonId).catch(() => {});
       clearQueue();
     })();
   }, [isOnline, user]);

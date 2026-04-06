@@ -3,9 +3,10 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import IDE from './pages/IDE';
-import AdminDashboard from './pages/AdminDashboard';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { checkLatestVersionGate, getLocalAppVersion } from './services/appwrite';
+import { resolveIncomingInvite } from './services/inviteLinks';
+import { LoginInvitePrefill } from '../shared/types';
 
 import { ShieldAlert, WifiOff, RefreshCw, Settings, AlertTriangle } from 'lucide-react';
 
@@ -372,9 +373,54 @@ function VersionBlockedPage({
 
 
 function AppRoutes() {
-  const { user, loading, internetBlocked } = useAuth();
+  const { user, loading, internetBlocked, logout } = useAuth();
   const isOnline = useNetworkStatus();
   const [attestation, setAttestation] = useState<string | null>(null);
+  const [invitePrefill, setInvitePrefill] = useState<LoginInvitePrefill | null>(null);
+  const [inviteNotice, setInviteNotice] = useState<{
+    message: string;
+    type: 'error' | 'success';
+  } | null>(null);
+
+  const handleIncomingInvite = useCallback(
+    async (incomingInvite: Parameters<typeof resolveIncomingInvite>[0]) => {
+      const resolvedInvite = await resolveIncomingInvite(incomingInvite);
+
+      if (!resolvedInvite) {
+        if (user) {
+          window.electronAPI?.dialog?.showError(
+            'This invite link is invalid or could not be decrypted.',
+          );
+          return;
+        }
+
+        setInvitePrefill(null);
+        setInviteNotice({
+          message: 'This invite link is invalid or could not be decrypted.',
+          type: 'error',
+        });
+        return;
+      }
+
+      if (user) {
+        await logout();
+      }
+
+      setInvitePrefill(resolvedInvite);
+      setInviteNotice(
+        resolvedInvite.kind === 'hackathon'
+          ? {
+              message:
+                resolvedInvite.studentId
+                  ? 'Hackathon ID and student ID filled from invite. Enter the password to continue.'
+                  : 'Hackathon ID filled from invite. Enter your student ID and password to continue.',
+              type: 'success',
+            }
+          : null,
+      );
+    },
+    [logout, user],
+  );
 
   useEffect(() => {
     (async () => {
@@ -386,6 +432,38 @@ function AppRoutes() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const consumePendingInvite = async () => {
+      try {
+        const pendingInvite = await window.electronAPI?.invite?.consumePending?.();
+        if (!disposed && pendingInvite) {
+          await handleIncomingInvite(pendingInvite);
+        }
+      } catch {
+        // Ignore pending invite lookup failures.
+      }
+    };
+
+    void consumePendingInvite();
+
+    const unsubscribe = window.electronAPI?.invite?.onReceived?.((incomingInvite) => {
+      void handleIncomingInvite(incomingInvite);
+    });
+
+    return () => {
+      disposed = true;
+      unsubscribe?.();
+    };
+  }, [handleIncomingInvite]);
+
+  useEffect(() => {
+    if (!user) return;
+    setInvitePrefill(null);
+    setInviteNotice(null);
+  }, [user]);
 
   if (loading || attestation === null) {
     return (
@@ -405,12 +483,7 @@ function AppRoutes() {
         </div>
       )}
       {!user ? (
-        <Login />
-      ) : user.role === 'admin' ? (
-        <Routes>
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="*" element={<Navigate to="/admin" />} />
-        </Routes>
+        <Login invitePrefill={invitePrefill} inviteNotice={inviteNotice} />
       ) : internetBlocked && isOnline ? (
         <InternetRestrictedBlock />
       ) : (

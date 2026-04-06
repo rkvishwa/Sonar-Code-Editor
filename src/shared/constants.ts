@@ -44,6 +44,9 @@ export const IPC_CHANNELS = {
   SYSTEM_CHECK_PERMISSION: 'system:checkPermission',
   SYSTEM_OPEN_PREFS: 'system:openPrivacyPrefs',
   APP_GET_VERSION: 'app:getVersion',
+  // Invite Deep Links
+  INVITE_CONSUME_PENDING: 'invite:consumePending',
+  INVITE_RECEIVED: 'invite:received',
   // Clipboard
   CLIPBOARD_READ_TEXT: 'clipboard:readText',
   // Collaboration (P2P)

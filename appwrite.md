@@ -74,8 +74,9 @@ These environment variables must be added to your Appwrite Project's **Global Va
 | `APPWRITE_API_KEY` | An API Key with `users.read`, `users.write`, `documents.read`, `documents.write` scopes. |
 | `BUILD_SIGNING_KEY` | A shared secret key used to verify the integrity of requests. It also serves as the **Developer Key**. **Important:** Do not include the `BUILD_SIGNING_KEY` variable in your local development environment. It should only be present in the Appwrite Console and the secure production builder tool (e.g., CI/CD) used to generate official builds. To bypass attestation locally, set `VITE_DEV_KEY` to this value instead. |
 | `DB_ID` | The ID of the database (e.g., `sonar_db`). |
+| `COL_HACKATHONS` | The ID of the `Hackathons` collection/table. |
+| `COL_HACKATHON_PARTICIPANTS` | The ID of the `Hackathon Participants` collection/table used for fast `studentId -> team` lookups. |
 | `COL_SESSIONS` | The ID of the `Sessions` collection. |
 | `COL_ACTIVITY_LOGS` | The ID of the `Activity Logs` collection. |
 | `COL_SETTINGS` | The ID of the `Settings` collection. |
 | `LATEST_APP_VERSION` | The version string of the latest release (e.g., `1.0.0`). Used for update checks. |
-

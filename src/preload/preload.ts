@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants';
-import { ElectronAPI, CollaborationStatus } from '../shared/types';
+import { ElectronAPI, CollaborationStatus, IncomingEditorInvite } from '../shared/types';
 
 const api: ElectronAPI = {
   fs: {
@@ -25,7 +25,7 @@ const api: ElectronAPI = {
     getUrl: () => ipcRenderer.invoke(IPC_CHANNELS.SERVER_GET_URL),
   },
   monitoring: {
-    start: (teamName, teamId) => ipcRenderer.send(IPC_CHANNELS.MONITORING_START, teamName, teamId),
+    start: (teamName, teamId, hackathonId) => ipcRenderer.send(IPC_CHANNELS.MONITORING_START, teamName, teamId, hackathonId),
     stop: () => ipcRenderer.send(IPC_CHANNELS.MONITORING_STOP),
     setCurrentFile: (filePath) => ipcRenderer.send('monitoring:setCurrentFile', filePath),
   },
@@ -55,11 +55,20 @@ const api: ElectronAPI = {
     openPrivacyPrefs: () => ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_OPEN_PREFS),
     getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_VERSION),
   },
+  invite: {
+    consumePending: () => ipcRenderer.invoke(IPC_CHANNELS.INVITE_CONSUME_PENDING),
+    onReceived: (callback: (invite: IncomingEditorInvite) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, invite: IncomingEditorInvite) =>
+        callback(invite);
+      ipcRenderer.on(IPC_CHANNELS.INVITE_RECEIVED, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.INVITE_RECEIVED, handler);
+    },
+  },
   security: {
     requestNonce: () => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_NONCE_REQUEST),
     sendHeartbeat: (nonce) => ipcRenderer.send(IPC_CHANNELS.SECURITY_HEARTBEAT_PING, nonce),
     getSecurityLog: () => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_GET_LOG),
-    upsertSession: (teamId, teamName, status) => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_UPSERT_SESSION, teamId, teamName, status),
+    upsertSession: (teamId, teamName, status, hackathonId) => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_UPSERT_SESSION, teamId, teamName, status, hackathonId),
     getAttestationToken: (nonce?: string) => ipcRenderer.invoke(IPC_CHANNELS.SECURITY_GET_ATTESTATION, nonce),
   },
   clipboard: {
