@@ -8,10 +8,16 @@ export default defineConfig({
   base: './',
   envDir: resolve(__dirname),
   resolve: {
-    alias: {
-      '@shared': resolve(__dirname, 'src/shared'),
-      '@renderer': resolve(__dirname, 'src/renderer'),
-    },
+    alias: [
+      {
+        find: '@shared',
+        replacement: resolve(__dirname, 'src/shared'),
+      },
+      {
+        find: '@renderer',
+        replacement: resolve(__dirname, 'src/renderer'),
+      },
+    ],
   },
   optimizeDeps: {
     include: ['yjs', 'y-websocket', 'monaco-editor'],

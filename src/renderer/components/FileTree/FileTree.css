@@ -1,283 +1,66 @@
-.file-tree-panel {
+.sonar-file-tree.sft-file-tree-panel {
+  --sft-panel-top-padding: 36px;
+  --sft-header-title-offset-y: 2px;
+  --sft-header-actions-offset-y: 1px;
+  --sft-font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg-secondary);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--text-secondary);
-  padding-top: 36px;
-  container-type: inline-size;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.platform-windows .file-tree-panel {
-  padding-top: 0;
-  font-family: 'Segoe WPC', 'Segoe UI', sans-serif;
+.platform-windows .sonar-file-tree.sft-file-tree-panel {
+  --sft-panel-top-padding: 0px;
+  --sft-header-title-offset-y: 0px;
+  --sft-header-actions-offset-y: 0px;
+  --sft-font-family-windows: "Segoe WPC", "Segoe UI", sans-serif;
 }
 
-.tree-header {
-  padding: 8px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  text-transform: uppercase;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  border-bottom: 1px solid transparent;
+.sonar-file-tree .sft-tree-header {
+  min-height: 38px;
+  height: 38px;
+  padding: 0 16px;
+  box-sizing: border-box;
 }
 
-@container (max-width: 180px) {
-  .auto-save-text {
-    display: none !important;
-  }
-  .tree-header {
-    padding: 12px 8px;
-    justify-content: center;
-  }
+.sonar-file-tree .sft-tree-header-title {
+  margin-right: 8px;
 }
 
-.tree-header:hover {
-  color: var(--text-primary);
-}
-
-.tree-actions {
-  display: flex;
+.sonar-file-tree .sft-tree-actions {
   gap: 8px;
-  min-height: 22px;
 }
 
-.icon-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.icon-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.tree-action-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
+.sonar-file-tree .sft-tree-action-btn {
   padding: 3px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
 }
 
-.tree-action-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.tree-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+.sonar-file-tree .sft-tree-content {
   padding: 4px 0;
 }
 
-.platform-windows .tree-content {
+.platform-windows .sonar-file-tree .sft-tree-content {
   padding: 2px 0;
 }
 
-.tree-node-wrapper {
-  position: relative;
-}
-
-.tree-node {
-  display: flex;
-  align-items: center;
+.sonar-file-tree .sft-tree-node {
   gap: 6px;
   padding: 3px 12px;
-  cursor: pointer;
-  user-select: none;
-  font-size: 13px;
-  transition: background 0.1s;
-  color: var(--text-secondary);
   min-height: 26px;
-  outline: none;
 }
 
-.tree-node:focus-visible {
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
-.platform-windows .tree-node {
+.platform-windows .sonar-file-tree .sft-tree-node {
   gap: 4px;
   padding: 1px 8px;
   min-height: 22px;
 }
 
-.tree-node:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.tree-node.active {
-  background: var(--accent-transparent);
-  color: var(--accent);
-}
-
-.tree-node.drag-over {
-  background: var(--bg-hover);
+.sonar-file-tree .sft-tree-node.sft-drag-over {
   outline: 2px dashed var(--accent);
   outline-offset: -2px;
-}
-
-.tree-node.selected-folder {
-  background: var(--bg-hover);
-  border-right: 2px solid var(--accent);
-}
-
-.tree-node.drag-over {
-  background: var(--bg-hover) !important;
-  border: 1px dashed var(--accent);
-}
-
-.tree-node.cut-node {
-  opacity: 0.4;
-  font-style: italic;
-}
-
-.expand-icon {
-  width: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.expand-icon-empty {
-  width: 4px;
-}
-
-.file-icon {
-  width: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.file-icon svg {
-  width: 16px;
-  height: 16px;
-}
-
-.node-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-  min-width: 0;
-}
-
-.rename-input, .inline-create-input {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 13px;
-  width: 100%;
-  margin-left: -6px;
-  /* Ensure inputs are interactive on Windows - override body user-select:none */
-  user-select: text;
-  -webkit-user-select: text;
-  -webkit-app-region: no-drag;
-  pointer-events: auto;
-}
-
-.rename-input:focus, .inline-create-input:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--accent-transparent);
-}
-
-.context-menu {
-  position: fixed;
-  background: var(--menu-bg, #252526);
-  border: 1px solid var(--menu-border, #454545);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
-  border-radius: 4px;
-  padding: 4px 0;
-  min-width: 250px;
-  z-index: 999999;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, sans-serif;
-  color: var(--menu-text, #cccccc);
-}
-
-.context-menu-item {
-  padding: 6px 20px 6px 30px;
-  cursor: default;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  user-select: none;
-}
-
-.context-menu-item:hover {
-  background: var(--menu-hover, #04395e);
-  color: #ffffff;
-}
-
-.context-menu-separator {
-  height: 1px;
-  background-color: var(--menu-border, #454545);
-  margin: 4px 0;
-}
-
-.tree-header-title {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-right: 8px;
-}
-
-.empty-folder-container {
-  padding: 20px;
-  text-align: center;
-  color: var(--text-muted);
-}
-
-.empty-folder-text {
-  margin-bottom: 10px;
-}
-
-.empty-folder-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.empty-folder-btn {
-  padding: 6px 12px;
-  background: var(--accent);
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
   border: none;
 }
 
-.context-menu-item.danger:hover {
-  background: var(--danger, #ef4444);
-  color: white;
-}
-
-.context-menu-shortcut {
-  color: var(--text-muted);
+@container (max-width: 180px) {
+  .sonar-file-tree .sft-tree-header {
+    padding: 0 8px;
+    justify-content: center;
+  }
 }
