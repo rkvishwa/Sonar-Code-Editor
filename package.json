@@ -106,6 +106,14 @@
         "nsis"
       ]
     },
+    "appx": {
+      "identityName": "Knurdz.SonarCodeEditor",
+      "applicationId": "SonarCodeEditor",
+      "publisher": "CN=EE306347-5B00-4BEA-89E0-6455A91EBBDA",
+      "publisherDisplayName": "Knurdz",
+      "displayName": "Sonar Code Editor",
+      "backgroundColor": "#1e1e1e"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
