@@ -126,9 +126,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Build Windows App
+      - name: Build Windows App + Microsoft Store Package
         if: matrix.os == 'windows-latest'
-        run: npm run package:win
+        run: npm run package:win:all
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_SKIP_SIGNING: true
@@ -150,7 +150,7 @@ jobs:
           echo "Checking for build artifacts..."
           ls -la release/ || echo "Release directory not found"
           if [ -d "release" ]; then
-            find release -type f -name "*.exe" || echo "No EXE files found"
+            find release -type f \( -name "*.exe" -o -name "*.appx" \) || echo "No Windows EXE or APPX files found"
           fi
 
       - name: Upload macOS Artifacts
@@ -165,10 +165,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload Windows Artifacts
-        if: matrix.os == 'windows-latest' && hashFiles('release/*.exe') != ''
+        if: matrix.os == 'windows-latest' && (hashFiles('release/*.exe') != '' || hashFiles('release/*.appx') != '')
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.os }}
-          path: release/*.exe
+          path: |
+            release/*.exe
+            release/*.appx
           retention-days: 3
           if-no-files-found: warn

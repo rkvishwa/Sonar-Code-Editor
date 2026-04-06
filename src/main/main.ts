@@ -54,6 +54,16 @@ function focusMainWindow(): void {
   mainWindow.focus();
 }
 
+function getInviteSignature(invite: IncomingEditorInvite | null): string {
+  if (!invite) return '';
+
+  if (invite.kind === 'team') {
+    return `team:${invite.payload}`;
+  }
+
+  return `hackathon:${invite.hackathonId}:${invite.studentId || ''}`;
+}
+
 function deliverEditorInvite(invite: IncomingEditorInvite | null): void {
   if (!invite) return;
 
@@ -403,6 +413,15 @@ ipcMain.handle(IPC_CHANNELS.INVITE_CONSUME_PENDING, () => {
   pendingEditorInvite = null;
   return invite;
 });
+
+ipcMain.handle(
+  IPC_CHANNELS.INVITE_ACKNOWLEDGE_RECEIVED,
+  (_event, invite: IncomingEditorInvite) => {
+    if (getInviteSignature(pendingEditorInvite) === getInviteSignature(invite)) {
+      pendingEditorInvite = null;
+    }
+  },
+);
 
 // App lifecycle
 app.whenReady().then(async () => {

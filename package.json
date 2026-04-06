@@ -20,6 +20,8 @@
     "package": "npm run build && electron-builder",
     "package:mac": "npm run build && electron-builder --mac",
     "package:win": "set CSC_IDENTITY_AUTO_DISCOVERY=false && npm run build && electron-builder --win",
+    "package:win:all": "set CSC_IDENTITY_AUTO_DISCOVERY=false && npm run build && electron-builder --win nsis appx",
+    "package:win:store": "set CSC_IDENTITY_AUTO_DISCOVERY=false && npm run build && electron-builder --win appx",
     "package:linux": "npm run build && electron-builder --linux",
     "appwrite:init": "cp appwrite.config.json appwrite.json && appwrite init project",
     "appwrite:push": "appwrite push all"

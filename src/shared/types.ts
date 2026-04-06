@@ -218,6 +218,7 @@ export interface ElectronAPI {
   };
   invite: {
     consumePending: () => Promise<IncomingEditorInvite | null>;
+    ackReceived: (invite: IncomingEditorInvite) => Promise<void>;
     onReceived: (callback: (invite: IncomingEditorInvite) => void) => () => void;
   };
   security?: {
