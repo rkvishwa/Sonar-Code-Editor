@@ -1,21 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
+import { EditorTabs, dedupeEditorTabs } from "@knurdz/jack-editor-tab";
 import MonacoEditor, { type OnMount, type Monaco } from "@monaco-editor/react";
-import {
-  FileCode2,
-  X,
-  Monitor,
-  FileJson,
-  FileText,
-  FileImage,
-  Terminal,
-  Database,
-  ShieldAlert,
-  File,
-  FolderOpen,
-  Code2,
-  Braces,
-  Palette,
-} from "lucide-react";
+import { FileCode2, FolderOpen } from "lucide-react";
 import type { editor } from "monaco-editor";
 import { formatKey } from "../../utils/shortcut";
 import { OpenTab } from "../../pages/IDE";
@@ -126,48 +112,6 @@ const getEditorOptions = (wordWrap: boolean) => ({
   },
 });
 
-function getTabIcon(tab: OpenTab) {
-  if (tab.type === "preview")
-    return <Monitor size={14} className="tab-icon" color="var(--accent)" />;
-  if (tab.type === "image")
-    return <FileImage size={14} className="tab-icon" color="#8b5cf6" />;
-
-  const ext = tab.name.split(".").pop()?.toLowerCase() || "";
-  switch (ext) {
-    case "js":
-    case "jsx":
-    case "ts":
-    case "tsx":
-      return <Braces size={14} className="tab-icon" color="#eab308" />;
-    case "json":
-      return <FileJson size={14} className="tab-icon" color="#22c55e" />;
-    case "html":
-      return <Code2 size={14} className="tab-icon" color="#ef4444" />;
-    case "css":
-      return <Palette size={14} className="tab-icon" color="var(--accent)" />;
-    case "md":
-      return <FileText size={14} className="tab-icon" color="#a1a1aa" />;
-    case "png":
-    case "jpg":
-    case "svg":
-    case "jpeg":
-    case "ico":
-    case "webp":
-      return <FileImage size={14} className="tab-icon" color="#8b5cf6" />;
-    case "sh":
-    case "bash":
-      return <Terminal size={14} className="tab-icon" color="#10b981" />;
-    case "php":
-      return <FileCode2 size={14} className="tab-icon" color="#7b7fb5" />;
-    case "sql":
-      return <Database size={14} className="tab-icon" color="#f97316" />;
-    case "env":
-      return <ShieldAlert size={14} className="tab-icon" color="#eab308" />;
-    default:
-      return <File size={14} className="tab-icon" color="var(--text-muted)" />;
-  }
-}
-
 const EditorPanel = React.memo(function EditorPanel({
   tabs,
   activeTabPath,
@@ -204,8 +148,6 @@ const EditorPanel = React.memo(function EditorPanel({
   // once per editor on mount) always sees the latest value.
   const collaborationActiveRef = useRef(collaborationActive);
   collaborationActiveRef.current = collaborationActive;
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const boundFileRef = useRef<string | null>(null);
   const modelChangeDisposerRef = useRef<{ dispose: () => void } | null>(null);
   // Counter incremented when the Monaco editor mounts, so the binding
@@ -466,33 +408,11 @@ const EditorPanel = React.memo(function EditorPanel({
     });
   };
 
-  // Count tab names to detect duplicates — must be before early returns
-  // to satisfy React's Rules of Hooks (hooks must always be called in
-  // the same order on every render).
-  const nameCounts = React.useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const tab of tabs) {
-      if (tab.type !== "preview") {
-        counts[tab.name] = (counts[tab.name] || 0) + 1;
-      }
-    }
-    return counts;
-  }, [tabs]);
-
   // Deduplicate tabs by path to prevent React duplicate key errors.
   // Race conditions in rename/copy operations can transiently produce
   // two tab entries with the same normalized path.
   const dedupedTabs = React.useMemo(() => {
-    const seen = new Set<string>();
-    const result: OpenTab[] = [];
-    for (const tab of tabs) {
-      const normPath = tab.path.replace(/\\/g, "/").toLowerCase();
-      if (!seen.has(normPath)) {
-        seen.add(normPath);
-        result.push(tab);
-      }
-    }
-    return result;
+    return dedupeEditorTabs(tabs) as OpenTab[];
   }, [tabs]);
 
   if (!workspaceRoot) {
@@ -617,75 +537,14 @@ const EditorPanel = React.memo(function EditorPanel({
 
   return (
     <div className="editor-panel">
-      {/* Tab Bar */}
-      <div className="tab-bar">
-        {dedupedTabs.map((tab, index) => {
-          let displayName = tab.name;
-          if (tab.type !== "preview" && nameCounts[tab.name] > 1) {
-            const parts = tab.path.split(/[/\\]/);
-            if (parts.length > 1) {
-              displayName = `${tab.name} — ${parts[parts.length - 2]}`;
-            }
-          }
-
-          return (
-            <div
-              key={tab.path}
-              className={`tab ${tab.path === activeTabPath ? "active" : ""}${dragOverIndex === index ? " drag-over" : ""}${dragIndex === index ? " dragging" : ""}`}
-            onClick={() => onTabClick(tab.path)}
-            onDoubleClick={() => onTabDoubleClick?.(tab.path)}
-            draggable
-            onDragStart={(e) => {
-              setDragIndex(index);
-              e.dataTransfer.effectAllowed = "move";
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = "move";
-              setDragOverIndex(index);
-            }}
-            onDragLeave={() => setDragOverIndex(null)}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (dragIndex !== null && dragIndex !== index) {
-                onReorderTabs?.(dragIndex, index);
-              }
-              setDragIndex(null);
-              setDragOverIndex(null);
-            }}
-            onDragEnd={() => {
-              setDragIndex(null);
-              setDragOverIndex(null);
-            }}
-          >
-            {getTabIcon(tab)}
-            <span
-              className="tab-name"
-              style={{
-                fontStyle:
-                  tab.isPreviewFile && !tab.isDirty ? "italic" : "normal",
-                textDecoration: tab.isDeleted ? "line-through" : "none",
-                color: tab.isDeleted ? "red" : "inherit",
-              }}
-            >
-              {displayName}
-            </span>
-            {tab.isDirty && (
-              <span className="dirty-dot" title="Unsaved changes"></span>
-            )}
-            <button
-              className="tab-close"
-              onClick={(e) => {
-                e.stopPropagation();
-                onTabClose(tab.path);
-              }}
-              title="Close"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        )})}
-      </div>
+      <EditorTabs
+        tabs={dedupedTabs}
+        activeTabPath={activeTabPath}
+        onTabClick={(path) => onTabClick(path)}
+        onTabDoubleClick={(path) => onTabDoubleClick?.(path)}
+        onTabClose={(path) => onTabClose(path)}
+        onTabReorder={(fromIndex, toIndex) => onReorderTabs?.(fromIndex, toIndex)}
+      />
 
       {/* Editor, Preview, or Image */}
       {dedupedTabs.map((tab) => {

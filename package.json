@@ -27,6 +27,7 @@
     "appwrite:push": "appwrite push all"
   },
   "dependencies": {
+    "@knurdz/jack-editor-tab": "^0.1.0",
     "@knurdz/jack-file-tree": "^0.2.1",
     "@monaco-editor/react": "^4.6.0",
     "@radix-ui/colors": "^3.0.0",
