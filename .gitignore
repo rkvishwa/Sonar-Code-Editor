@@ -34,3 +34,5 @@ tsc_output.txt
 *.bak
 
 appwrite.config.json
+
+sites

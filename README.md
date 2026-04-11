@@ -1,8 +1,8 @@
 <div align="center">
   <img src="assets/win_icon.png" alt="Sonar Code Editor Logo" width="128" height="128" />
   <h1>🌊 Sonar Code Editor & Monitoring System</h1>
-  <p>A modern, real-time collaborative code editor built for teams, featuring advanced monitoring, file management, and powerful developer tools.</p>
-  
+  <p>A modern, real-time collaborative IDE built for supervised exams, hackathons, and secure coding environments.</p>
+
   <p>
     <img src="https://img.shields.io/badge/Electron-191970?style=for-the-badge&logo=Electron&logoColor=white" alt="Electron" />
     <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
@@ -17,68 +17,89 @@
 ## 🚀 Download Beta Release
 
 ### <img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Mac Logo" align="absmiddle" /> (Recommended)
-You can easily install the beta version using Homebrew:
+Install the latest beta with Homebrew:
 ```bash
 brew install --cask rkvishwa/knurdz/sonar-code-editor
 ```
 
-**Alternative: Manual Download**  
-You can also download the latest `.dmg` file directly from our [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases) page.
+**Alternative: Manual Download**
+Download the latest `.dmg` from [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases):
 [Download Mac Beta (.dmg)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.6/Sonar.Code.Editor-1.0.0-beta.6-arm64.dmg)
 
-> **Note on Mac Installation:** If you manually download the `.dmg`, macOS Gatekeeper may flag the app as damaged or from an unidentified developer because it is not yet signed in the beta phase.
-> 
-> **To bypass and install:** Open your terminal and run the following command on the extracted app file:
+> **Note on Mac Installation:** If you manually download the `.dmg`, macOS Gatekeeper may flag the app as damaged or from an unidentified developer because it is not yet code-signed in the beta phase.
+>
+> **To bypass and install:** Open your terminal and run the following command on the extracted app:
 > ```bash
 > sudo xattr -rd com.apple.quarantine /Applications/Sonar\ Code\ Editor.app
 > ```
 
 ### <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Logo" align="absmiddle" />
-You can download the latest `.exe` file directly from our [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases) page.
+
+**Microsoft Store** *(Recommended)*  
+[![Microsoft Store](https://img.shields.io/badge/Microsoft%20Store-Download-0078D4?style=for-the-badge&logo=microsoft&logoColor=white)](https://apps.microsoft.com/detail/9NFFN07V94DZ?hl=en-us&gl=LK&ocid=pdpshare)
+
+**Manual Download (.exe)**
+Download the NSIS installer from [GitHub Releases](https://github.com/rkvishwa/Sonar-Code-Editor/releases):
 [Download Windows Beta (.exe)](https://github.com/rkvishwa/Sonar-Code-Editor/releases/download/v1.0.0-beta.6/Sonar.Code.Editor.Setup.1.0.0-beta.6.exe)
 
-> **Note on Windows Installation:** The stable version for Windows will be officially released on the Microsoft Store. Since this beta version `.exe` is not yet signed, Windows SmartScreen may show an "Untrusted" or "Windows protected your PC" prompt. 
-> 
-> **To bypass and install:** Click on **"More info"** and then select **"Run anyway"**.
+> **Note on Windows Installation:** If using the `.exe` installer, Windows SmartScreen may show an "Untrusted" or "Windows protected your PC" prompt since the beta is not EV-signed.
+>
+> **To bypass and install:** Click **"More info"** and then **"Run anyway"**. The Windows installer supports **custom installation directory selection**.
 
-### 🐛 Known Issues in beta version 6
-If you encounter any bugs or want to see what's currently being worked on, check out our [Known Issues](https://github.com/rkvishwa/Sonar-Code-Editor/issues).
+### 🐛 Known Issues
+If you encounter bugs or want to see what's being tracked, check our [GitHub Issues](https://github.com/rkvishwa/Sonar-Code-Editor/issues).
 
 ---
 
 ## 📖 Overview
 
-**Sonar Code Editor** is a feature-rich desktop IDE built with Electron, React, and Vite. It leverages the robust Monaco Editor for a VS Code-like coding experience and integrates real-time collaboration using Yjs and WebSockets. Beyond standard editing, Sonar includes an administrative monitoring system, activity logging, and report generation, making it ideal for supervised coding environments, pair programming, and educational settings.
+**Sonar Code Editor** is a feature-rich desktop IDE built with Electron, React, and Vite. It provides a VS Code-like coding experience via Monaco Editor and enables real-time collaboration through Yjs and a self-hosted WebSocket server. Beyond standard editing, Sonar includes a monitoring system, activity logging, PDF report generation, and build attestation — making it ideal for supervised coding competitions, hackathons, and educational exam environments.
+
+The project consists of two components:
+- **Sonar Code Editor** — Electron desktop app (this repository)
+- **Sonar Web App** — SvelteKit companion website at [sonar.knurdz.org](https://sonar.knurdz.org), providing the public homepage, hosted admin dashboard, and documentation.
+
+---
 
 ## ✨ Key Features
 
 - **💡 Advanced Code Editing**
   - Powered by **Monaco Editor** (the engine behind VS Code).
   - Syntax highlighting, auto-completion, and code formatting.
-  - **Custom Tabs** for managing multiple open documents seamlessly.
+  - **@knurdz/jack-editor-tab** for multi-document tab management.
+  - LF line-ending enforcement across operating systems.
 
 - **🤝 Real-time Collaboration**
-  - Seamless, Google Docs-style real-time typing using **Yjs** and **y-monaco**.
-  - Collaborative cursors and shared document states.
+  - Google Docs-style real-time typing via **Yjs** CRDTs and `y-monaco`.
+  - Self-hosted WebSocket server (y-websocket protocol, port `1234`) running in the Electron main process.
+  - Collaborative cursors, awareness states, and team-isolated rooms.
+  - Windows **Hosted Network** creation (`netsh`) for offline LAN-only exam environments.
 
-- **🛡️ Administration & User Capabilities**
-  - **Admin Abilities**: Built-in Admin Dashboard to manage environment settings, monitor real-time user activities, and govern access.
-  - **User Abilities**: Dedicated coding environment with secure login, file management, and real-time collaboration.
-  - Detailed **Activity Logging** tracking user actions and events.
-  - Generates comprehensive PDF reports via **jsPDF**.
-  - **File Tree Key Shield** functionality to control access and secure environments.
+- **🗂️ Smart File Management**
+  - **@knurdz/jack-file-tree** — custom file explorer with create, rename, delete, and drag-drop.
+  - Resizable panels (File Tree, Editor, Preview) via `react-resizable-panels`.
 
-- **📁 Interactive Workspace**
-  - **Custom File Tree** visual explorer for localized workspace navigation.
-  - Resizable panels (Editor, Preview, Sidebar) via `react-resizable-panels`.
+- **🛡️ Administration & Monitoring**
+  - **Keystroke, focus, and clipboard monitoring** via `MonitoringService`.
+  - **Offline behavior logging** — persisted locally via `electron-store` and synced to Appwrite when online.
+  - Generates **PDF activity reports** with jsPDF + jsPDF-autotable.
+  - **Admin Dashboard** available via the [Sonar Web App](https://sonar.knurdz.org) (cloud-based, removed from in-editor in beta.6).
 
 - **🌐 Secure Preview Panel**
-  - Integrated **Preview Panel & Preview Tab** to view live runtime environments.
-  - Built-in security restriction: the preview can only load `localhost` URLs on any port (defaults to port `5173`), preventing arbitrary external browsing inside the IDE.
+  - Embedded `webview` restricted to **`localhost` URLs only**.
+  - All navigation events are intercepted; non-localhost requests are blocked.
+  - Custom `local-file://` protocol for serving images from the filesystem safely.
 
 - **🔐 Cloud & Authentication**
-  - Integrated **Appwrite** backend for secure authentication, database, and real-time events.
-  - Robust offline support and network connectivity tracking (`is-online`).
+  - **Appwrite BaaS** — team authentication (Hackathon ID + Student ID + password), session management, and real-time data sync.
+  - **Build Attestation** — official builds are HMAC-signed to prevent unauthorized client access.
+  - **ASAR Integrity Check** — verifies the application bundle on startup.
+  - **Deep Link support** (`sonar-editor://`) for invite-based team joining.
+
+- **⚙️ Theme & Customization**
+  - System Default, Light, and Dark themes selectable from Settings.
+
+---
 
 ## 🛠️ Tech Stack
 
@@ -87,22 +108,44 @@ If you encounter any bugs or want to see what's currently being worked on, check
 - **Build Tool**: Vite
 - **Editor**: Monaco Editor (`@monaco-editor/react`)
 - **Routing**: React Router DOM (v6)
-- **Styling**: Standard CSS with Radix UI Colors & Lucide React icons
+- **Styling**: CSS with Radix UI Colors & Lucide React icons
 - **Collaboration**: Yjs, y-monaco, y-websocket
+- **File Tree**: `@knurdz/jack-file-tree`
+- **Editor Tabs**: `@knurdz/jack-editor-tab`
 
 ### Backend / Desktop Core
 - **Desktop Framework**: Electron
-- **Inter-Process Communication (IPC)**: Context Bridge (Preload scripts)
+- **IPC**: Context Bridge + Preload scripts
 - **Local Storage**: `electron-store`
-- **BaaS (Backend as a Service)**: Appwrite
+- **BaaS**: Appwrite (Auth, Database, Functions)
+- **WebSocket Server**: `ws` library (y-websocket protocol)
+- **PDF Reports**: jsPDF + jsPDF-autotable
+- **Security**: `bytenode` (bytecode compilation), HMAC build attestation, ASAR integrity
 
-##  Getting Started
+### Companion Web App
+- **Framework**: SvelteKit
+- **Styling**: Tailwind CSS
+- **Auth**: Appwrite
+- **Hosting**: Cloudflare Pages / static adapter
 
-*Application download links and website information will be updated here in the future. Stay tuned!*
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|---|---|
+| [DEVELOPMENT.md](./DEVELOPMENT.md) | Local setup, project structure, and build guide |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture, process model, and collaboration design |
+| [appwrite.md](./appwrite.md) | Appwrite backend setup and environment variable reference |
+| [SECURITY.md](./SECURITY.md) | Security policy, permissions, and vulnerability reporting |
+| [CHANGELOG.md](./CHANGELOG.md) | Version history and release notes |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Contribution guidelines |
+
+---
 
 ## 👥 Contributors
 
-A huge thank you to everyone who has contributed to the Sonar Code Editor project. The table below counts **every unique commit** in this repository across **all branches** (same as `git shortlog -sne --all` — **474** commits total). **Kasun Kumara** and **Praveen Ramanathan** each combine every git author line that maps to the same GitHub account; other contributors stay as recorded in history. Counts on [`main`](https://github.com/rkvishwa/Sonar-Code-Editor/commits/main) alone are lower when some commits exist only on other lines of history (for example `website`).
+A huge thank you to everyone who has contributed to the Sonar Code Editor project.
 
 | | | | Commits |
 | :---: | :--- | :--- | :---: |
@@ -115,6 +158,8 @@ A huge thank you to everyone who has contributed to the Sonar Code Editor projec
 | <img src="https://github.com/harshasilva.png?size=40&v=4" width="40" style="border-radius: 50%;" /> | **harshasilva** | [@harshasilva](https://github.com/harshasilva) | 14 |
 | <img src="https://github.com/Senuka-Deneth.png?size=40&v=4" width="40" style="border-radius: 50%;" /> | **Senuka-Deneth** | [@Senuka-Deneth](https://github.com/Senuka-Deneth) | 8 |
 
+---
+
 ## 📜 License
 
-This project is licensed under the **MIT License**.
+This project is licensed under the **MIT License**. See [LICENSE](./LICENSE) for details.
