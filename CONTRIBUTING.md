@@ -9,11 +9,11 @@ First off, thank you for considering contributing to **Sonar Code Editor**! We w
 
 ## 🛠️ How to Contribute
 
-### 🍴 1.⃣ Fork the Repository
+### 🍴 1.0 Fork the Repository
 
 Click the **"Fork"** button at the top right of this repository's page to create a copy of the project in your own GitHub account. **Please base your changes on the `development` branch.**
 
-### 💻 2.⃣ Clone Your Fork
+### 💻 2.0 Clone Your Fork
 
 Clone the forked repository to your local machine and checkout the `development` branch:
 
@@ -25,7 +25,7 @@ git checkout development
 
 > **Note:** To run the application locally, you must set up the Appwrite backend. Please refer to [appwrite.md](appwrite.md) for backend configuration and [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions.
 
-### 🌱 3.⃣ Create a Branch
+### 🌱 3.0 Create a Branch
 
 Create a new branch for your feature or bugfix **based on the `development` branch**:
 
